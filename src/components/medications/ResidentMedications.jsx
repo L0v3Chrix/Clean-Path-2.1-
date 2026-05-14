@@ -4,10 +4,12 @@ import {
   Plus, Pill, CheckCircle2, XCircle, AlertCircle, Clock,
   User, Pencil, Trash2, ChevronDown, ChevronRight, History, Bell, ShoppingCart
 } from 'lucide-react';
+import MOUDPanel from './MOUDPanel';
 import { Button } from '@/components/ui/button';
 import { format, parseISO, isValid, isToday, subDays } from 'date-fns';
 import MedicationForm from './MedicationForm';
 import DoseLogModal from './DoseLogModal';
+import { isMOUD } from './MOUDPanel';
 
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
@@ -132,7 +134,7 @@ function MedicationCard({ med, logs, onEdit, onDelete, onLog }) {
 
   return (
     <div className="rounded-2xl overflow-hidden" style={{
-      border: `1px solid ${med.status === 'active' ? '#E0D5C5' : '#E5E7EB'}`,
+      border: `1px solid ${isMOUD(med) ? '#7C3AED' : med.status === 'active' ? '#E0D5C5' : '#E5E7EB'}`,
       background: med.status === 'active' ? '#FEFCF8' : '#F9FAFB',
       opacity: med.status === 'discontinued' ? 0.7 : 1,
     }}>
@@ -150,8 +152,8 @@ function MedicationCard({ med, logs, onEdit, onDelete, onLog }) {
               {med.controlled_substance && (
                 <span className="text-xs font-semibold px-2 py-0.5 rounded-full" style={{ background: '#FEE2E2', color: '#DC2626' }}>⚠ Controlled</span>
               )}
-              {med.mat_medication && (
-                <span className="text-xs font-semibold px-2 py-0.5 rounded-full" style={{ background: '#EDE9FE', color: '#7C3AED' }}>MAT</span>
+              {isMOUD(med) && (
+                <span className="text-xs font-bold px-2 py-0.5 rounded-full" style={{ background: '#7C3AED', color: '#fff' }}>MOUD / OUD</span>
               )}
             </div>
             <p className="text-xs mt-0.5" style={{ color: '#78716C' }}>
@@ -308,6 +310,9 @@ export default function ResidentMedications({ resident }) {
           </a>
         </div>
       )}
+
+      {/* MOUD Panel — priority section */}
+      {!loading && <MOUDPanel medications={medications} logs={logs} resident={resident} />}
 
       {/* Today's schedule */}
       {!loading && <TodaySchedule medications={medications} logs={logs} onLog={handleLog} />}

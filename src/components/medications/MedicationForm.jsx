@@ -157,15 +157,45 @@ export default function MedicationForm({ resident, editing, onSave, onClose }) {
             <Input placeholder="e.g. Take with food, avoid alcohol" value={form.instructions} onChange={e => set('instructions', e.target.value)} />
           </div>
 
+          {/* MOUD quick-select */}
+          <div className="rounded-xl p-3 space-y-2" style={{ background: '#EDE9FE', border: '2px solid #7C3AED' }}>
+            <p className="text-xs font-bold uppercase tracking-wide" style={{ color: '#5B21B6' }}>
+              MOUD — Medications for Opioid Use Disorder
+            </p>
+            <p className="text-xs" style={{ color: '#6D28D9' }}>Select a common MOUD to auto-fill name &amp; type, or enter manually above.</p>
+            <div className="flex flex-wrap gap-1.5">
+              {[
+                { label: 'Buprenorphine/Naloxone (Suboxone)', name: 'Buprenorphine/Naloxone', generic: 'Buprenorphine/Naloxone', route: 'sublingual' },
+                { label: 'Buprenorphine (Sublocade inj.)', name: 'Buprenorphine (Sublocade)', generic: 'Buprenorphine', route: 'injection' },
+                { label: 'Methadone', name: 'Methadone', generic: 'Methadone HCl', route: 'oral' },
+                { label: 'Naltrexone (Vivitrol)', name: 'Naltrexone (Vivitrol)', generic: 'Naltrexone', route: 'injection' },
+                { label: 'Naloxone (Narcan)', name: 'Naloxone (Narcan)', generic: 'Naloxone HCl', route: 'other' },
+              ].map(opt => (
+                <button key={opt.label} type="button"
+                  onClick={() => { set('name', opt.name); set('generic_name', opt.generic); set('route', opt.route); set('mat_medication', true); }}
+                  className="text-xs px-2.5 py-1 rounded-full font-medium transition-colors"
+                  style={{
+                    background: form.name === opt.name ? '#7C3AED' : '#DDD6FE',
+                    color: form.name === opt.name ? '#fff' : '#5B21B6',
+                  }}>
+                  {opt.label}
+                </button>
+              ))}
+            </div>
+          </div>
+
           {/* Flags */}
           <div className="flex flex-wrap gap-5">
             {[
               { key: 'controlled_substance', label: 'Controlled Substance' },
-              { key: 'mat_medication', label: 'MAT Medication' },
+              { key: 'mat_medication', label: 'MOUD / MAT Medication (OUD Treatment)' },
             ].map(opt => (
               <label key={opt.key} className="flex items-center gap-2 text-sm cursor-pointer select-none">
                 <input type="checkbox" checked={!!form[opt.key]} onChange={e => set(opt.key, e.target.checked)} className="rounded" />
-                {opt.label}
+                <span style={{ fontWeight: opt.key === 'mat_medication' && form[opt.key] ? 700 : 400,
+                               color: opt.key === 'mat_medication' && form[opt.key] ? '#5B21B6' : 'inherit' }}>
+                  {opt.label}
+                </span>
               </label>
             ))}
           </div>
