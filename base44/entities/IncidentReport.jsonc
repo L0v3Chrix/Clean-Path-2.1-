@@ -12,7 +12,12 @@
       "type": "string"
     },
     "reported_by_id": {
-      "type": "string"
+      "type": "string",
+      "description": "Staff member who reported"
+    },
+    "involved_staff_names": {
+      "type": "string",
+      "description": "Other staff involved, free-text"
     },
     "incident_date": {
       "type": "string",

@@ -1,38 +1,43 @@
 import { useState, useEffect } from 'react';
 import { base44 } from '@/api/base44Client';
-import { Plus, Search, AlertTriangle, X, ChevronRight, BarChart2, List } from 'lucide-react';
+import { Plus, Search, AlertTriangle, BarChart2, List, Filter } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
 import IncidentAnalytics from '@/components/incidents/IncidentAnalytics';
+import IncidentForm from '@/components/incidents/IncidentForm';
+import IncidentDetailDrawer from '@/components/incidents/IncidentDetailDrawer';
 
-const severityColors = {
-  low: 'bg-slate-100 text-slate-600',
-  medium: 'bg-yellow-100 text-yellow-700',
-  high: 'bg-orange-100 text-orange-700',
-  critical: 'bg-red-100 text-red-700',
+const SEV_CFG = {
+  low:      { bg: '#F1F5F9', color: '#475569', bar: '#94A3B8' },
+  medium:   { bg: '#FEF3C7', color: '#92400E', bar: '#F59E0B' },
+  high:     { bg: '#FFEDD5', color: '#9A3412', bar: '#F97316' },
+  critical: { bg: '#FEE2E2', color: '#991B1B', bar: '#EF4444' },
 };
 
-const statusColors = {
-  open: 'bg-red-100 text-red-700',
-  in_review: 'bg-yellow-100 text-yellow-700',
-  resolved: 'bg-green-100 text-green-700',
-  closed: 'bg-slate-100 text-slate-600',
+const STATUS_CFG = {
+  open:      { bg: '#FEE2E2', color: '#991B1B' },
+  in_review: { bg: '#FEF3C7', color: '#92400E' },
+  resolved:  { bg: '#D1FAE5', color: '#065F46' },
+  closed:    { bg: '#F1F5F9', color: '#475569' },
 };
+
+const TYPES = ['relapse','overdose','behavioral','medical','property_damage','rule_violation','altercation','elopement','other'];
 
 export default function Incidents() {
   const [incidents, setIncidents] = useState([]);
   const [residents, setResidents] = useState([]);
   const [locations, setLocations] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [search, setSearch] = useState('');
+  const [staff, setStaff]         = useState([]);
+  const [loading, setLoading]     = useState(true);
+  const [search, setSearch]       = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
-  const [showForm, setShowForm] = useState(false);
-  const [editing, setEditing] = useState(null);
-  const [view, setView] = useState('list');
+  const [typeFilter, setTypeFilter]     = useState('all');
+  const [sevFilter, setSevFilter]       = useState('all');
+  const [showForm, setShowForm]   = useState(false);
+  const [editing, setEditing]     = useState(null);
+  const [viewing, setViewing]     = useState(null);
+  const [view, setView]           = useState('list');
 
   useEffect(() => {
     loadData();
@@ -40,56 +45,62 @@ export default function Incidents() {
   }, []);
 
   const loadData = async () => {
-    try {
-      const [inc, res, loc] = await Promise.all([
-        base44.entities.IncidentReport.list('-created_date', 100),
-        base44.entities.Resident.list(),
-        base44.entities.Location.list(),
-      ]);
-      setIncidents(inc);
-      setResidents(res);
-      setLocations(loc);
-    } catch (e) { console.error(e); }
-    finally { setLoading(false); }
+    setLoading(true);
+    const [inc, res, loc, st] = await Promise.all([
+      base44.entities.IncidentReport.list('-incident_date', 200),
+      base44.entities.Resident.list(),
+      base44.entities.Location.list(),
+      base44.entities.StaffMember.list(),
+    ]);
+    setIncidents(inc);
+    setResidents(res);
+    setLocations(loc);
+    setStaff(st);
+    setLoading(false);
+  };
+
+  // Refresh a single incident in the list (after status change)
+  const refreshIncident = async (id, newStatus) => {
+    setIncidents(prev => prev.map(i => i.id === id ? { ...i, status: newStatus } : i));
+    if (viewing?.id === id) setViewing(v => ({ ...v, status: newStatus }));
   };
 
   const filtered = incidents.filter(i => {
-    const matchSearch = i.type?.includes(search.toLowerCase()) || i.description?.toLowerCase().includes(search.toLowerCase());
+    const q = search.toLowerCase();
+    const matchSearch = !q || i.type?.includes(q) || i.description?.toLowerCase().includes(q);
     const matchStatus = statusFilter === 'all' || i.status === statusFilter;
-    return matchSearch && matchStatus;
+    const matchType   = typeFilter === 'all' || i.type === typeFilter;
+    const matchSev    = sevFilter === 'all' || i.severity === sevFilter;
+    return matchSearch && matchStatus && matchType && matchSev;
   });
 
-  const residentName = (id) => {
-    const r = residents.find(r => r.id === id);
-    return r ? `${r.first_name} ${r.last_name}` : 'Unknown';
-  };
-
+  const residentName = (id) => { const r = residents.find(r => r.id === id); return r ? `${r.first_name} ${r.last_name}` : null; };
   const locationName = (id) => locations.find(l => l.id === id)?.name || '—';
+
+  // Stats
+  const openCount     = incidents.filter(i => i.status === 'open').length;
+  const criticalCount = incidents.filter(i => i.severity === 'critical' && i.status !== 'closed').length;
+  const followUpCount = incidents.filter(i => i.follow_up_required && i.status !== 'closed' && i.status !== 'resolved').length;
 
   return (
     <div className="p-6" style={{ background: '#FAF6EF', minHeight: '100%' }}>
-      <div className="flex items-center justify-between mb-6">
+      {/* Page header */}
+      <div className="flex items-center justify-between mb-6 flex-wrap gap-3">
         <div>
           <h1 className="text-2xl font-bold" style={{ color: '#1C1917' }}>Incident Reports</h1>
-          <p className="text-sm mt-1" style={{ color: '#78716C' }}>{incidents.filter(i => i.status === 'open').length} open incidents</p>
+          <p className="text-sm mt-0.5" style={{ color: '#78716C' }}>
+            {openCount} open · {criticalCount} critical · {followUpCount} awaiting follow-up
+          </p>
         </div>
         <div className="flex items-center gap-2">
-          {/* View toggle */}
           <div className="flex rounded-xl overflow-hidden border" style={{ borderColor: '#E0D5C5' }}>
-            <button
-              onClick={() => setView('list')}
-              className="flex items-center gap-1.5 px-3 py-2 text-sm font-medium transition-colors"
-              style={view === 'list' ? { background: '#1C1917', color: '#F5EFE6' } : { background: '#F0E9DC', color: '#78716C' }}
-            >
-              <List className="w-4 h-4" /> List
-            </button>
-            <button
-              onClick={() => setView('analytics')}
-              className="flex items-center gap-1.5 px-3 py-2 text-sm font-medium transition-colors"
-              style={view === 'analytics' ? { background: '#1C1917', color: '#F5EFE6' } : { background: '#F0E9DC', color: '#78716C' }}
-            >
-              <BarChart2 className="w-4 h-4" /> Analytics
-            </button>
+            {[['list', List, 'List'], ['analytics', BarChart2, 'Analytics']].map(([v, Icon, label]) => (
+              <button key={v} onClick={() => setView(v)}
+                className="flex items-center gap-1.5 px-3 py-2 text-sm font-medium transition-colors"
+                style={view === v ? { background: '#1C1917', color: '#F5EFE6' } : { background: '#F0E9DC', color: '#78716C' }}>
+                <Icon className="w-4 h-4" />{label}
+              </button>
+            ))}
           </div>
           <Button onClick={() => { setEditing(null); setShowForm(true); }} className="gap-2" style={{ background: '#B45309', color: '#fff' }}>
             <Plus className="w-4 h-4" /> Log Incident
@@ -101,202 +112,148 @@ export default function Incidents() {
         <IncidentAnalytics incidents={incidents} locations={locations} />
       ) : (
         <>
-          <div className="flex gap-3 mb-6">
-            <div className="relative flex-1">
+          {/* KPI strip */}
+          {!loading && (
+            <div className="grid grid-cols-3 gap-3 mb-5">
+              {[
+                { label: 'Open', value: openCount, bg: '#FEE2E2', color: '#991B1B' },
+                { label: 'Critical Active', value: criticalCount, bg: '#FFEDD5', color: '#9A3412' },
+                { label: 'Needs Follow-up', value: followUpCount, bg: '#FEF3C7', color: '#92400E' },
+              ].map(k => (
+                <div key={k.label} className="rounded-xl p-3 text-center" style={{ background: k.bg, border: `1px solid ${k.bg}` }}>
+                  <p className="text-2xl font-black" style={{ color: k.color }}>{k.value}</p>
+                  <p className="text-xs" style={{ color: k.color }}>{k.label}</p>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* Filters */}
+          <div className="flex flex-wrap gap-2 mb-4">
+            <div className="relative flex-1 min-w-48">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-              <Input placeholder="Search incidents..." className="pl-9" value={search} onChange={e => setSearch(e.target.value)} />
+              <Input placeholder="Search incidents…" className="pl-9" value={search} onChange={e => setSearch(e.target.value)} />
             </div>
             <Select value={statusFilter} onValueChange={setStatusFilter}>
               <SelectTrigger className="w-36"><SelectValue placeholder="Status" /></SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">All Status</SelectItem>
+                <SelectItem value="all">All Statuses</SelectItem>
                 <SelectItem value="open">Open</SelectItem>
                 <SelectItem value="in_review">In Review</SelectItem>
                 <SelectItem value="resolved">Resolved</SelectItem>
                 <SelectItem value="closed">Closed</SelectItem>
               </SelectContent>
             </Select>
+            <Select value={typeFilter} onValueChange={setTypeFilter}>
+              <SelectTrigger className="w-40"><SelectValue placeholder="Type" /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Types</SelectItem>
+                {TYPES.map(t => <SelectItem key={t} value={t} className="capitalize">{t.replace(/_/g, ' ')}</SelectItem>)}
+              </SelectContent>
+            </Select>
+            <Select value={sevFilter} onValueChange={setSevFilter}>
+              <SelectTrigger className="w-36"><SelectValue placeholder="Severity" /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Severities</SelectItem>
+                <SelectItem value="low">🟢 Low</SelectItem>
+                <SelectItem value="medium">🟡 Medium</SelectItem>
+                <SelectItem value="high">🟠 High</SelectItem>
+                <SelectItem value="critical">🔴 Critical</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
 
+          {/* Incident list */}
           <div className="rounded-2xl overflow-hidden" style={{ background: '#F0E9DC', border: '1px solid #E0D5C5' }}>
             {loading ? (
-              <div className="p-4 space-y-2">{[1,2,3].map(i => <div key={i} className="h-14 rounded-xl animate-pulse" style={{ background: '#E5DDD0' }} />)}</div>
+              <div className="p-4 space-y-2">{[1,2,3].map(i => <div key={i} className="h-16 rounded-xl animate-pulse" style={{ background: '#E5DDD0' }} />)}</div>
             ) : filtered.length === 0 ? (
               <div className="text-center py-16">
                 <AlertTriangle className="w-10 h-10 mx-auto mb-3" style={{ color: '#C9A227' }} />
-                <p style={{ color: '#78716C' }}>No incidents found</p>
+                <p style={{ color: '#78716C' }}>No incidents match your filters</p>
               </div>
             ) : (
               <div className="divide-y" style={{ borderColor: '#E0D5C5' }}>
-                {filtered.map(inc => (
-                  <button key={inc.id} className="w-full flex items-center justify-between px-5 py-4 text-left transition-colors hover:bg-amber-50/30" onClick={() => { setEditing(inc); setShowForm(true); }}>
-                    <div className="flex items-center gap-4">
-                      <div className="w-2 h-8 rounded-full flex-shrink-0" style={{
-                        background: inc.severity === 'critical' ? '#EF4444' : inc.severity === 'high' ? '#F97316' : inc.severity === 'medium' ? '#F59E0B' : '#A8B5C0'
-                      }} />
-                      <div>
-                        <p className="font-medium capitalize" style={{ color: '#1C1917' }}>{inc.type?.replace(/_/g, ' ')}</p>
-                        <p className="text-xs" style={{ color: '#78716C' }}>{inc.incident_date} · {locationName(inc.location_id)} {inc.resident_id ? `· ${residentName(inc.resident_id)}` : ''}</p>
+                {filtered.map(inc => {
+                  const sev = SEV_CFG[inc.severity] || SEV_CFG.medium;
+                  const sta = STATUS_CFG[inc.status] || STATUS_CFG.closed;
+                  const rname = residentName(inc.resident_id);
+                  return (
+                    <button
+                      key={inc.id}
+                      className="w-full flex items-center gap-4 px-5 py-4 text-left transition-colors hover:bg-amber-50/40"
+                      onClick={() => setViewing(inc)}
+                    >
+                      {/* Severity bar */}
+                      <div className="w-1 h-10 rounded-full flex-shrink-0" style={{ background: sev.bar }} />
+
+                      {/* Main info */}
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className="font-semibold text-sm capitalize" style={{ color: '#1C1917' }}>
+                            {inc.type?.replace(/_/g, ' ')}
+                          </span>
+                          {inc.confidential && <span className="text-xs" style={{ color: '#A09080' }}>🔒</span>}
+                          {inc.naloxone_used && <span className="text-xs" style={{ color: '#DC2626' }}>💉</span>}
+                          {inc.ems_called && <span className="text-xs" style={{ color: '#EA580C' }}>🚑</span>}
+                        </div>
+                        <p className="text-xs truncate mt-0.5" style={{ color: '#78716C' }}>
+                          {inc.incident_date}{inc.incident_time ? ` ${inc.incident_time}` : ''}
+                          {' · '}{locationName(inc.location_id)}
+                          {rname ? ` · ${rname}` : ''}
+                        </p>
+                        {inc.description && (
+                          <p className="text-xs truncate mt-0.5" style={{ color: '#A09080' }}>{inc.description}</p>
+                        )}
                       </div>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <span className="text-xs font-medium px-2 py-0.5 rounded-full capitalize" style={
-                        inc.severity === 'critical' ? { background: '#FEE2E2', color: '#991B1B' } :
-                        inc.severity === 'high' ? { background: '#FFEDD5', color: '#9A3412' } :
-                        inc.severity === 'medium' ? { background: '#FEF3C7', color: '#92400E' } :
-                        { background: '#F1F5F9', color: '#475569' }
-                      }>{inc.severity}</span>
-                      <span className="text-xs font-medium px-2 py-0.5 rounded-full capitalize" style={
-                        inc.status === 'open' ? { background: '#FEE2E2', color: '#991B1B' } :
-                        inc.status === 'in_review' ? { background: '#FEF3C7', color: '#92400E' } :
-                        inc.status === 'resolved' ? { background: '#D1FAE5', color: '#065F46' } :
-                        { background: '#F1F5F9', color: '#475569' }
-                      }>{inc.status?.replace('_', ' ')}</span>
-                      <ChevronRight className="w-4 h-4" style={{ color: '#A09080' }} />
-                    </div>
-                  </button>
-                ))}
+
+                      {/* Badges */}
+                      <div className="flex flex-col items-end gap-1.5 flex-shrink-0">
+                        <span className="text-xs font-semibold px-2 py-0.5 rounded-full capitalize"
+                          style={{ background: sev.bg, color: sev.color }}>{inc.severity}</span>
+                        <span className="text-xs font-semibold px-2 py-0.5 rounded-full capitalize"
+                          style={{ background: sta.bg, color: sta.color }}>{inc.status?.replace('_', ' ')}</span>
+                      </div>
+                    </button>
+                  );
+                })}
               </div>
             )}
           </div>
         </>
       )}
 
+      {/* Detail Drawer */}
+      {viewing && !showForm && (
+        <IncidentDetailDrawer
+          incident={viewing}
+          residents={residents}
+          locations={locations}
+          staff={staff}
+          onEdit={() => { setEditing(viewing); setShowForm(true); }}
+          onClose={() => setViewing(null)}
+          onRefresh={(newStatus) => refreshIncident(viewing.id, newStatus)}
+        />
+      )}
+
+      {/* Form Modal */}
       {showForm && (
         <IncidentForm
           incident={editing}
           residents={residents}
           locations={locations}
+          staff={staff}
           onSave={async (data) => {
             if (data.id) await base44.entities.IncidentReport.update(data.id, data);
             else await base44.entities.IncidentReport.create(data);
             setShowForm(false);
             setEditing(null);
+            setViewing(null);
             loadData();
           }}
           onClose={() => { setShowForm(false); setEditing(null); }}
         />
       )}
-    </div>
-  );
-}
-
-function IncidentForm({ incident, residents, locations, onSave, onClose }) {
-  const [form, setForm] = useState(incident || {
-    incident_date: new Date().toISOString().split('T')[0],
-    incident_time: '', type: '', severity: 'medium', location_id: '', resident_id: '',
-    description: '', action_taken: '', follow_up_required: false, follow_up_notes: '',
-    status: 'open', naloxone_used: false, ems_called: false, confidential: true,
-  });
-  const [saving, setSaving] = useState(false);
-  const set = (k, v) => setForm(p => ({ ...p, [k]: v }));
-
-  return (
-    <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-      <div className="bg-white rounded-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
-        <div className="flex items-center justify-between p-5 border-b sticky top-0 bg-white">
-          <h2 className="font-bold">{incident ? 'Edit Incident Report' : 'Log Incident Report'}</h2>
-          <button onClick={onClose}><X className="w-5 h-5 text-slate-400" /></button>
-        </div>
-        <form onSubmit={async e => { e.preventDefault(); setSaving(true); await onSave(form); setSaving(false); }} className="p-5 space-y-4">
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-1.5">
-              <Label>Date *</Label>
-              <Input type="date" value={form.incident_date} onChange={e => set('incident_date', e.target.value)} required />
-            </div>
-            <div className="space-y-1.5">
-              <Label>Time</Label>
-              <Input type="time" value={form.incident_time} onChange={e => set('incident_time', e.target.value)} />
-            </div>
-          </div>
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-1.5">
-              <Label>Type *</Label>
-              <Select value={form.type} onValueChange={v => set('type', v)}>
-                <SelectTrigger><SelectValue placeholder="Select type" /></SelectTrigger>
-                <SelectContent>
-                  {['relapse','overdose','behavioral','medical','property_damage','rule_violation','altercation','elopement','other'].map(t => (
-                    <SelectItem key={t} value={t} className="capitalize">{t.replace(/_/g, ' ')}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-1.5">
-              <Label>Severity</Label>
-              <Select value={form.severity} onValueChange={v => set('severity', v)}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="low">Low</SelectItem>
-                  <SelectItem value="medium">Medium</SelectItem>
-                  <SelectItem value="high">High</SelectItem>
-                  <SelectItem value="critical">Critical</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-1.5">
-              <Label>Location</Label>
-              <Select value={form.location_id} onValueChange={v => set('location_id', v)}>
-                <SelectTrigger><SelectValue placeholder="Select location" /></SelectTrigger>
-                <SelectContent>
-                  {locations.map(l => <SelectItem key={l.id} value={l.id}>{l.name}</SelectItem>)}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-1.5">
-              <Label>Resident Involved</Label>
-              <Select value={form.resident_id} onValueChange={v => set('resident_id', v)}>
-                <SelectTrigger><SelectValue placeholder="Select resident (optional)" /></SelectTrigger>
-                <SelectContent>
-                  {residents.map(r => <SelectItem key={r.id} value={r.id}>{r.first_name} {r.last_name}</SelectItem>)}
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
-          <div className="space-y-1.5">
-            <Label>Description *</Label>
-            <Textarea value={form.description} onChange={e => set('description', e.target.value)} rows={4} required />
-          </div>
-          <div className="space-y-1.5">
-            <Label>Action Taken</Label>
-            <Textarea value={form.action_taken} onChange={e => set('action_taken', e.target.value)} rows={2} />
-          </div>
-          <div className="flex flex-wrap gap-4">
-            {[
-              { key: 'naloxone_used', label: 'Naloxone Used' },
-              { key: 'ems_called', label: 'EMS Called' },
-              { key: 'follow_up_required', label: 'Follow-up Required' },
-              { key: 'confidential', label: 'Confidential' },
-            ].map(opt => (
-              <label key={opt.key} className="flex items-center gap-2 text-sm cursor-pointer">
-                <input type="checkbox" checked={form[opt.key]} onChange={e => set(opt.key, e.target.checked)} className="rounded" />
-                {opt.label}
-              </label>
-            ))}
-          </div>
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-1.5">
-              <Label>Status</Label>
-              <Select value={form.status} onValueChange={v => set('status', v)}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="open">Open</SelectItem>
-                  <SelectItem value="in_review">In Review</SelectItem>
-                  <SelectItem value="resolved">Resolved</SelectItem>
-                  <SelectItem value="closed">Closed</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
-          <div className="flex justify-end gap-3 pt-2">
-            <Button type="button" variant="outline" onClick={onClose}>Cancel</Button>
-            <Button type="submit" disabled={saving} className="bg-teal-600 hover:bg-teal-700">
-              {saving ? 'Saving...' : incident ? 'Update Report' : 'Submit Report'}
-            </Button>
-          </div>
-        </form>
-      </div>
     </div>
   );
 }
