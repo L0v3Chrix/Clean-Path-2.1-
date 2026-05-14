@@ -1,0 +1,56 @@
+{
+  "name": "NarrCompliance",
+  "type": "object",
+  "properties": {
+    "organization_id": {
+      "type": "string"
+    },
+    "location_id": {
+      "type": "string"
+    },
+    "rule_id": {
+      "type": "string",
+      "description": "e.g. 1.A.1.a"
+    },
+    "rule_name": {
+      "type": "string"
+    },
+    "domain": {
+      "type": "string",
+      "enum": [
+        "administrative",
+        "physical_environment",
+        "recovery_support",
+        "good_neighbor"
+      ]
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "compliant",
+        "in_progress",
+        "not_met",
+        "variance_requested",
+        "not_applicable"
+      ],
+      "default": "not_applicable"
+    },
+    "evidence_notes": {
+      "type": "string"
+    },
+    "document_url": {
+      "type": "string"
+    },
+    "last_reviewed": {
+      "type": "string",
+      "format": "date"
+    },
+    "reviewed_by_id": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "organization_id",
+    "rule_id"
+  ]
+}

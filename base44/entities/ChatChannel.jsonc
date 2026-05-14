@@ -1,0 +1,62 @@
+{
+  "name": "ChatChannel",
+  "type": "object",
+  "properties": {
+    "organization_id": {
+      "type": "string"
+    },
+    "location_id": {
+      "type": "string",
+      "description": "If location-specific, set this. Otherwise null for org-wide."
+    },
+    "name": {
+      "type": "string"
+    },
+    "description": {
+      "type": "string"
+    },
+    "type": {
+      "type": "string",
+      "enum": [
+        "location",
+        "resources",
+        "announcements",
+        "staff_only",
+        "peer_support",
+        "general",
+        "custom"
+      ],
+      "description": "Channel type"
+    },
+    "access_level": {
+      "type": "string",
+      "enum": [
+        "residents_and_staff",
+        "staff_only",
+        "management_only",
+        "public"
+      ],
+      "default": "residents_and_staff"
+    },
+    "is_default": {
+      "type": "boolean",
+      "default": false
+    },
+    "created_by_id": {
+      "type": "string"
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "active",
+        "archived"
+      ],
+      "default": "active"
+    }
+  },
+  "required": [
+    "name",
+    "type",
+    "organization_id"
+  ]
+}

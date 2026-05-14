@@ -1,0 +1,42 @@
+{
+  "name": "ChatMessage",
+  "type": "object",
+  "properties": {
+    "channel_id": {
+      "type": "string"
+    },
+    "organization_id": {
+      "type": "string"
+    },
+    "sender_id": {
+      "type": "string"
+    },
+    "sender_name": {
+      "type": "string"
+    },
+    "sender_role": {
+      "type": "string"
+    },
+    "content": {
+      "type": "string"
+    },
+    "file_url": {
+      "type": "string"
+    },
+    "is_pinned": {
+      "type": "boolean",
+      "default": false
+    },
+    "edited": {
+      "type": "boolean",
+      "default": false
+    }
+  },
+  "required": [
+    "channel_id",
+    "organization_id",
+    "content",
+    "sender_id",
+    "sender_name"
+  ]
+}

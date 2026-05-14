@@ -1,0 +1,100 @@
+{
+  "name": "Resident",
+  "type": "object",
+  "properties": {
+    "organization_id": {
+      "type": "string"
+    },
+    "location_id": {
+      "type": "string"
+    },
+    "user_id": {
+      "type": "string",
+      "description": "Linked platform user account"
+    },
+    "first_name": {
+      "type": "string"
+    },
+    "last_name": {
+      "type": "string"
+    },
+    "date_of_birth": {
+      "type": "string",
+      "format": "date"
+    },
+    "gender": {
+      "type": "string"
+    },
+    "phone": {
+      "type": "string"
+    },
+    "email": {
+      "type": "string"
+    },
+    "emergency_contact_name": {
+      "type": "string"
+    },
+    "emergency_contact_phone": {
+      "type": "string"
+    },
+    "emergency_contact_relationship": {
+      "type": "string"
+    },
+    "intake_date": {
+      "type": "string",
+      "format": "date"
+    },
+    "exit_date": {
+      "type": "string",
+      "format": "date"
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "applicant",
+        "active",
+        "on_leave",
+        "exited",
+        "alumni"
+      ],
+      "default": "applicant"
+    },
+    "room": {
+      "type": "string"
+    },
+    "phase": {
+      "type": "string"
+    },
+    "sober_date": {
+      "type": "string",
+      "format": "date"
+    },
+    "recovery_pathway": {
+      "type": "string",
+      "description": "12-step, SMART, faith-based, MAT, harm reduction, other"
+    },
+    "referred_by": {
+      "type": "string"
+    },
+    "photo_url": {
+      "type": "string"
+    },
+    "notes": {
+      "type": "string"
+    },
+    "consent_signed": {
+      "type": "boolean",
+      "default": false
+    },
+    "resident_agreement_signed": {
+      "type": "boolean",
+      "default": false
+    }
+  },
+  "required": [
+    "first_name",
+    "last_name",
+    "organization_id",
+    "location_id"
+  ]
+}
