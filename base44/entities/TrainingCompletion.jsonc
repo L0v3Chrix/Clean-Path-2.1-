@@ -1,0 +1,31 @@
+{
+  "name": "TrainingCompletion",
+  "type": "object",
+  "properties": {
+    "module_id": {
+      "type": "string"
+    },
+    "staff_id": {
+      "type": "string"
+    },
+    "organization_id": {
+      "type": "string"
+    },
+    "completed_date": {
+      "type": "string",
+      "format": "date"
+    },
+    "score": {
+      "type": "number",
+      "description": "Quiz score if applicable (0-100)"
+    },
+    "notes": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "module_id",
+    "staff_id",
+    "completed_date"
+  ]
+}

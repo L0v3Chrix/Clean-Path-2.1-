@@ -4,7 +4,8 @@ import { base44 } from '@/api/base44Client';
 import {
   Home, Users, Building2, MessageSquare, FileText,
   Shield, BarChart3, Settings, Menu, X, ChevronDown,
-  LogOut, Bell, User, AlertTriangle, ClipboardList, Package, TrendingUp, CalendarDays
+  LogOut, Bell, User, AlertTriangle, ClipboardList, Package, TrendingUp, CalendarDays,
+  DollarSign, BookOpen, Lock, Zap, PieChart
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -13,13 +14,13 @@ import { twMerge } from 'tailwind-merge';
 const cn = (...inputs) => twMerge(clsx(inputs));
 
 const roleNavMap = {
-  platform_admin: ['dashboard', 'residents', 'locations', 'staff', 'scheduling', 'incidents', 'incident_safety', 'chat', 'compliance', 'inventory', 'reports', 'settings'],
-  owner: ['dashboard', 'residents', 'locations', 'staff', 'scheduling', 'incidents', 'incident_safety', 'chat', 'compliance', 'inventory', 'reports', 'settings'],
-  director: ['dashboard', 'residents', 'locations', 'staff', 'scheduling', 'incidents', 'incident_safety', 'chat', 'compliance', 'inventory', 'reports'],
-  house_manager: ['dashboard', 'residents', 'scheduling', 'incidents', 'incident_safety', 'chat', 'inventory'],
-  peer_support: ['dashboard', 'residents', 'chat'],
-  case_manager: ['dashboard', 'residents', 'incidents', 'incident_safety', 'chat', 'inventory'],
-  staff: ['dashboard', 'residents', 'chat'],
+  platform_admin: ['dashboard', 'residents', 'locations', 'staff', 'scheduling', 'incidents', 'incident_safety', 'chat', 'compliance', 'inventory', 'analytics', 'finance', 'training', 'hipaa', 'integrations', 'reports', 'settings'],
+  owner: ['dashboard', 'residents', 'locations', 'staff', 'scheduling', 'incidents', 'incident_safety', 'chat', 'compliance', 'inventory', 'analytics', 'finance', 'training', 'hipaa', 'integrations', 'reports', 'settings'],
+  director: ['dashboard', 'residents', 'locations', 'staff', 'scheduling', 'incidents', 'incident_safety', 'chat', 'compliance', 'inventory', 'analytics', 'finance', 'training', 'hipaa', 'reports'],
+  house_manager: ['dashboard', 'residents', 'scheduling', 'incidents', 'incident_safety', 'chat', 'inventory', 'training'],
+  peer_support: ['dashboard', 'residents', 'chat', 'training'],
+  case_manager: ['dashboard', 'residents', 'incidents', 'incident_safety', 'chat', 'inventory', 'training'],
+  staff: ['dashboard', 'residents', 'chat', 'training'],
   resident: ['my_profile', 'chat', 'resources'],
 };
 
@@ -36,6 +37,11 @@ const allNavItems = [
   { id: 'inventory', label: 'Med Inventory', icon: Package, path: '/inventory' },
   { id: 'reports', label: 'Reports', icon: BarChart3, path: '/reports' },
   { id: 'settings', label: 'Settings', icon: Settings, path: '/settings' },
+  { id: 'analytics', label: 'Analytics', icon: PieChart, path: '/analytics' },
+  { id: 'finance', label: 'Finance & Expenses', icon: DollarSign, path: '/finance' },
+  { id: 'training', label: 'Training Center', icon: BookOpen, path: '/training' },
+  { id: 'hipaa', label: 'HIPAA Compliance', icon: Lock, path: '/hipaa' },
+  { id: 'integrations', label: 'Integrations', icon: Zap, path: '/integrations' },
   { id: 'my_profile', label: 'My Profile', icon: User, path: '/my-profile' },
   { id: 'resources', label: 'Resources', icon: ClipboardList, path: '/resources' },
 ];

@@ -1,0 +1,91 @@
+{
+  "name": "TrainingModule",
+  "type": "object",
+  "properties": {
+    "organization_id": {
+      "type": "string"
+    },
+    "title": {
+      "type": "string"
+    },
+    "description": {
+      "type": "string"
+    },
+    "category": {
+      "type": "string",
+      "enum": [
+        "onboarding",
+        "hipaa_compliance",
+        "peer_support",
+        "crisis_intervention",
+        "medication_management",
+        "documentation",
+        "recovery_support",
+        "safety",
+        "custom"
+      ],
+      "default": "onboarding"
+    },
+    "content_type": {
+      "type": "string",
+      "enum": [
+        "slides",
+        "video",
+        "document",
+        "quiz",
+        "link"
+      ],
+      "default": "slides"
+    },
+    "file_url": {
+      "type": "string",
+      "description": "Uploaded file (PDF, PPT, video, etc.)"
+    },
+    "external_url": {
+      "type": "string",
+      "description": "External link if content is hosted elsewhere"
+    },
+    "slides": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "title": {
+            "type": "string"
+          },
+          "body": {
+            "type": "string"
+          },
+          "image_url": {
+            "type": "string"
+          }
+        }
+      },
+      "description": "Built-in slide deck content"
+    },
+    "required_for_roles": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "Roles that must complete this module"
+    },
+    "estimated_minutes": {
+      "type": "number"
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "draft",
+        "published",
+        "archived"
+      ],
+      "default": "draft"
+    }
+  },
+  "required": [
+    "organization_id",
+    "title",
+    "category"
+  ]
+}

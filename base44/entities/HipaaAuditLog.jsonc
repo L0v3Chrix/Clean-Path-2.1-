@@ -1,0 +1,57 @@
+{
+  "name": "HipaaAuditLog",
+  "type": "object",
+  "properties": {
+    "organization_id": {
+      "type": "string"
+    },
+    "performed_by_id": {
+      "type": "string"
+    },
+    "performed_by_name": {
+      "type": "string"
+    },
+    "resident_id": {
+      "type": "string",
+      "description": "If action is related to a resident"
+    },
+    "action": {
+      "type": "string",
+      "enum": [
+        "viewed_record",
+        "edited_record",
+        "exported_record",
+        "shared_record",
+        "deleted_record",
+        "uploaded_document",
+        "accessed_medication",
+        "printed_report",
+        "other"
+      ],
+      "default": "viewed_record"
+    },
+    "resource_type": {
+      "type": "string",
+      "description": "e.g. Resident, MedicationLog, IncidentReport"
+    },
+    "resource_id": {
+      "type": "string"
+    },
+    "description": {
+      "type": "string"
+    },
+    "ip_address": {
+      "type": "string"
+    },
+    "access_reason": {
+      "type": "string",
+      "description": "Clinical or operational reason for access"
+    }
+  },
+  "required": [
+    "organization_id",
+    "performed_by_name",
+    "action",
+    "resource_type"
+  ]
+}

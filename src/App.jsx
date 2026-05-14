@@ -21,6 +21,11 @@ import Scheduling from './pages/Scheduling';
 import IntakeForm from './pages/IntakeForm';
 import OrgSettings from './pages/OrgSettings';
 import ResidentPortal from './pages/ResidentPortal';
+import Analytics from './pages/Analytics';
+import FinanceManager from './pages/FinanceManager';
+import TrainingCenter from './pages/TrainingCenter';
+import HipaaCompliance from './pages/HipaaCompliance';
+import Integrations from './pages/Integrations';
 
 const AuthenticatedApp = () => {
   const { isLoadingAuth, isLoadingPublicSettings, authError, navigateToLogin } = useAuth();
@@ -62,6 +67,11 @@ const AuthenticatedApp = () => {
         <Route path="/reports" element={<ComingSoon title="Reports & Analytics" description="Outcome data, occupancy reports, incident trends, and quality improvement metrics." />} />
         <Route path="/settings" element={<OrgSettings />} />
         <Route path="/my-profile" element={<ResidentPortal />} />
+        <Route path="/analytics" element={<Analytics />} />
+        <Route path="/finance" element={<FinanceManager />} />
+        <Route path="/training" element={<TrainingCenter />} />
+        <Route path="/hipaa" element={<HipaaCompliance />} />
+        <Route path="/integrations" element={<Integrations />} />
         <Route path="/resources" element={<ComingSoon title="Resources" description="Community resource directory, local services, and recovery support tools." />} />
       </Route>
       <Route path="*" element={<PageNotFound />} />

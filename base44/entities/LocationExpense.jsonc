@@ -1,0 +1,79 @@
+{
+  "name": "LocationExpense",
+  "type": "object",
+  "properties": {
+    "organization_id": {
+      "type": "string"
+    },
+    "location_id": {
+      "type": "string"
+    },
+    "label": {
+      "type": "string",
+      "description": "e.g. Rent, Utilities, Insurance"
+    },
+    "category": {
+      "type": "string",
+      "enum": [
+        "rent_mortgage",
+        "utilities",
+        "insurance",
+        "maintenance",
+        "staffing",
+        "supplies",
+        "food",
+        "transportation",
+        "program",
+        "administrative",
+        "other"
+      ],
+      "default": "other"
+    },
+    "amount": {
+      "type": "number"
+    },
+    "frequency": {
+      "type": "string",
+      "enum": [
+        "monthly",
+        "weekly",
+        "quarterly",
+        "annual",
+        "one_time"
+      ],
+      "default": "monthly"
+    },
+    "due_day_of_month": {
+      "type": "number",
+      "description": "Day of month bill is due (1-31)"
+    },
+    "vendor": {
+      "type": "string"
+    },
+    "account_number": {
+      "type": "string"
+    },
+    "auto_pay": {
+      "type": "boolean",
+      "default": false
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "active",
+        "paused",
+        "cancelled"
+      ],
+      "default": "active"
+    },
+    "notes": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "organization_id",
+    "location_id",
+    "label",
+    "amount"
+  ]
+}
