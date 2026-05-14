@@ -1,11 +1,12 @@
 import { useState } from 'react';
-import { X, Edit, Phone, Mail, Calendar, MapPin, Heart, FileText, AlertTriangle, GitBranch, ClipboardList } from 'lucide-react';
+import { X, Edit, Phone, Mail, Calendar, MapPin, Heart, FileText, AlertTriangle, GitBranch, ClipboardList, Pill } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { base44 } from '@/api/base44Client';
 import ResidentDocuments from './ResidentDocuments';
 import ResidentTimeline from './ResidentTimeline';
 import ResidentCarePlan from './ResidentCarePlan';
+import ResidentMedications from '../medications/ResidentMedications';
 
 const statusColors = {
   applicant: 'bg-blue-100 text-blue-700',
@@ -62,8 +63,9 @@ export default function ResidentDetail({ resident: r, locations, onEdit, onClose
           {[
             { id: 'profile', label: 'Profile' },
             { id: 'careplan', label: 'Care Plan', icon: ClipboardList },
+            { id: 'medications', label: 'Meds', icon: Pill },
             { id: 'timeline', label: 'Timeline', icon: GitBranch },
-            { id: 'documents', label: 'Documents', icon: FileText },
+            { id: 'documents', label: 'Docs', icon: FileText },
           ].map(t => (
             <button
               key={t.id}
@@ -126,6 +128,12 @@ export default function ResidentDetail({ resident: r, locations, onEdit, onClose
         {tab === 'careplan' && (
           <div className="p-5">
             <ResidentCarePlan resident={r} />
+          </div>
+        )}
+
+        {tab === 'medications' && (
+          <div className="p-5">
+            <ResidentMedications resident={r} />
           </div>
         )}
 

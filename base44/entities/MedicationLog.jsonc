@@ -1,0 +1,50 @@
+{
+  "name": "MedicationLog",
+  "type": "object",
+  "properties": {
+    "resident_id": {
+      "type": "string"
+    },
+    "medication_id": {
+      "type": "string"
+    },
+    "organization_id": {
+      "type": "string"
+    },
+    "scheduled_date": {
+      "type": "string",
+      "format": "date"
+    },
+    "scheduled_time": {
+      "type": "string",
+      "description": "HH:MM"
+    },
+    "outcome": {
+      "type": "string",
+      "enum": [
+        "administered",
+        "missed",
+        "refused",
+        "held",
+        "self_administered"
+      ],
+      "default": "administered"
+    },
+    "administered_at": {
+      "type": "string",
+      "description": "Actual datetime given"
+    },
+    "administered_by_name": {
+      "type": "string"
+    },
+    "notes": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "resident_id",
+    "medication_id",
+    "scheduled_date",
+    "outcome"
+  ]
+}
