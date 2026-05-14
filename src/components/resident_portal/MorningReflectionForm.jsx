@@ -1,9 +1,10 @@
 import { useState } from 'react';
 import { base44 } from '@/api/base44Client';
-import { Sun, Moon, Star, Heart, CheckCircle2, ChevronRight } from 'lucide-react';
+import { Sun, Moon, Star, Heart, CheckCircle2, ChevronRight, ClipboardList } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { format } from 'date-fns';
+import { BARC10Survey, QoLSurvey, BARC10_COUNT, QOL_COUNT } from './SurveyStep';
 
 const MOOD_OPTIONS = [
   { value: 1, emoji: '😞', label: 'Very Low' },
@@ -26,6 +27,7 @@ export default function MorningReflectionForm({ resident, onComplete, existingLo
   const [step, setStep] = useState(0);
   const [saving, setSaving] = useState(false);
   const [done, setDone] = useState(false);
+
   const [form, setForm] = useState({
     mood: existingLog?.mood || null,
     sleep_quality: existingLog?.sleep_quality || null,
@@ -33,9 +35,16 @@ export default function MorningReflectionForm({ resident, onComplete, existingLo
     daily_goal: existingLog?.daily_goal || '',
     gratitude: existingLog?.gratitude || '',
     concerns: existingLog?.concerns || '',
+    barc10_answers: existingLog?.barc10_answers || {},
+    qol_answers: existingLog?.qol_answers || {},
+    showBARC10: false,
+    showQoL: false,
   });
 
   const set = (key, val) => setForm(f => ({ ...f, [key]: val }));
+
+  const setBARCAnswer = (i, val) => setForm(f => ({ ...f, barc10_answers: { ...f.barc10_answers, [i]: val } }));
+  const setQoLAnswer  = (i, val) => setForm(f => ({ ...f, qol_answers: { ...f.qol_answers, [i]: val } }));
 
   const canAdvance = () => {
     if (step === 0) return form.mood !== null;
@@ -46,6 +55,15 @@ export default function MorningReflectionForm({ resident, onComplete, existingLo
   const handleSubmit = async () => {
     setSaving(true);
     const flagged = form.mood <= 2 || form.sleep_quality <= 2;
+
+    const barc10Score = Object.keys(form.barc10_answers).length === BARC10_COUNT
+      ? Object.values(form.barc10_answers).reduce((a, b) => a + b, 0)
+      : undefined;
+
+    const qolScore = Object.keys(form.qol_answers).length === QOL_COUNT
+      ? Object.values(form.qol_answers).reduce((a, b) => a + b, 0)
+      : undefined;
+
     const payload = {
       resident_id: resident.id,
       organization_id: resident.organization_id,
@@ -57,7 +75,12 @@ export default function MorningReflectionForm({ resident, onComplete, existingLo
       gratitude: form.gratitude || undefined,
       concerns: form.concerns || undefined,
       flagged_for_support: flagged,
+      barc10_answers: Object.keys(form.barc10_answers).length ? form.barc10_answers : undefined,
+      barc10_score: barc10Score,
+      qol_answers: Object.keys(form.qol_answers).length ? form.qol_answers : undefined,
+      qol_score: qolScore,
     };
+
     if (existingLog?.id) {
       await base44.entities.MorningReflection.update(existingLog.id, payload);
     } else {
@@ -78,7 +101,48 @@ export default function MorningReflectionForm({ resident, onComplete, existingLo
     );
   }
 
-  const steps = [
+  // Survey opt-in step (step 4)
+  const surveyOptIn = (
+    <div key="surveys" className="space-y-4">
+      <div className="text-center">
+        <ClipboardList className="w-8 h-8 text-teal-500 mx-auto mb-2" />
+        <h3 className="font-bold text-slate-800 text-lg">Optional: Recovery Surveys</h3>
+        <p className="text-slate-400 text-sm mt-1">These help your support team track your progress over time. Takes ~2 minutes each.</p>
+      </div>
+      <div className="space-y-3">
+        <button
+          onClick={() => set('showBARC10', !form.showBARC10)}
+          className={`w-full flex items-center justify-between p-4 rounded-xl border-2 transition-all text-left ${
+            form.showBARC10 ? 'border-indigo-400 bg-indigo-50' : 'border-slate-200 hover:border-indigo-200'
+          }`}
+        >
+          <div>
+            <p className="font-semibold text-sm text-slate-800">BARC-10</p>
+            <p className="text-xs text-slate-500 mt-0.5">Brief Assessment of Recovery Capital · 10 questions</p>
+          </div>
+          <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${form.showBARC10 ? 'border-indigo-500 bg-indigo-500' : 'border-slate-300'}`}>
+            {form.showBARC10 && <CheckCircle2 className="w-3 h-3 text-white" />}
+          </div>
+        </button>
+        <button
+          onClick={() => set('showQoL', !form.showQoL)}
+          className={`w-full flex items-center justify-between p-4 rounded-xl border-2 transition-all text-left ${
+            form.showQoL ? 'border-teal-400 bg-teal-50' : 'border-slate-200 hover:border-teal-200'
+          }`}
+        >
+          <div>
+            <p className="font-semibold text-sm text-slate-800">Quality of Life</p>
+            <p className="text-xs text-slate-500 mt-0.5">Life satisfaction across 7 domains · 7 questions</p>
+          </div>
+          <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${form.showQoL ? 'border-teal-500 bg-teal-500' : 'border-slate-300'}`}>
+            {form.showQoL && <CheckCircle2 className="w-3 h-3 text-white" />}
+          </div>
+        </button>
+      </div>
+    </div>
+  );
+
+  const baseSteps = [
     // Step 0: Mood
     <div key="mood" className="space-y-4">
       <div className="text-center">
@@ -92,9 +156,7 @@ export default function MorningReflectionForm({ resident, onComplete, existingLo
             key={opt.value}
             onClick={() => set('mood', opt.value)}
             className={`flex flex-col items-center gap-1 p-3 rounded-2xl border-2 transition-all ${
-              form.mood === opt.value
-                ? 'border-amber-500 bg-amber-50 scale-110'
-                : 'border-slate-200 hover:border-amber-300'
+              form.mood === opt.value ? 'border-amber-500 bg-amber-50 scale-110' : 'border-slate-200 hover:border-amber-300'
             }`}
           >
             <span className="text-3xl">{opt.emoji}</span>
@@ -128,8 +190,7 @@ export default function MorningReflectionForm({ resident, onComplete, existingLo
       <div>
         <label className="text-sm text-slate-600 font-medium">Hours of sleep (optional)</label>
         <input
-          type="number"
-          min="1" max="14" step="0.5"
+          type="number" min="1" max="14" step="0.5"
           value={form.sleep_hours}
           onChange={e => set('sleep_hours', e.target.value)}
           placeholder="e.g. 7"
@@ -146,21 +207,15 @@ export default function MorningReflectionForm({ resident, onComplete, existingLo
       </div>
       <div>
         <label className="text-sm font-medium text-slate-700">My recovery goal for today</label>
-        <Textarea
-          value={form.daily_goal}
-          onChange={e => set('daily_goal', e.target.value)}
+        <Textarea value={form.daily_goal} onChange={e => set('daily_goal', e.target.value)}
           placeholder="e.g. Attend my noon meeting and call my sponsor..."
-          className="mt-1 resize-none h-20 text-sm"
-        />
+          className="mt-1 resize-none h-20 text-sm" />
       </div>
       <div>
         <label className="text-sm font-medium text-slate-700">One thing I'm grateful for</label>
-        <Textarea
-          value={form.gratitude}
-          onChange={e => set('gratitude', e.target.value)}
+        <Textarea value={form.gratitude} onChange={e => set('gratitude', e.target.value)}
           placeholder="e.g. My family's support..."
-          className="mt-1 resize-none h-16 text-sm"
-        />
+          className="mt-1 resize-none h-16 text-sm" />
       </div>
     </div>,
 
@@ -169,16 +224,35 @@ export default function MorningReflectionForm({ resident, onComplete, existingLo
       <div className="text-center">
         <Heart className="w-8 h-8 text-rose-400 mx-auto mb-2" />
         <h3 className="font-bold text-slate-800 text-lg">Anything on your mind?</h3>
-        <p className="text-slate-400 text-sm mt-1">This is private — shared only with your support team if needed.</p>
+        <p className="text-slate-400 text-sm mt-1">Private — shared only with your support team if needed.</p>
       </div>
-      <Textarea
-        value={form.concerns}
-        onChange={e => set('concerns', e.target.value)}
-        placeholder="Optional — share any concerns, triggers, or thoughts you'd like support with..."
-        className="resize-none h-28 text-sm"
-      />
+      <Textarea value={form.concerns} onChange={e => set('concerns', e.target.value)}
+        placeholder="Optional — concerns, triggers, or thoughts you'd like support with..."
+        className="resize-none h-28 text-sm" />
     </div>,
+
+    // Step 4: Survey opt-in
+    surveyOptIn,
   ];
+
+  // Dynamically append selected surveys
+  const steps = [...baseSteps];
+  if (form.showBARC10) {
+    steps.push(
+      <div key="barc10" className="max-h-[60vh] overflow-y-auto pr-1">
+        <BARC10Survey answers={form.barc10_answers} onChange={setBARCAnswer} />
+      </div>
+    );
+  }
+  if (form.showQoL) {
+    steps.push(
+      <div key="qol" className="max-h-[60vh] overflow-y-auto pr-1">
+        <QoLSurvey answers={form.qol_answers} onChange={setQoLAnswer} />
+      </div>
+    );
+  }
+
+  const isLastStep = step === steps.length - 1;
 
   return (
     <div className="space-y-5">
@@ -189,17 +263,13 @@ export default function MorningReflectionForm({ resident, onComplete, existingLo
         ))}
       </div>
 
-      {/* Step content */}
       {steps[step]}
 
-      {/* Navigation */}
       <div className="flex gap-3 pt-2">
         {step > 0 && (
-          <Button variant="outline" className="flex-1" onClick={() => setStep(s => s - 1)}>
-            Back
-          </Button>
+          <Button variant="outline" className="flex-1" onClick={() => setStep(s => s - 1)}>Back</Button>
         )}
-        {step < steps.length - 1 ? (
+        {!isLastStep ? (
           <Button
             className="flex-1 bg-amber-600 hover:bg-amber-700 text-white"
             disabled={!canAdvance()}

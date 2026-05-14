@@ -62,6 +62,22 @@ export default function MorningReflectionWidget({ resident }) {
               <p className="text-sm text-slate-700">{todayLog.gratitude}</p>
             </div>
           )}
+          {(todayLog.barc10_score != null || todayLog.qol_score != null) && (
+            <div className="col-span-2 grid grid-cols-2 gap-2">
+              {todayLog.barc10_score != null && (
+                <div className="bg-indigo-50 rounded-xl p-3 text-center">
+                  <p className="text-lg font-black text-indigo-700">{todayLog.barc10_score}<span className="text-xs font-normal text-indigo-400">/40</span></p>
+                  <p className="text-xs text-indigo-500">BARC-10</p>
+                </div>
+              )}
+              {todayLog.qol_score != null && (
+                <div className="bg-teal-50 rounded-xl p-3 text-center">
+                  <p className="text-lg font-black text-teal-700">{todayLog.qol_score}<span className="text-xs font-normal text-teal-400">/35</span></p>
+                  <p className="text-xs text-teal-500">Quality of Life</p>
+                </div>
+              )}
+            </div>
+          )}
         </div>
       </div>
     );

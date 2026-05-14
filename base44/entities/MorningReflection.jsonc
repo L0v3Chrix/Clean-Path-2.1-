@@ -24,21 +24,33 @@
       "type": "number"
     },
     "daily_goal": {
-      "type": "string",
-      "description": "Recovery goal for the day"
+      "type": "string"
     },
     "gratitude": {
-      "type": "string",
-      "description": "Something they are grateful for"
+      "type": "string"
     },
     "concerns": {
-      "type": "string",
-      "description": "Anything on their mind or concerns"
+      "type": "string"
     },
     "flagged_for_support": {
       "type": "boolean",
-      "default": false,
-      "description": "Auto-flagged if mood or sleep is very low"
+      "default": false
+    },
+    "barc10_answers": {
+      "type": "object",
+      "description": "Keys are question indices (0-9), values are 0-4 scores"
+    },
+    "barc10_score": {
+      "type": "number",
+      "description": "Total BARC-10 score (0-40)"
+    },
+    "qol_answers": {
+      "type": "object",
+      "description": "Keys are question indices (0-6), values are 1-5 scores"
+    },
+    "qol_score": {
+      "type": "number",
+      "description": "Total QoL score (7-35)"
     }
   },
   "required": [

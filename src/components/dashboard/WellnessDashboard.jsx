@@ -112,6 +112,22 @@ function ResidentRow({ resident, logs }) {
                   <p className="text-sm text-slate-700 mt-0.5">{todayLog.concerns}</p>
                 </div>
               )}
+              {(todayLog.barc10_score != null || todayLog.qol_score != null) && (
+                <div className="col-span-2 flex gap-2">
+                  {todayLog.barc10_score != null && (
+                    <div className="flex-1 bg-indigo-50 border border-indigo-100 rounded-lg p-2 text-center">
+                      <p className="text-sm font-black text-indigo-700">{todayLog.barc10_score}<span className="text-xs font-normal text-indigo-400">/40</span></p>
+                      <p className="text-xs text-indigo-500">BARC-10</p>
+                    </div>
+                  )}
+                  {todayLog.qol_score != null && (
+                    <div className="flex-1 bg-teal-50 border border-teal-100 rounded-lg p-2 text-center">
+                      <p className="text-sm font-black text-teal-700">{todayLog.qol_score}<span className="text-xs font-normal text-teal-400">/35</span></p>
+                      <p className="text-xs text-teal-500">Quality of Life</p>
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
           )}
         </div>
