@@ -1,13 +1,13 @@
 import { useState, useEffect } from 'react';
 import { base44 } from '@/api/base44Client';
-import { Plus, Search, AlertTriangle, X, ChevronRight } from 'lucide-react';
+import { Plus, Search, AlertTriangle, X, ChevronRight, BarChart2, List } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
+import IncidentAnalytics from '@/components/incidents/IncidentAnalytics';
 
 const severityColors = {
   low: 'bg-slate-100 text-slate-600',
@@ -32,6 +32,7 @@ export default function Incidents() {
   const [statusFilter, setStatusFilter] = useState('all');
   const [showForm, setShowForm] = useState(false);
   const [editing, setEditing] = useState(null);
+  const [view, setView] = useState('list');
 
   useEffect(() => {
     loadData();
@@ -66,69 +67,100 @@ export default function Incidents() {
   const locationName = (id) => locations.find(l => l.id === id)?.name || '—';
 
   return (
-    <div className="p-6">
+    <div className="p-6" style={{ background: '#FAF6EF', minHeight: '100%' }}>
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h1 className="text-2xl font-bold text-slate-900">Incident Reports</h1>
-          <p className="text-slate-500 text-sm mt-1">{incidents.filter(i => i.status === 'open').length} open incidents</p>
+          <h1 className="text-2xl font-bold" style={{ color: '#1C1917' }}>Incident Reports</h1>
+          <p className="text-sm mt-1" style={{ color: '#78716C' }}>{incidents.filter(i => i.status === 'open').length} open incidents</p>
         </div>
-        <Button onClick={() => { setEditing(null); setShowForm(true); }} className="bg-teal-600 hover:bg-teal-700 gap-2">
-          <Plus className="w-4 h-4" /> Log Incident
-        </Button>
+        <div className="flex items-center gap-2">
+          {/* View toggle */}
+          <div className="flex rounded-xl overflow-hidden border" style={{ borderColor: '#E0D5C5' }}>
+            <button
+              onClick={() => setView('list')}
+              className="flex items-center gap-1.5 px-3 py-2 text-sm font-medium transition-colors"
+              style={view === 'list' ? { background: '#1C1917', color: '#F5EFE6' } : { background: '#F0E9DC', color: '#78716C' }}
+            >
+              <List className="w-4 h-4" /> List
+            </button>
+            <button
+              onClick={() => setView('analytics')}
+              className="flex items-center gap-1.5 px-3 py-2 text-sm font-medium transition-colors"
+              style={view === 'analytics' ? { background: '#1C1917', color: '#F5EFE6' } : { background: '#F0E9DC', color: '#78716C' }}
+            >
+              <BarChart2 className="w-4 h-4" /> Analytics
+            </button>
+          </div>
+          <Button onClick={() => { setEditing(null); setShowForm(true); }} className="gap-2" style={{ background: '#B45309', color: '#fff' }}>
+            <Plus className="w-4 h-4" /> Log Incident
+          </Button>
+        </div>
       </div>
 
-      <div className="flex gap-3 mb-6">
-        <div className="relative flex-1">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-          <Input placeholder="Search incidents..." className="pl-9" value={search} onChange={e => setSearch(e.target.value)} />
-        </div>
-        <Select value={statusFilter} onValueChange={setStatusFilter}>
-          <SelectTrigger className="w-36"><SelectValue placeholder="Status" /></SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All Status</SelectItem>
-            <SelectItem value="open">Open</SelectItem>
-            <SelectItem value="in_review">In Review</SelectItem>
-            <SelectItem value="resolved">Resolved</SelectItem>
-            <SelectItem value="closed">Closed</SelectItem>
-          </SelectContent>
-        </Select>
-      </div>
-
-      <Card>
-        <CardContent className="p-0">
-          {loading ? (
-            <div className="p-4 space-y-2">{[1,2,3].map(i => <div key={i} className="h-14 bg-slate-100 rounded animate-pulse" />)}</div>
-          ) : filtered.length === 0 ? (
-            <div className="text-center py-16">
-              <AlertTriangle className="w-10 h-10 mx-auto mb-3 text-slate-300" />
-              <p className="text-slate-500">No incidents found</p>
+      {view === 'analytics' ? (
+        <IncidentAnalytics incidents={incidents} locations={locations} />
+      ) : (
+        <>
+          <div className="flex gap-3 mb-6">
+            <div className="relative flex-1">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+              <Input placeholder="Search incidents..." className="pl-9" value={search} onChange={e => setSearch(e.target.value)} />
             </div>
-          ) : (
-            <div className="divide-y">
-              {filtered.map(inc => (
-                <button key={inc.id} className="w-full flex items-center justify-between px-5 py-4 hover:bg-slate-50 text-left" onClick={() => { setEditing(inc); setShowForm(true); }}>
-                  <div className="flex items-center gap-4">
-                    <div className={`w-2 h-8 rounded-full flex-shrink-0 ${
-                      inc.severity === 'critical' ? 'bg-red-500' :
-                      inc.severity === 'high' ? 'bg-orange-500' :
-                      inc.severity === 'medium' ? 'bg-yellow-500' : 'bg-slate-300'
-                    }`} />
-                    <div>
-                      <p className="font-medium text-slate-800 capitalize">{inc.type?.replace(/_/g, ' ')}</p>
-                      <p className="text-xs text-slate-500">{inc.incident_date} · {locationName(inc.location_id)} {inc.resident_id ? `· ${residentName(inc.resident_id)}` : ''}</p>
+            <Select value={statusFilter} onValueChange={setStatusFilter}>
+              <SelectTrigger className="w-36"><SelectValue placeholder="Status" /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Status</SelectItem>
+                <SelectItem value="open">Open</SelectItem>
+                <SelectItem value="in_review">In Review</SelectItem>
+                <SelectItem value="resolved">Resolved</SelectItem>
+                <SelectItem value="closed">Closed</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div className="rounded-2xl overflow-hidden" style={{ background: '#F0E9DC', border: '1px solid #E0D5C5' }}>
+            {loading ? (
+              <div className="p-4 space-y-2">{[1,2,3].map(i => <div key={i} className="h-14 rounded-xl animate-pulse" style={{ background: '#E5DDD0' }} />)}</div>
+            ) : filtered.length === 0 ? (
+              <div className="text-center py-16">
+                <AlertTriangle className="w-10 h-10 mx-auto mb-3" style={{ color: '#C9A227' }} />
+                <p style={{ color: '#78716C' }}>No incidents found</p>
+              </div>
+            ) : (
+              <div className="divide-y" style={{ borderColor: '#E0D5C5' }}>
+                {filtered.map(inc => (
+                  <button key={inc.id} className="w-full flex items-center justify-between px-5 py-4 text-left transition-colors hover:bg-amber-50/30" onClick={() => { setEditing(inc); setShowForm(true); }}>
+                    <div className="flex items-center gap-4">
+                      <div className="w-2 h-8 rounded-full flex-shrink-0" style={{
+                        background: inc.severity === 'critical' ? '#EF4444' : inc.severity === 'high' ? '#F97316' : inc.severity === 'medium' ? '#F59E0B' : '#A8B5C0'
+                      }} />
+                      <div>
+                        <p className="font-medium capitalize" style={{ color: '#1C1917' }}>{inc.type?.replace(/_/g, ' ')}</p>
+                        <p className="text-xs" style={{ color: '#78716C' }}>{inc.incident_date} · {locationName(inc.location_id)} {inc.resident_id ? `· ${residentName(inc.resident_id)}` : ''}</p>
+                      </div>
                     </div>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Badge className={`${severityColors[inc.severity] || ''} border-0 text-xs capitalize`}>{inc.severity}</Badge>
-                    <Badge className={`${statusColors[inc.status] || ''} border-0 text-xs capitalize`}>{inc.status}</Badge>
-                    <ChevronRight className="w-4 h-4 text-slate-400" />
-                  </div>
-                </button>
-              ))}
-            </div>
-          )}
-        </CardContent>
-      </Card>
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs font-medium px-2 py-0.5 rounded-full capitalize" style={
+                        inc.severity === 'critical' ? { background: '#FEE2E2', color: '#991B1B' } :
+                        inc.severity === 'high' ? { background: '#FFEDD5', color: '#9A3412' } :
+                        inc.severity === 'medium' ? { background: '#FEF3C7', color: '#92400E' } :
+                        { background: '#F1F5F9', color: '#475569' }
+                      }>{inc.severity}</span>
+                      <span className="text-xs font-medium px-2 py-0.5 rounded-full capitalize" style={
+                        inc.status === 'open' ? { background: '#FEE2E2', color: '#991B1B' } :
+                        inc.status === 'in_review' ? { background: '#FEF3C7', color: '#92400E' } :
+                        inc.status === 'resolved' ? { background: '#D1FAE5', color: '#065F46' } :
+                        { background: '#F1F5F9', color: '#475569' }
+                      }>{inc.status?.replace('_', ' ')}</span>
+                      <ChevronRight className="w-4 h-4" style={{ color: '#A09080' }} />
+                    </div>
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+        </>
+      )}
 
       {showForm && (
         <IncidentForm
