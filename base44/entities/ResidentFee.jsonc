@@ -1,0 +1,60 @@
+{
+  "name": "ResidentFee",
+  "type": "object",
+  "properties": {
+    "resident_id": {
+      "type": "string"
+    },
+    "organization_id": {
+      "type": "string"
+    },
+    "location_id": {
+      "type": "string"
+    },
+    "label": {
+      "type": "string",
+      "description": "e.g. Weekly Program Fee, Utility Fee"
+    },
+    "amount": {
+      "type": "number",
+      "description": "Amount in USD"
+    },
+    "due_date": {
+      "type": "string",
+      "format": "date"
+    },
+    "period": {
+      "type": "string",
+      "description": "e.g. Week of May 12"
+    },
+    "type": {
+      "type": "string",
+      "enum": [
+        "program_fee",
+        "utility",
+        "deposit",
+        "late_fee",
+        "other"
+      ],
+      "default": "program_fee"
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "unpaid",
+        "partial",
+        "paid",
+        "waived"
+      ],
+      "default": "unpaid"
+    },
+    "notes": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "resident_id",
+    "label",
+    "amount"
+  ]
+}

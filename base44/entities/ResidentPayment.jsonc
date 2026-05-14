@@ -1,0 +1,54 @@
+{
+  "name": "ResidentPayment",
+  "type": "object",
+  "properties": {
+    "resident_id": {
+      "type": "string"
+    },
+    "fee_id": {
+      "type": "string",
+      "description": "Optional: linked fee"
+    },
+    "organization_id": {
+      "type": "string"
+    },
+    "amount": {
+      "type": "number"
+    },
+    "payment_date": {
+      "type": "string",
+      "format": "date"
+    },
+    "method": {
+      "type": "string",
+      "enum": [
+        "cash",
+        "check",
+        "money_order",
+        "venmo",
+        "cashapp",
+        "zelle",
+        "other"
+      ],
+      "default": "cash"
+    },
+    "reference_number": {
+      "type": "string",
+      "description": "Check #, transaction ID, etc."
+    },
+    "received_by_name": {
+      "type": "string"
+    },
+    "memo": {
+      "type": "string"
+    },
+    "receipt_number": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "resident_id",
+    "amount",
+    "payment_date"
+  ]
+}

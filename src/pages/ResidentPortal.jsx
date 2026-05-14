@@ -6,11 +6,13 @@ import { Badge } from '@/components/ui/badge';
 import SobrietyMilestoneCard from '@/components/resident_portal/SobrietyMilestoneCard';
 import ChoresPanel from '@/components/resident_portal/ChoresPanel';
 import MeetingsPanel from '@/components/resident_portal/MeetingsPanel';
+import LedgerPanel from '@/components/resident_portal/LedgerPanel';
 
 export default function ResidentPortal() {
   const [user, setUser] = useState(null);
   const [resident, setResident] = useState(null);
   const [location, setLocation] = useState(null);
+  const [org, setOrg] = useState(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -23,10 +25,12 @@ export default function ResidentPortal() {
       const mine = residents.find(r => r.user_id === me.id || r.email === me.email);
       if (mine) {
         setResident(mine);
-        if (mine.location_id) {
-          const locs = await base44.entities.Location.filter({ status: 'active' });
-          setLocation(locs.find(l => l.id === mine.location_id) || null);
-        }
+        const [locs, orgs] = await Promise.all([
+          mine.location_id ? base44.entities.Location.filter({ status: 'active' }) : Promise.resolve([]),
+          mine.organization_id ? base44.entities.Organization.filter({}) : Promise.resolve([]),
+        ]);
+        if (mine.location_id) setLocation(locs.find(l => l.id === mine.location_id) || null);
+        if (mine.organization_id) setOrg(orgs.find(o => o.id === mine.organization_id) || null);
       }
       setLoading(false);
     };
@@ -79,6 +83,9 @@ export default function ResidentPortal() {
         <ChoresPanel residentId={resident?.id} />
         <MeetingsPanel locationId={resident?.location_id} />
       </div>
+
+      {/* Payments & Ledger */}
+      <LedgerPanel resident={resident} location={location} organizationName={org?.name} />
     </div>
   );
 }
