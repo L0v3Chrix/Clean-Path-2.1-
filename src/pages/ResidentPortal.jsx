@@ -7,6 +7,7 @@ import SobrietyMilestoneCard from '@/components/resident_portal/SobrietyMileston
 import ChoresPanel from '@/components/resident_portal/ChoresPanel';
 import MeetingsPanel from '@/components/resident_portal/MeetingsPanel';
 import LedgerPanel from '@/components/resident_portal/LedgerPanel';
+import MorningReflectionWidget from '@/components/resident_portal/MorningReflectionWidget';
 
 export default function ResidentPortal() {
   const [user, setUser] = useState(null);
@@ -74,6 +75,9 @@ export default function ResidentPortal() {
           </div>
         </div>
       </div>
+
+      {/* Morning Reflection */}
+      <MorningReflectionWidget resident={resident} />
 
       {/* Sobriety tracker */}
       <SobrietyMilestoneCard resident={resident} />

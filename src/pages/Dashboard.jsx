@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { base44 } from '@/api/base44Client';
 import { Link } from 'react-router-dom';
 import { Users, Building2, AlertTriangle, Shield, TrendingUp, Clock, CheckCircle, XCircle, ArrowRight } from 'lucide-react';
+import WellnessDashboard from '@/components/dashboard/WellnessDashboard';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -156,6 +157,9 @@ export default function Dashboard() {
           </div>
         </div>
       </div>
+
+      {/* Morning Reflections Wellness Dashboard */}
+      <WellnessDashboard />
 
       {/* Quick actions */}
       <div className="rounded-2xl p-5" style={{ background: '#F0E9DC', border: '1px solid #E0D5C5' }}>

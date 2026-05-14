@@ -1,0 +1,50 @@
+{
+  "name": "MorningReflection",
+  "type": "object",
+  "properties": {
+    "resident_id": {
+      "type": "string"
+    },
+    "organization_id": {
+      "type": "string"
+    },
+    "log_date": {
+      "type": "string",
+      "format": "date"
+    },
+    "mood": {
+      "type": "number",
+      "description": "1-5 scale: 1=Very Low, 2=Low, 3=Okay, 4=Good, 5=Great"
+    },
+    "sleep_quality": {
+      "type": "number",
+      "description": "1-5 scale: 1=Very Poor, 2=Poor, 3=Fair, 4=Good, 5=Excellent"
+    },
+    "sleep_hours": {
+      "type": "number"
+    },
+    "daily_goal": {
+      "type": "string",
+      "description": "Recovery goal for the day"
+    },
+    "gratitude": {
+      "type": "string",
+      "description": "Something they are grateful for"
+    },
+    "concerns": {
+      "type": "string",
+      "description": "Anything on their mind or concerns"
+    },
+    "flagged_for_support": {
+      "type": "boolean",
+      "default": false,
+      "description": "Auto-flagged if mood or sleep is very low"
+    }
+  },
+  "required": [
+    "resident_id",
+    "log_date",
+    "mood",
+    "sleep_quality"
+  ]
+}
