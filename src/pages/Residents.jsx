@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { base44 } from '@/api/base44Client';
-import { Plus, Search, Filter, Upload, User, ChevronRight, X } from 'lucide-react';
+import { Plus, Search, Upload, User, ChevronRight, AlertTriangle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent } from '@/components/ui/card';
@@ -9,6 +9,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import ResidentForm from '@/components/residents/ResidentForm';
 import ResidentDetail from '@/components/residents/ResidentDetail';
 import DataImportModal from '@/components/shared/DataImportModal';
+import ResidentAlertBadge from '@/components/residents/ResidentAlertBadge';
+import { getResidentAlerts } from '@/lib/residentAlerts';
 
 const statusColors = {
   applicant: 'bg-blue-100 text-blue-700',
@@ -21,10 +23,12 @@ const statusColors = {
 export default function Residents() {
   const [residents, setResidents] = useState([]);
   const [locations, setLocations] = useState([]);
+  const [documents, setDocuments] = useState([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
   const [locationFilter, setLocationFilter] = useState('all');
+  const [alertFilter, setAlertFilter] = useState(false);
   const [showForm, setShowForm] = useState(false);
   const [selectedResident, setSelectedResident] = useState(null);
   const [showImport, setShowImport] = useState(false);
@@ -37,12 +41,14 @@ export default function Residents() {
 
   const loadData = async () => {
     try {
-      const [r, l] = await Promise.all([
+      const [r, l, d] = await Promise.all([
         base44.entities.Resident.list('-created_date', 200),
         base44.entities.Location.list(),
+        base44.entities.ResidentDocument.list(),
       ]);
       setResidents(r);
       setLocations(l);
+      setDocuments(d);
     } catch (e) {
       console.error(e);
     } finally {
@@ -50,13 +56,18 @@ export default function Residents() {
     }
   };
 
+  const getAlerts = (resident) => getResidentAlerts(resident, documents.filter(d => d.resident_id === resident.id));
+
   const filtered = residents.filter(r => {
     const name = `${r.first_name} ${r.last_name}`.toLowerCase();
     const matchSearch = name.includes(search.toLowerCase()) || r.email?.includes(search.toLowerCase());
     const matchStatus = statusFilter === 'all' || r.status === statusFilter;
     const matchLocation = locationFilter === 'all' || r.location_id === locationFilter;
-    return matchSearch && matchStatus && matchLocation;
+    const matchAlert = !alertFilter || getAlerts(r).length > 0;
+    return matchSearch && matchStatus && matchLocation && matchAlert;
   });
+
+  const totalAlerts = residents.filter(r => getAlerts(r).length > 0).length;
 
   const handleSave = async (data) => {
     if (data.id) {
@@ -76,7 +87,14 @@ export default function Residents() {
       <div className="flex items-center justify-between mb-6">
         <div>
           <h1 className="text-2xl font-bold text-slate-900">Residents</h1>
-          <p className="text-slate-500 text-sm mt-1">{residents.filter(r => r.status === 'active').length} active residents</p>
+          <p className="text-slate-500 text-sm mt-1">
+            {residents.filter(r => r.status === 'active').length} active residents
+            {totalAlerts > 0 && (
+              <span className="ml-2 inline-flex items-center gap-1 text-orange-600 font-semibold">
+                <AlertTriangle className="w-3.5 h-3.5" /> {totalAlerts} with document alerts
+              </span>
+            )}
+          </p>
         </div>
         <div className="flex gap-2">
           <Button variant="outline" onClick={() => setShowImport(true)} className="gap-2">
@@ -116,6 +134,14 @@ export default function Residents() {
             {locations.map(l => <SelectItem key={l.id} value={l.id}>{l.name}</SelectItem>)}
           </SelectContent>
         </Select>
+        <button
+          onClick={() => setAlertFilter(v => !v)}
+          className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-sm font-medium transition-colors ${
+            alertFilter ? 'bg-orange-100 border-orange-300 text-orange-700' : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50'
+          }`}
+        >
+          <AlertTriangle className="w-4 h-4" /> Alerts only
+        </button>
       </div>
 
       {/* Table */}
@@ -148,10 +174,11 @@ export default function Residents() {
                       </p>
                     </div>
                   </div>
-                  <div className="flex items-center gap-3">
+                  <div className="flex items-center gap-2">
                     {r.recovery_pathway && (
                       <Badge variant="outline" className="text-xs hidden sm:flex">{r.recovery_pathway}</Badge>
                     )}
+                    <ResidentAlertBadge alerts={getAlerts(r)} />
                     <Badge className={`${statusColors[r.status] || 'bg-slate-100 text-slate-600'} border-0 capitalize`}>
                       {r.status}
                     </Badge>
