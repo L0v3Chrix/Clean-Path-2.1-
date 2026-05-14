@@ -22,6 +22,7 @@ import IntakeForm from './pages/IntakeForm';
 import OrgSettings from './pages/OrgSettings';
 import ResidentPortal from './pages/ResidentPortal';
 import Analytics from './pages/Analytics';
+import GrantManagement from './pages/GrantManagement';
 import FinanceManager from './pages/FinanceManager';
 import TrainingCenter from './pages/TrainingCenter';
 import HipaaCompliance from './pages/HipaaCompliance';
@@ -68,6 +69,7 @@ const AuthenticatedApp = () => {
         <Route path="/settings" element={<OrgSettings />} />
         <Route path="/my-profile" element={<ResidentPortal />} />
         <Route path="/analytics" element={<Analytics />} />
+        <Route path="/grants" element={<GrantManagement />} />
         <Route path="/finance" element={<FinanceManager />} />
         <Route path="/training" element={<TrainingCenter />} />
         <Route path="/hipaa" element={<HipaaCompliance />} />

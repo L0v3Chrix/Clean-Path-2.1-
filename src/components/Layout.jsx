@@ -5,7 +5,7 @@ import {
   Home, Users, Building2, MessageSquare, FileText,
   Shield, BarChart3, Settings, Menu, X, ChevronDown,
   LogOut, Bell, User, AlertTriangle, ClipboardList, Package, TrendingUp, CalendarDays,
-  DollarSign, BookOpen, Lock, Zap, PieChart
+  DollarSign, BookOpen, Lock, Zap, PieChart, Award
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -14,9 +14,9 @@ import { twMerge } from 'tailwind-merge';
 const cn = (...inputs) => twMerge(clsx(inputs));
 
 const roleNavMap = {
-  platform_admin: ['dashboard', 'residents', 'locations', 'staff', 'scheduling', 'incidents', 'incident_safety', 'chat', 'compliance', 'inventory', 'analytics', 'finance', 'training', 'hipaa', 'integrations', 'reports', 'settings'],
-  owner: ['dashboard', 'residents', 'locations', 'staff', 'scheduling', 'incidents', 'incident_safety', 'chat', 'compliance', 'inventory', 'analytics', 'finance', 'training', 'hipaa', 'integrations', 'reports', 'settings'],
-  director: ['dashboard', 'residents', 'locations', 'staff', 'scheduling', 'incidents', 'incident_safety', 'chat', 'compliance', 'inventory', 'analytics', 'finance', 'training', 'hipaa', 'reports'],
+  platform_admin: ['dashboard', 'residents', 'locations', 'staff', 'scheduling', 'incidents', 'incident_safety', 'chat', 'compliance', 'inventory', 'analytics', 'grants', 'finance', 'training', 'hipaa', 'integrations', 'reports', 'settings'],
+  owner: ['dashboard', 'residents', 'locations', 'staff', 'scheduling', 'incidents', 'incident_safety', 'chat', 'compliance', 'inventory', 'analytics', 'grants', 'finance', 'training', 'hipaa', 'integrations', 'reports', 'settings'],
+  director: ['dashboard', 'residents', 'locations', 'staff', 'scheduling', 'incidents', 'incident_safety', 'chat', 'compliance', 'inventory', 'analytics', 'grants', 'finance', 'training', 'hipaa', 'reports'],
   house_manager: ['dashboard', 'residents', 'scheduling', 'incidents', 'incident_safety', 'chat', 'inventory', 'training'],
   peer_support: ['dashboard', 'residents', 'chat', 'training'],
   case_manager: ['dashboard', 'residents', 'incidents', 'incident_safety', 'chat', 'inventory', 'training'],
@@ -38,6 +38,7 @@ const allNavItems = [
   { id: 'reports', label: 'Reports', icon: BarChart3, path: '/reports' },
   { id: 'settings', label: 'Settings', icon: Settings, path: '/settings' },
   { id: 'analytics', label: 'Analytics', icon: PieChart, path: '/analytics' },
+  { id: 'grants', label: 'Grant Management', icon: Award, path: '/grants' },
   { id: 'finance', label: 'Finance & Expenses', icon: DollarSign, path: '/finance' },
   { id: 'training', label: 'Training Center', icon: BookOpen, path: '/training' },
   { id: 'hipaa', label: 'HIPAA Compliance', icon: Lock, path: '/hipaa' },

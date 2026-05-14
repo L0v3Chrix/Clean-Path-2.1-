@@ -1,0 +1,53 @@
+{
+  "name": "GrantEnrollment",
+  "type": "object",
+  "properties": {
+    "grant_id": {
+      "type": "string"
+    },
+    "resident_id": {
+      "type": "string"
+    },
+    "organization_id": {
+      "type": "string"
+    },
+    "enrollment_date": {
+      "type": "string",
+      "format": "date",
+      "description": "Date resident was enrolled under this grant"
+    },
+    "exit_date": {
+      "type": "string",
+      "format": "date",
+      "description": "Date resident exited grant-funded services (leave blank if still enrolled)"
+    },
+    "exit_reason": {
+      "type": "string",
+      "enum": [
+        "completed_program",
+        "voluntary_exit",
+        "administrative_discharge",
+        "relocated",
+        "deceased",
+        "lost_contact",
+        "other"
+      ],
+      "description": "Reason for exit"
+    },
+    "services_received": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "Services this resident received under this grant"
+    },
+    "notes": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "grant_id",
+    "resident_id",
+    "enrollment_date"
+  ]
+}

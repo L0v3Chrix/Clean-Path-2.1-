@@ -1,0 +1,116 @@
+{
+  "name": "Grant",
+  "type": "object",
+  "properties": {
+    "organization_id": {
+      "type": "string"
+    },
+    "name": {
+      "type": "string",
+      "description": "Grant name / title"
+    },
+    "funder_name": {
+      "type": "string",
+      "description": "Funding source / grantor name"
+    },
+    "funder_type": {
+      "type": "string",
+      "enum": [
+        "federal",
+        "state",
+        "county",
+        "city",
+        "private_foundation",
+        "corporate",
+        "individual",
+        "other"
+      ],
+      "default": "state"
+    },
+    "grant_number": {
+      "type": "string",
+      "description": "Official grant award number"
+    },
+    "program_type": {
+      "type": "string",
+      "enum": [
+        "recovery_housing",
+        "peer_support",
+        "mat_support",
+        "transitional_housing",
+        "harm_reduction",
+        "workforce_development",
+        "mental_health",
+        "other"
+      ],
+      "default": "recovery_housing"
+    },
+    "start_date": {
+      "type": "string",
+      "format": "date"
+    },
+    "end_date": {
+      "type": "string",
+      "format": "date"
+    },
+    "total_award": {
+      "type": "number",
+      "description": "Total grant award amount in USD"
+    },
+    "beds_funded": {
+      "type": "number",
+      "description": "Number of beds/slots funded by this grant"
+    },
+    "location_ids": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "Locations covered by this grant"
+    },
+    "required_metrics": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "Metrics the grantor requires (e.g. unique individuals served, avg stay)"
+    },
+    "reporting_frequency": {
+      "type": "string",
+      "enum": [
+        "monthly",
+        "quarterly",
+        "semi_annual",
+        "annual"
+      ],
+      "default": "quarterly"
+    },
+    "contact_name": {
+      "type": "string",
+      "description": "Program officer / grantor contact"
+    },
+    "contact_email": {
+      "type": "string"
+    },
+    "notes": {
+      "type": "string"
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "active",
+        "pending",
+        "completed",
+        "cancelled"
+      ],
+      "default": "active"
+    }
+  },
+  "required": [
+    "organization_id",
+    "name",
+    "funder_name",
+    "start_date",
+    "end_date"
+  ]
+}
