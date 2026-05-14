@@ -1,0 +1,62 @@
+{
+  "name": "VitalReading",
+  "type": "object",
+  "properties": {
+    "resident_id": {
+      "type": "string"
+    },
+    "organization_id": {
+      "type": "string"
+    },
+    "recorded_date": {
+      "type": "string",
+      "format": "date"
+    },
+    "recorded_time": {
+      "type": "string",
+      "description": "HH:MM"
+    },
+    "recorded_by_name": {
+      "type": "string"
+    },
+    "weight_lbs": {
+      "type": "number",
+      "description": "Weight in lbs"
+    },
+    "bp_systolic": {
+      "type": "number",
+      "description": "Blood pressure systolic (mmHg)"
+    },
+    "bp_diastolic": {
+      "type": "number",
+      "description": "Blood pressure diastolic (mmHg)"
+    },
+    "heart_rate": {
+      "type": "number",
+      "description": "Heart rate in bpm"
+    },
+    "temperature_f": {
+      "type": "number",
+      "description": "Temperature in \u00b0F"
+    },
+    "oxygen_saturation": {
+      "type": "number",
+      "description": "SpO2 %"
+    },
+    "blood_glucose": {
+      "type": "number",
+      "description": "Blood glucose mg/dL"
+    },
+    "respiratory_rate": {
+      "type": "number",
+      "description": "Breaths per minute"
+    },
+    "notes": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "resident_id",
+    "recorded_date"
+  ]
+}
