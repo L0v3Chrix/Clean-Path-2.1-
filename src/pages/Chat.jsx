@@ -4,7 +4,9 @@ import { Send, Plus, Hash, Lock, Globe, Users, Settings, X } from 'lucide-react'
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
-import { cn } from '@/lib/utils';
+import { clsx } from 'clsx';
+import { twMerge } from 'tailwind-merge';
+const cn = (...inputs) => twMerge(clsx(inputs));
 
 export default function Chat() {
   const [user, setUser] = useState(null);

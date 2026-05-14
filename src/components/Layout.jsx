@@ -8,7 +8,9 @@ import {
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { cn } from '@/lib/utils';
+import { clsx } from 'clsx';
+import { twMerge } from 'tailwind-merge';
+const cn = (...inputs) => twMerge(clsx(inputs));
 
 const roleNavMap = {
   platform_admin: ['dashboard', 'residents', 'locations', 'staff', 'incidents', 'chat', 'compliance', 'reports', 'settings'],
