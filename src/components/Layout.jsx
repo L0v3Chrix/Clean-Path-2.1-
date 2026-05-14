@@ -4,7 +4,7 @@ import { base44 } from '@/api/base44Client';
 import {
   Home, Users, Building2, MessageSquare, FileText,
   Shield, BarChart3, Settings, Menu, X, ChevronDown,
-  LogOut, Bell, User, AlertTriangle, ClipboardList, Package, TrendingUp
+  LogOut, Bell, User, AlertTriangle, ClipboardList, Package, TrendingUp, CalendarDays
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -13,10 +13,10 @@ import { twMerge } from 'tailwind-merge';
 const cn = (...inputs) => twMerge(clsx(inputs));
 
 const roleNavMap = {
-  platform_admin: ['dashboard', 'residents', 'locations', 'staff', 'incidents', 'incident_safety', 'chat', 'compliance', 'inventory', 'reports', 'settings'],
-  owner: ['dashboard', 'residents', 'locations', 'staff', 'incidents', 'incident_safety', 'chat', 'compliance', 'inventory', 'reports', 'settings'],
-  director: ['dashboard', 'residents', 'locations', 'staff', 'incidents', 'incident_safety', 'chat', 'compliance', 'inventory', 'reports'],
-  house_manager: ['dashboard', 'residents', 'incidents', 'incident_safety', 'chat', 'inventory'],
+  platform_admin: ['dashboard', 'residents', 'locations', 'staff', 'scheduling', 'incidents', 'incident_safety', 'chat', 'compliance', 'inventory', 'reports', 'settings'],
+  owner: ['dashboard', 'residents', 'locations', 'staff', 'scheduling', 'incidents', 'incident_safety', 'chat', 'compliance', 'inventory', 'reports', 'settings'],
+  director: ['dashboard', 'residents', 'locations', 'staff', 'scheduling', 'incidents', 'incident_safety', 'chat', 'compliance', 'inventory', 'reports'],
+  house_manager: ['dashboard', 'residents', 'scheduling', 'incidents', 'incident_safety', 'chat', 'inventory'],
   peer_support: ['dashboard', 'residents', 'chat'],
   case_manager: ['dashboard', 'residents', 'incidents', 'incident_safety', 'chat', 'inventory'],
   staff: ['dashboard', 'residents', 'chat'],
@@ -28,6 +28,7 @@ const allNavItems = [
   { id: 'residents', label: 'Residents', icon: Users, path: '/residents' },
   { id: 'locations', label: 'Locations', icon: Building2, path: '/locations' },
   { id: 'staff', label: 'Staff', icon: User, path: '/staff' },
+  { id: 'scheduling', label: 'Scheduling', icon: CalendarDays, path: '/scheduling' },
   { id: 'incidents', label: 'Incidents', icon: AlertTriangle, path: '/incidents' },
   { id: 'incident_safety', label: 'Safety Trends', icon: TrendingUp, path: '/incident-safety' },
   { id: 'chat', label: 'Community Chat', icon: MessageSquare, path: '/chat' },

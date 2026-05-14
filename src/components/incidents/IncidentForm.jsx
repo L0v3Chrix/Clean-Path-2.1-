@@ -1,10 +1,11 @@
-import { useState } from 'react';
-import { X } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { X, UserCheck } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { getStaffOnDuty } from '@/lib/shiftLookup';
 
 const TYPES = ['relapse','overdose','behavioral','medical','property_damage','rule_violation','altercation','elopement','other'];
 
@@ -28,7 +29,23 @@ export default function IncidentForm({ incident, residents, locations, staff, on
     confidential: true,
   });
   const [saving, setSaving] = useState(false);
+  const [autoAttrib, setAutoAttrib] = useState(null); // staff auto-detected from schedule
   const set = (k, v) => setForm(p => ({ ...p, [k]: v }));
+
+  // Auto-attribute reporter when location+date+time change
+  useEffect(() => {
+    if (incident) return; // don't override when editing
+    const { location_id, incident_date, incident_time } = form;
+    if (!location_id || !incident_date) return;
+    getStaffOnDuty(location_id, incident_date, incident_time, staff).then(found => {
+      if (found) {
+        setAutoAttrib(found);
+        setForm(p => ({ ...p, reported_by_id: found.id }));
+      } else {
+        setAutoAttrib(null);
+      }
+    });
+  }, [form.location_id, form.incident_date, form.incident_time]);
 
   return (
     <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
@@ -119,6 +136,16 @@ export default function IncidentForm({ incident, residents, locations, staff, on
               required
             />
           </div>
+
+          {/* Auto-attribution banner */}
+          {autoAttrib && !incident && (
+            <div className="flex items-center gap-2 px-3 py-2 rounded-lg text-sm" style={{ background: '#D1FAE5', border: '1px solid #A7F3D0' }}>
+              <UserCheck className="w-4 h-4 flex-shrink-0" style={{ color: '#065F46' }} />
+              <span style={{ color: '#065F46' }}>
+                <strong>{autoAttrib.first_name} {autoAttrib.last_name}</strong> auto-assigned as reporter — on duty at this location/time
+              </span>
+            </div>
+          )}
 
           {/* Section: People Involved */}
           <p className="text-xs font-bold uppercase tracking-wide pt-1" style={{ color: '#B45309' }}>People Involved</p>
