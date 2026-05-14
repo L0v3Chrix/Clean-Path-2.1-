@@ -20,6 +20,7 @@ import IncidentSafetyDashboard from './pages/IncidentSafetyDashboard';
 import Scheduling from './pages/Scheduling';
 import IntakeForm from './pages/IntakeForm';
 import OrgSettings from './pages/OrgSettings';
+import ResidentPortal from './pages/ResidentPortal';
 
 const AuthenticatedApp = () => {
   const { isLoadingAuth, isLoadingPublicSettings, authError, navigateToLogin } = useAuth();
@@ -60,7 +61,7 @@ const AuthenticatedApp = () => {
         <Route path="/intake" element={<IntakeForm />} />
         <Route path="/reports" element={<ComingSoon title="Reports & Analytics" description="Outcome data, occupancy reports, incident trends, and quality improvement metrics." />} />
         <Route path="/settings" element={<OrgSettings />} />
-        <Route path="/my-profile" element={<ComingSoon title="My Profile" description="Your personal recovery journey dashboard, documents, and information." />} />
+        <Route path="/my-profile" element={<ResidentPortal />} />
         <Route path="/resources" element={<ComingSoon title="Resources" description="Community resource directory, local services, and recovery support tools." />} />
       </Route>
       <Route path="*" element={<PageNotFound />} />

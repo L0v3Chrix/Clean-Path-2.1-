@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Link, useLocation, Outlet } from 'react-router-dom';
+import { Link, useLocation, Outlet, useNavigate } from 'react-router-dom';
 import { base44 } from '@/api/base44Client';
 import {
   Home, Users, Building2, MessageSquare, FileText,
@@ -45,9 +45,18 @@ export default function Layout() {
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [mobileOpen, setMobileOpen] = useState(false);
   const location = useLocation();
+  const navigate = useNavigate();
 
   useEffect(() => {
-    base44.auth.me().then(setUser).catch(() => {});
+    base44.auth.me().then(me => {
+      setUser(me);
+      // Redirect residents to their portal if they land on admin pages
+      const isResident = me?.role === 'resident' || me?.role === 'user';
+      const adminPaths = ['/residents', '/locations', '/staff', '/incidents', '/compliance', '/inventory', '/incident-safety', '/scheduling'];
+      if (isResident && (location.pathname === '/' || adminPaths.includes(location.pathname))) {
+        navigate('/my-profile', { replace: true });
+      }
+    }).catch(() => {});
   }, []);
 
   const userRole = user?.role || 'staff';
