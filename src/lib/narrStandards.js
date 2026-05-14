@@ -1,0 +1,73 @@
+// NARR Standards - 4 Domains with core rules
+// Based on the NARR Standard 3.0 framework
+
+export const NARR_STANDARDS = [
+  {
+    id: 'administrative',
+    label: 'Administrative',
+    description: 'Organizational structure, policies, financials, and governance.',
+    color: 'blue',
+    icon: 'Briefcase',
+    rules: [
+      { id: 'ADM-1.1', name: 'Mission & Vision Statement', description: 'Written mission and/or vision statement exists and is accessible.' },
+      { id: 'ADM-1.2', name: 'Non-Discrimination Policy', description: 'Written policy prohibiting discrimination in admissions and services.' },
+      { id: 'ADM-1.3', name: 'Grievance Policy', description: 'Formal grievance or complaint procedure documented and communicated to residents.' },
+      { id: 'ADM-1.4', name: 'Resident Rights & Responsibilities', description: 'Written resident rights and responsibilities provided at intake.' },
+      { id: 'ADM-1.5', name: 'Resident Agreement / House Rules', description: 'Signed resident agreement documenting program expectations.' },
+      { id: 'ADM-1.6', name: 'Liability Insurance', description: 'Current general liability insurance policy maintained.' },
+      { id: 'ADM-1.7', name: 'Financial Records', description: 'Basic financial records maintained; fee policies are transparent.' },
+      { id: 'ADM-1.8', name: 'Staff/Volunteer Background Checks', description: 'Background checks completed for all staff with direct resident contact.' },
+      { id: 'ADM-1.9', name: 'Confidentiality Policy (42 CFR Part 2 / HIPAA)', description: 'Written confidentiality policy aligned with applicable federal regulations.' },
+      { id: 'ADM-1.10', name: 'Emergency Contact & Procedures', description: 'Emergency procedures documented and posted in common areas.' },
+    ],
+  },
+  {
+    id: 'physical_environment',
+    label: 'Physical Environment',
+    description: 'Safety, habitability, and living space standards.',
+    color: 'green',
+    icon: 'Home',
+    rules: [
+      { id: 'PHY-2.1', name: 'Safe & Habitable Living Space', description: 'All living spaces meet basic habitability standards (heat, water, electricity).' },
+      { id: 'PHY-2.2', name: 'Smoke Detectors & Carbon Monoxide Detectors', description: 'Functioning smoke and CO detectors installed per local code.' },
+      { id: 'PHY-2.3', name: 'Fire Extinguishers', description: 'Accessible, inspected fire extinguishers present on each floor.' },
+      { id: 'PHY-2.4', name: 'Fire Escape Plan Posted', description: 'Evacuation plan posted in common areas and reviewed with residents.' },
+      { id: 'PHY-2.5', name: 'Adequate Sleeping Space', description: 'Each resident has private sleeping space meeting minimum sq ft requirements.' },
+      { id: 'PHY-2.6', name: 'Bathroom-to-Resident Ratio', description: 'Adequate bathroom access (no more than 4 residents per bathroom).' },
+      { id: 'PHY-2.7', name: 'Medication Storage Policy', description: 'Secure, organized storage for resident medications per program policy.' },
+      { id: 'PHY-2.8', name: 'Accessibility Compliance', description: 'Physical barriers removed or accommodations provided as required.' },
+    ],
+  },
+  {
+    id: 'recovery_support',
+    label: 'Recovery Support',
+    description: 'Programming, peer support, and recovery-oriented services.',
+    color: 'teal',
+    icon: 'Heart',
+    rules: [
+      { id: 'REC-3.1', name: 'Recovery-Oriented Environment', description: 'Alcohol and illicit drug-free environment with clear, enforced policy.' },
+      { id: 'REC-3.2', name: 'Peer Support Available', description: 'Residents have access to a house manager or peer support specialist.' },
+      { id: 'REC-3.3', name: 'Recovery Meeting Participation', description: 'Program encourages or requires attendance at recovery support meetings.' },
+      { id: 'REC-3.4', name: 'Case Management / Service Linkage', description: 'Residents connected to community resources (employment, healthcare, etc.).' },
+      { id: 'REC-3.5', name: 'Individualized Recovery Plan', description: 'Resident-centered recovery plan developed and updated regularly.' },
+      { id: 'REC-3.6', name: 'Random Drug & Alcohol Testing Policy', description: 'Written policy for random or cause-based drug testing implemented consistently.' },
+      { id: 'REC-3.7', name: 'Naloxone (Narcan) On-Site & Training', description: 'Naloxone available on-site; staff and residents trained in use.' },
+      { id: 'REC-3.8', name: 'Discharge Planning', description: 'Structured discharge/transition planning process documented.' },
+      { id: 'REC-3.9', name: 'Alumni & Aftercare Connection', description: 'Alumni network or aftercare follow-up process in place.' },
+    ],
+  },
+  {
+    id: 'good_neighbor',
+    label: 'Good Neighbor',
+    description: 'Community integration, neighborhood relations, and civic responsibility.',
+    color: 'amber',
+    icon: 'Users',
+    rules: [
+      { id: 'GN-4.1', name: 'Community Conduct Policy', description: 'Written expectations for resident behavior in the surrounding community.' },
+      { id: 'GN-4.2', name: 'Neighborhood Communication Plan', description: 'Process for responding to neighbor concerns or complaints.' },
+      { id: 'GN-4.3', name: 'Parking & Noise Standards', description: 'Policies address parking, noise, and other community-impact behaviors.' },
+      { id: 'GN-4.4', name: 'Community Service / Civic Engagement', description: 'Residents encouraged or required to participate in community service.' },
+      { id: 'GN-4.5', name: 'Property Maintenance Standards', description: 'Exterior of property maintained to neighborhood standards.' },
+    ],
+  },
+];

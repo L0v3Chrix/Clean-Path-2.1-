@@ -14,6 +14,7 @@ import Locations from './pages/Locations';
 import Staff from './pages/Staff';
 import Incidents from './pages/Incidents';
 import Chat from './pages/Chat';
+import Compliance from './pages/Compliance';
 
 const AuthenticatedApp = () => {
   const { isLoadingAuth, isLoadingPublicSettings, authError, navigateToLogin } = useAuth();
@@ -47,7 +48,7 @@ const AuthenticatedApp = () => {
         <Route path="/staff" element={<Staff />} />
         <Route path="/incidents" element={<Incidents />} />
         <Route path="/chat" element={<Chat />} />
-        <Route path="/compliance" element={<ComingSoon title="NARR Compliance" description="Standards tracking, certification readiness scoring, and TROHN/state affiliate compliance tools." />} />
+        <Route path="/compliance" element={<Compliance />} />
         <Route path="/reports" element={<ComingSoon title="Reports & Analytics" description="Outcome data, occupancy reports, incident trends, and quality improvement metrics." />} />
         <Route path="/settings" element={<ComingSoon title="Organization Settings" description="Configure your housing types, recovery pathways, harm reduction modules, and platform preferences." />} />
         <Route path="/my-profile" element={<ComingSoon title="My Profile" description="Your personal recovery journey dashboard, documents, and information." />} />
