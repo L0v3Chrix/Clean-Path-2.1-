@@ -65,7 +65,7 @@
       "items": {
         "type": "string"
       },
-      "description": "HH:MM times for each scheduled dose, e.g. ['08:00','20:00']"
+      "description": "HH:MM times for each scheduled dose"
     },
     "prescriber": {
       "type": "string"
@@ -82,12 +82,10 @@
     },
     "end_date": {
       "type": "string",
-      "format": "date",
-      "description": "Leave blank if ongoing"
+      "format": "date"
     },
     "instructions": {
-      "type": "string",
-      "description": "Take with food, avoid alcohol, etc."
+      "type": "string"
     },
     "controlled_substance": {
       "type": "boolean",
@@ -95,8 +93,7 @@
     },
     "mat_medication": {
       "type": "boolean",
-      "default": false,
-      "description": "Medication-Assisted Treatment"
+      "default": false
     },
     "status": {
       "type": "string",
@@ -107,6 +104,23 @@
         "completed"
       ],
       "default": "active"
+    },
+    "current_quantity": {
+      "type": "number",
+      "description": "Current pills/doses/mL in stock"
+    },
+    "quantity_unit": {
+      "type": "string",
+      "description": "e.g. tablets, mL, patches",
+      "default": "tablets"
+    },
+    "low_stock_threshold": {
+      "type": "number",
+      "description": "Alert when quantity falls below this"
+    },
+    "reorder_quantity": {
+      "type": "number",
+      "description": "Suggested reorder amount"
     },
     "notes": {
       "type": "string"

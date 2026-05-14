@@ -186,6 +186,37 @@ export default function MedicationForm({ resident, editing, onSave, onClose }) {
             </div>
           </div>
 
+          {/* Inventory */}
+          <div className="rounded-xl p-3 space-y-3" style={{ background: '#F0E9DC', border: '1px solid #E0D5C5' }}>
+            <p className="text-xs font-bold uppercase tracking-wide" style={{ color: '#B45309' }}>Inventory Tracking (optional)</p>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1.5">
+                <Label>Current Quantity</Label>
+                <Input type="number" min="0" step="0.5" placeholder="e.g. 30"
+                  value={form.current_quantity ?? ''}
+                  onChange={e => set('current_quantity', e.target.value === '' ? undefined : parseFloat(e.target.value))} />
+              </div>
+              <div className="space-y-1.5">
+                <Label>Unit</Label>
+                <Input placeholder="tablets, mL…"
+                  value={form.quantity_unit || ''}
+                  onChange={e => set('quantity_unit', e.target.value)} />
+              </div>
+              <div className="space-y-1.5">
+                <Label>Low-Stock Threshold</Label>
+                <Input type="number" min="0" placeholder="e.g. 7"
+                  value={form.low_stock_threshold ?? ''}
+                  onChange={e => set('low_stock_threshold', e.target.value === '' ? undefined : parseFloat(e.target.value))} />
+              </div>
+              <div className="space-y-1.5">
+                <Label>Reorder Quantity</Label>
+                <Input type="number" min="0" placeholder="e.g. 30"
+                  value={form.reorder_quantity ?? ''}
+                  onChange={e => set('reorder_quantity', e.target.value === '' ? undefined : parseFloat(e.target.value))} />
+              </div>
+            </div>
+          </div>
+
           <div className="space-y-1.5">
             <Label>Notes</Label>
             <Textarea placeholder="Additional notes…" value={form.notes} onChange={e => set('notes', e.target.value)} rows={2} />

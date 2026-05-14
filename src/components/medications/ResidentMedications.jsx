@@ -2,12 +2,13 @@ import { useState, useEffect, useMemo } from 'react';
 import { base44 } from '@/api/base44Client';
 import {
   Plus, Pill, CheckCircle2, XCircle, AlertCircle, Clock,
-  User, Pencil, Trash2, ChevronDown, ChevronRight, History, Bell
+  User, Pencil, Trash2, ChevronDown, ChevronRight, History, Bell, ShoppingCart
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { format, parseISO, isValid, isToday, subDays } from 'date-fns';
 import MedicationForm from './MedicationForm';
 import DoseLogModal from './DoseLogModal';
+
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -290,6 +291,21 @@ export default function ResidentMedications({ resident }) {
             <p className="text-2xl font-black" style={{ color: todayMissed > 0 ? '#DC2626' : '#1C1917' }}>{todayMissed}</p>
             <p className="text-xs" style={{ color: '#78716C' }}>Missed Today</p>
           </div>
+        </div>
+      )}
+
+      {/* Low-stock alert banner */}
+      {!loading && medications.some(m => m.status === 'active' && m.current_quantity != null && m.low_stock_threshold != null && m.current_quantity <= m.low_stock_threshold) && (
+        <div className="rounded-xl px-4 py-3 flex items-center gap-3" style={{ background: '#FEF3C7', border: '1px solid #FDE68A' }}>
+          <AlertCircle className="w-4 h-4 flex-shrink-0" style={{ color: '#B45309' }} />
+          <p className="text-sm flex-1" style={{ color: '#92400E' }}>
+            <span className="font-bold">Low stock alert: </span>
+            {medications.filter(m => m.status === 'active' && m.current_quantity != null && m.low_stock_threshold != null && m.current_quantity <= m.low_stock_threshold)
+              .map(m => `${m.name} (${m.current_quantity} ${m.quantity_unit || 'units'} left)`).join(', ')}
+          </p>
+          <a href="/inventory" className="flex-shrink-0 text-xs font-semibold flex items-center gap-1 hover:underline" style={{ color: '#B45309' }}>
+            <ShoppingCart className="w-3 h-3" /> Order
+          </a>
         </div>
       )}
 

@@ -4,7 +4,7 @@ import { base44 } from '@/api/base44Client';
 import {
   Home, Users, Building2, MessageSquare, FileText,
   Shield, BarChart3, Settings, Menu, X, ChevronDown,
-  LogOut, Bell, User, AlertTriangle, ClipboardList
+  LogOut, Bell, User, AlertTriangle, ClipboardList, Package
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -13,12 +13,12 @@ import { twMerge } from 'tailwind-merge';
 const cn = (...inputs) => twMerge(clsx(inputs));
 
 const roleNavMap = {
-  platform_admin: ['dashboard', 'residents', 'locations', 'staff', 'incidents', 'chat', 'compliance', 'reports', 'settings'],
-  owner: ['dashboard', 'residents', 'locations', 'staff', 'incidents', 'chat', 'compliance', 'reports', 'settings'],
-  director: ['dashboard', 'residents', 'locations', 'staff', 'incidents', 'chat', 'compliance', 'reports'],
-  house_manager: ['dashboard', 'residents', 'incidents', 'chat'],
+  platform_admin: ['dashboard', 'residents', 'locations', 'staff', 'incidents', 'chat', 'compliance', 'inventory', 'reports', 'settings'],
+  owner: ['dashboard', 'residents', 'locations', 'staff', 'incidents', 'chat', 'compliance', 'inventory', 'reports', 'settings'],
+  director: ['dashboard', 'residents', 'locations', 'staff', 'incidents', 'chat', 'compliance', 'inventory', 'reports'],
+  house_manager: ['dashboard', 'residents', 'incidents', 'chat', 'inventory'],
   peer_support: ['dashboard', 'residents', 'chat'],
-  case_manager: ['dashboard', 'residents', 'incidents', 'chat'],
+  case_manager: ['dashboard', 'residents', 'incidents', 'chat', 'inventory'],
   staff: ['dashboard', 'residents', 'chat'],
   resident: ['my_profile', 'chat', 'resources'],
 };
@@ -31,6 +31,7 @@ const allNavItems = [
   { id: 'incidents', label: 'Incidents', icon: AlertTriangle, path: '/incidents' },
   { id: 'chat', label: 'Community Chat', icon: MessageSquare, path: '/chat' },
   { id: 'compliance', label: 'NARR Compliance', icon: Shield, path: '/compliance' },
+  { id: 'inventory', label: 'Med Inventory', icon: Package, path: '/inventory' },
   { id: 'reports', label: 'Reports', icon: BarChart3, path: '/reports' },
   { id: 'settings', label: 'Settings', icon: Settings, path: '/settings' },
   { id: 'my_profile', label: 'My Profile', icon: User, path: '/my-profile' },

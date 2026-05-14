@@ -1,0 +1,72 @@
+{
+  "name": "ProcurementRequest",
+  "type": "object",
+  "properties": {
+    "medication_id": {
+      "type": "string"
+    },
+    "resident_id": {
+      "type": "string"
+    },
+    "organization_id": {
+      "type": "string"
+    },
+    "medication_name": {
+      "type": "string"
+    },
+    "dosage": {
+      "type": "string"
+    },
+    "quantity_requested": {
+      "type": "number"
+    },
+    "quantity_unit": {
+      "type": "string"
+    },
+    "pharmacy": {
+      "type": "string"
+    },
+    "rx_number": {
+      "type": "string"
+    },
+    "requested_by_name": {
+      "type": "string"
+    },
+    "urgency": {
+      "type": "string",
+      "enum": [
+        "routine",
+        "urgent",
+        "critical"
+      ],
+      "default": "routine"
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "pending",
+        "ordered",
+        "received",
+        "cancelled"
+      ],
+      "default": "pending"
+    },
+    "notes": {
+      "type": "string"
+    },
+    "received_date": {
+      "type": "string",
+      "format": "date"
+    },
+    "quantity_received": {
+      "type": "number"
+    }
+  },
+  "required": [
+    "medication_id",
+    "resident_id",
+    "organization_id",
+    "medication_name",
+    "quantity_requested"
+  ]
+}
