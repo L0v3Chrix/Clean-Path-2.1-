@@ -68,6 +68,10 @@
         "trial"
       ],
       "default": "trial"
+    },
+    "house_rules": {
+      "type": "string",
+      "description": "Custom house rules and guidelines shown to residents during intake"
     }
   },
   "required": [

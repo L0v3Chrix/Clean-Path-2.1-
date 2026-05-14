@@ -15,128 +15,38 @@ const STEPS = [
   { id: 'rules',      label: 'House Rules & Signature', icon: '✍️' },
 ];
 
-const HOUSE_RULES = `Recovery Centered Living
-House Guidelines & Regulations
+const DEFAULT_HOUSE_RULES = `[Your Organization Name] — House Guidelines & Resident Agreement
 
-1. There is a 2 week to 30 days clean and sober requirement before admission into Recovery Centered Living. If a member has a recurrence of use and is dismissed, they will need to acquire up to 30 days of sobriety to reenter. This rule is for the welfare of all house members and their sobriety.
+1. SOBRIETY: All residents must maintain complete abstinence from all non-prescribed mood-altering substances. Any use is grounds for immediate discharge.
 
-2. We encourage members to consider at least a 3-months of stay.
+2. DRUG TESTING: Residents consent to random drug and alcohol testing at any time, without prior notice.
 
-3. All members are required to attend a AA/NA/CA/HA, Smart Recovery (Recovery Related) meeting at least 4 days a week until they start work, volunteering or school, to have a sponsor/mentor and homegroup within two weeks.
+3. MEETINGS: Residents are required to attend a minimum of [X] recovery support meetings per week and provide documentation.
 
-Once working, volunteering or school starts, all members are required to attend at least 3 AA/NA/CA/HA Smart Recovery/Dharma Recovery (Recovery Related) meetings weekly, and be working on their recovery – progressing through the 12 Steps or Meeting type curriculum.
+4. CURFEW: All residents must comply with house curfew as posted. Exceptions require advance approval from the house manager.
 
-Maintaining sobriety and improving one's quality of life is our primary purpose.
+5. CHORES: Each resident is assigned weekly household responsibilities. Completion is mandatory.
 
-Notes: Members are required to report the names of the meetings attended, days and times during the Sunday House meeting. Members enrolled in an Intensive Outpatient Program (IOP) are permitted to count that towards one of their required meetings.
+6. GUESTS: Guests are permitted only in common areas and only during approved visiting hours. No overnight guests without prior approval.
 
-4. Any House member found to be using any narcotics, synthetics, or alcohol will be dismissed immediately. Any member who has knowledge of another member's relapse and withholds this information from the House could be removed. If you provide a false urine sample, tamper with urine or have the knowledge of other's tampering with a specimen, it will be grounds for dismissal.
+7. FEES: Resident agrees to pay program fees on or before the due date. Non-payment may result in discharge.
 
-Medication is not a topic of Conversation period, and can be grounds for eviction!
+8. CONDUCT: All residents will treat fellow residents, staff, and neighbors with respect. Violence, threats, harassment, or intimidation will result in immediate discharge.
 
-Types of misuse may include:
-a) Taking any medication not prescribed to the individual by a physician or otherwise not approved by the House Manager.
-b) Taking any prescription narcotic medication not approved by management. (NO EXCEPTIONS)
-c) Not taking medicine as prescribed and required by a physician.
-d) Taking any over-the-counter medication or nutritional supplements that can produce a false positive on a drug test. Such as Kava, Kratom, CBD, Delta, ephedrine-based medication, or dextromethorphan.
-e) Members must notify the House Management within 24 hours or before any prescribed medication changes.
-f) Members who have visited any physician or medical facility are required to bring home discharge paperwork and any documentation of prescriptions given to share with management.
+9. MEDICATIONS: All prescription medications must be disclosed to staff and stored per house protocol.
 
-5. Drug/Alcohol testing may be required from any member at any time and without notice. Failure to submit to testing will be viewed as an admission of recurrence of use, requiring immediate dismissal. Collection must be submitted within 1 to 2 hours after request.
+10. CONFIDENTIALITY: Residents will respect the privacy of fellow residents and keep house matters within the house.
 
-6. To obtain membership at RCL houses, 2 weeks of membership fees and a $150.00 Move-In fee (Non-Refundable) are required. The membership fee is due at admission. Future membership fees will be due every Friday. There will be a $10.00 a day late fee for each day thereafter. All payments via client portal on OathTrack or money order payable to Recovery Centered Living. We do not accept cash.
+11. PROPERTY: Residents are responsible for their personal belongings. The organization is not liable for lost or stolen items.
 
-7. All members are required to have a minimum of 25 hours of verifiable employment, be enrolled in nine hours of school, or have secured a 25-hour volunteer position within two weeks of their move-in date. Members who are not employed or volunteering are required to be out of the house from 10:00 a.m. – 2:00 p.m. Monday through Friday.
+12. COMPLIANCE: Residents must comply with all local, state, and federal laws.
 
-8. Overnight pass requirements:
-a) Have been a member for at least 14 days.
-b) Submit a completed overnight pass request 24–48 hours before leaving.
-c) Leave a contact number.
-d) Make sure chore(s) is/are covered.
-e) Have no outstanding bed dues or chore fines.
-f) Each member will be drug tested upon return.
-When a full member, you may stay out three nights a week (not consecutively) and must also meet requirements B–E above.
-
-9. House meetings are mandatory! The only exception is an approved and documentable work commitment and/or one House meeting per month for an authorized overnight stay.
-
-Being late or missing a House Meeting will result in:
-1st Violation: Conversation with management
-2nd Violation: Behavioral Contract
-
-10. Disruptive behavior is grounds for dismissal, including:
-a) Any physical or verbally antisocial behavior
-b) Stealing (eating someone else's food/using their toiletries is considered theft)
-c) Lying
-d) Being in another member's room without permission
-e) Always complaining or bringing negativity into the House
-
-11. Weekly chore lists will be posted at the beginning of each week. Missing a chore is a $5 fine.
-
-12. BE CLEAN. The bedroom needs to be orderly. No leaving dishes in the sink, leaving personal items in common areas. Not bathing, not changing bed sheets weekly, or being unsanitary in any way are all violations. "Leave a room better than you found it."
-
-13. Members are responsible for purchasing and cooking their own food and hygiene items. Members on medications are required to supply their own lockbox and provide management with a copy of the key. The House will supply: laundry soap, dish soap, dishwasher soap, toilet paper, paper towels, cleaning supplies, and coffee once monthly.
-
-14. No alcoholics or addicts in active use are allowed on premises – no exceptions!! Any visitors may be subject to drug/alcohol testing at any time.
-
-15. If you are the last to leave the house, you are responsible for locking both doors and checking lights & TVs.
-
-16. The living room television is to be off between 12 am–7 am Sun–Thurs. QUIET TIME: 10:30 pm–7 am Sun–Thurs; Fri & Sat 12 am–7 am.
-
-17A. There is a 10:30 p.m. curfew for all members in their 14-day probationary period. After the 14-day probationary period and at a zero balance, curfew changes to 12:30 am.
-
-17B. If a member stays out all night without permission, their door code will be removed until they speak with management. A UA/Breathalyzer test will be done upon return, and if allowed to stay, a Behavioral Contract and 9:00 p.m. curfew will be in effect for 30 days.
-
-18. Each member will be assigned a laundry day. Laundry must be done and put up immediately.
-
-19. All House members are responsible for ensuring anonymity and friendliness within the neighborhood. All House business remains within the Facility.
-
-20. No soliciting in the neighborhood for any reason or loitering in front of the House.
-
-21. Members are allowed to have a vehicle with management consent. Copies of a current driver's license, registration, and insurance must be provided within three days of move-in.
-
-22. Do not park in front of the neighbor's house. No broken-down vehicles allowed on premises unless approved by the House Manager.
-
-23. Grocery shopping should be done on a weekly basis due to limited shelf and refrigerator space.
-
-24. After 1:00 am, the kitchen is considered a quiet area.
-
-25. No burning of candles, incense or sage without House Manager approval. No smoking in the House. Vaping is allowed but must be kept to a minimum. Failure to comply will result in loss of inside privileges for 30 days.
-
-26. All rooms are assigned by the House Manager. Room changes require management approval.
-
-27. No visitors are allowed in any rooms alone. Visitors must be approved by management and the roommate must be comfortable with the visitor.
-
-28. No weapons of any kind are allowed on premises. If a weapon is found, the member may be asked to leave immediately.
-
-29. Surfing pornography or distasteful websites on House computers is not allowed.
-
-30. Gaming consoles, laptops, and iPads are allowed at your own risk. House Managers may search browser history of related equipment.
-
-31. Recovery Centered Living may have working monitoring security cameras inside and outside of the house.
-
-32. Once a member departs, all mail will be returned to the sender. Please apply for a change of address upon departure.
-
-33. Recovery Centered Living is not responsible for any member's stolen items.
-
-34. Members who had financial support to pay membership fees and breach contract will have their family or payee contacted by Recovery Centered Living.
-
-35. This Agreement is not a lease and does not create a landlord-tenant relationship of any kind. Membership Fees do not constitute rent. If a dismissed member remains on property after notice to depart, they may be arrested for criminal trespassing. The House may change the locks without notice. After a member departs, they have 72 hours to coordinate pick up of their belongings. After 30 days their property will be donated.
-
-36. Breach of contract for any reason (relapse, two weeks late on membership fees, excessive guideline infractions, stealing, disruptive behavior, etc.) will result in loss of all funds paid. The Facility will be entitled to $5,000.00 in liquidated damages for disruption to business operations if a member fails to leave immediately upon dismissal.
-
-The rules are suggested guidelines and subject to change. Recovery Centered Living reserves the right to modify consequences, move straight to a behavioral contract and dismissal as necessary, or revoke the membership of any member deemed a threat to the sobriety and recovery of members.
-
-Slade Skaggs has full authority over the Houses as needed.
-
-Failure to comply with Recovery Centered Guidelines will result in:
-1st Violation: Conversation with management
-2nd Violation: Behavioral Contract
-
-By signing below, I acknowledge that I have read, understand, and agree to abide by all of the above house guidelines and regulations. I understand that violation of these rules may result in dismissal from Recovery Centered Living.`;
+By signing below, I acknowledge that I have read, understand, and agree to abide by all house rules and policies. I understand that violations may result in discharge from the program.`;
 
 export default function IntakeForm() {
   const [step, setStep]         = useState(0);
   const [locations, setLocations] = useState([]);
+  const [houseRules, setHouseRules] = useState(DEFAULT_HOUSE_RULES);
   const [submitting, setSubmitting] = useState(false);
   const [submitted, setSubmitted]  = useState(false);
   const [createdName, setCreatedName] = useState('');
@@ -162,6 +72,9 @@ export default function IntakeForm() {
 
   useEffect(() => {
     base44.entities.Location.filter({ status: 'active' }).then(setLocations);
+    base44.entities.Organization.list().then(orgs => {
+      if (orgs[0]?.house_rules) setHouseRules(orgs[0].house_rules);
+    });
   }, []);
 
   // ── Canvas signature ──────────────────────────────────────────────────────
@@ -520,7 +433,7 @@ export default function IntakeForm() {
               <>
                 <div className="rounded-xl p-4 overflow-y-auto text-xs leading-relaxed whitespace-pre-wrap max-h-52"
                   style={{ background: '#F8F5F0', border: '1px solid #E0D5C5', color: '#3C3530', fontFamily: 'monospace' }}>
-                  {HOUSE_RULES}
+                  {houseRules}
                 </div>
 
                 <div className="space-y-2">
