@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { base44 } from '@/api/base44Client';
-import { Plus, Search, Upload, User, ChevronRight, AlertTriangle } from 'lucide-react';
+import { Link } from 'react-router-dom';
+import { Plus, Search, Upload, User, ChevronRight, AlertTriangle, ClipboardList } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent } from '@/components/ui/card';
@@ -100,6 +101,11 @@ export default function Residents() {
           <Button variant="outline" onClick={() => setShowImport(true)} className="gap-2">
             <Upload className="w-4 h-4" /> Import Data
           </Button>
+          <Link to="/intake">
+            <Button variant="outline" className="gap-2" style={{ borderColor: '#B45309', color: '#B45309' }}>
+              <ClipboardList className="w-4 h-4" /> Digital Intake Form
+            </Button>
+          </Link>
           <Button onClick={() => { setSelectedResident(null); setShowForm(true); }} className="bg-teal-600 hover:bg-teal-700 gap-2">
             <Plus className="w-4 h-4" /> New Intake
           </Button>
