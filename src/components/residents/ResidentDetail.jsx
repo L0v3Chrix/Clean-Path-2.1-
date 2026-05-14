@@ -1,9 +1,10 @@
 import { useState } from 'react';
-import { X, Edit, Phone, Mail, Calendar, MapPin, Heart, FileText, AlertTriangle } from 'lucide-react';
+import { X, Edit, Phone, Mail, Calendar, MapPin, Heart, FileText, AlertTriangle, GitBranch } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { base44 } from '@/api/base44Client';
 import ResidentDocuments from './ResidentDocuments';
+import ResidentTimeline from './ResidentTimeline';
 
 const statusColors = {
   applicant: 'bg-blue-100 text-blue-700',
@@ -59,6 +60,7 @@ export default function ResidentDetail({ resident: r, locations, onEdit, onClose
         <div className="flex border-b px-5 gap-1 sticky top-[73px] bg-white z-10">
           {[
             { id: 'profile', label: 'Profile' },
+            { id: 'timeline', label: 'Timeline', icon: GitBranch },
             { id: 'documents', label: 'Documents', icon: FileText },
           ].map(t => (
             <button
@@ -116,6 +118,12 @@ export default function ResidentDetail({ resident: r, locations, onEdit, onClose
             <Button variant="ghost" className="text-red-500 hover:text-red-700 hover:bg-red-50 w-full text-sm" onClick={handleDelete}>
               Remove Resident
             </Button>
+          </div>
+        )}
+
+        {tab === 'timeline' && (
+          <div className="p-5">
+            <ResidentTimeline resident={r} />
           </div>
         )}
 

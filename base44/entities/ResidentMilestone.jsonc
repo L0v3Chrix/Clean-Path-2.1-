@@ -1,0 +1,51 @@
+{
+  "name": "ResidentMilestone",
+  "type": "object",
+  "properties": {
+    "resident_id": {
+      "type": "string"
+    },
+    "organization_id": {
+      "type": "string"
+    },
+    "date": {
+      "type": "string",
+      "format": "date"
+    },
+    "type": {
+      "type": "string",
+      "enum": [
+        "intake",
+        "sobriety_date",
+        "phase_change",
+        "life_skills",
+        "employment",
+        "housing_goal",
+        "medical",
+        "legal",
+        "family",
+        "graduation",
+        "relapse",
+        "other"
+      ]
+    },
+    "title": {
+      "type": "string"
+    },
+    "description": {
+      "type": "string"
+    },
+    "phase_from": {
+      "type": "string"
+    },
+    "phase_to": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "resident_id",
+    "date",
+    "type",
+    "title"
+  ]
+}
