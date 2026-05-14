@@ -157,62 +157,103 @@ export default function IntakeForm() {
       notes: `Digitally signed via intake form at ${signedAt}. IP: client-side.`,
     });
 
-    // Notify house managers by email
-    const managers = await base44.entities.StaffMember.filter({ status: 'active' });
-    const houseManagers = managers.filter(s =>
-      ['house_manager', 'director', 'owner', 'platform_admin'].includes(s.role) && s.email
-    );
+    // Notify ALL active staff immediately — the faster the follow-up, the better the conversion
+    const allStaff = await base44.entities.StaffMember.filter({ status: 'active' });
+    const staffToNotify = allStaff.filter(s => s.email);
 
     const residentName = `${form.first_name} ${form.last_name}`;
-    const locationName = locations.find(l => l.id === form.location_id)?.name || 'Unassigned';
+    const preferredLocation = locations.find(l => l.id === form.location_id);
+    const locationName = preferredLocation?.name || 'No preference';
     const reviewUrl = `${window.location.origin}/residents`;
+    const submittedAt = new Date().toLocaleString();
 
-    await Promise.allSettled(houseManagers.map(mgr =>
+    // Find locations with open beds to highlight for staff
+    const locationsWithBeds = locations.filter(l =>
+      l.total_beds && l.occupied_beds != null && l.total_beds > l.occupied_beds
+    );
+    const openBedsHtml = locationsWithBeds.length > 0
+      ? `<div style="background: #ECFDF5; border: 1px solid #A7F3D0; border-radius: 8px; padding: 12px 16px; margin: 16px 0;">
+          <p style="margin: 0 0 8px; font-weight: 700; font-size: 13px; color: #065F46;">🏠 Locations with Open Beds Right Now:</p>
+          ${locationsWithBeds.map(l => `<p style="margin: 4px 0; font-size: 13px; color: #047857;">• <strong>${l.name}</strong> — ${l.total_beds - l.occupied_beds} bed(s) available</p>`).join('')}
+        </div>`
+      : '';
+
+    // Is this person's preferred location the same one with openings?
+    const preferredHasOpenings = preferredLocation &&
+      preferredLocation.total_beds &&
+      preferredLocation.occupied_beds != null &&
+      preferredLocation.total_beds > preferredLocation.occupied_beds;
+
+    const urgencyBanner = preferredHasOpenings
+      ? `<div style="background: #FEF3C7; border: 2px solid #F59E0B; border-radius: 10px; padding: 14px 18px; margin-bottom: 20px;">
+          <p style="margin: 0; font-size: 16px; font-weight: 700; color: #92400E;">⚡ BEDS AVAILABLE at their preferred location!</p>
+          <p style="margin: 6px 0 0; font-size: 13px; color: #B45309;">Contact <strong>${residentName}</strong> now — ${form.phone ? form.phone : form.email || 'see details below'}</p>
+        </div>`
+      : `<div style="background: #FEE2E2; border: 2px solid #FCA5A5; border-radius: 10px; padding: 14px 18px; margin-bottom: 20px;">
+          <p style="margin: 0; font-size: 16px; font-weight: 700; color: #991B1B;">🚨 New Application — Respond Within the Hour</p>
+          <p style="margin: 6px 0 0; font-size: 13px; color: #B91C1C;">Early contact dramatically increases placement success. Reach out to <strong>${residentName}</strong> ASAP.</p>
+        </div>`;
+
+    await Promise.allSettled(staffToNotify.map(staff =>
       base44.integrations.Core.SendEmail({
-        to: mgr.email,
-        subject: `✅ New Intake Ready for Review — ${residentName}`,
+        to: staff.email,
+        subject: `🚨 New Application — ${residentName} | ${locationName}${preferredHasOpenings ? ' ✅ Beds Available!' : ''}`,
         body: `
 <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto; padding: 24px; background: #FAF6EF; border-radius: 12px;">
-  <div style="background: #D1FAE5; border: 1px solid #A7F3D0; border-radius: 10px; padding: 16px 20px; margin-bottom: 20px;">
-    <p style="margin: 0; font-size: 18px; font-weight: 700; color: #065F46;">✅ New Resident Intake — Ready for Review</p>
-    <p style="margin: 4px 0 0; font-size: 13px; color: #047857;">A new intake form has been submitted and requires your review.</p>
-  </div>
 
-  <table style="width: 100%; font-size: 14px; color: #1C1917; border-collapse: collapse;">
+  ${urgencyBanner}
+
+  <table style="width: 100%; font-size: 14px; color: #1C1917; border-collapse: collapse; margin-bottom: 16px;">
     <tr style="border-bottom: 1px solid #E0D5C5;">
-      <td style="padding: 10px 4px; font-weight: 600; color: #78716C; width: 40%;">Resident Name</td>
-      <td style="padding: 10px 4px;">${residentName}</td>
+      <td style="padding: 10px 4px; font-weight: 600; color: #78716C; width: 38%;">Applicant Name</td>
+      <td style="padding: 10px 4px; font-weight: 700;">${residentName}</td>
     </tr>
     <tr style="border-bottom: 1px solid #E0D5C5;">
-      <td style="padding: 10px 4px; font-weight: 600; color: #78716C;">Location</td>
+      <td style="padding: 10px 4px; font-weight: 600; color: #78716C;">Phone</td>
+      <td style="padding: 10px 4px;">${form.phone || '—'}</td>
+    </tr>
+    <tr style="border-bottom: 1px solid #E0D5C5;">
+      <td style="padding: 10px 4px; font-weight: 600; color: #78716C;">Email</td>
+      <td style="padding: 10px 4px;">${form.email || '—'}</td>
+    </tr>
+    <tr style="border-bottom: 1px solid #E0D5C5;">
+      <td style="padding: 10px 4px; font-weight: 600; color: #78716C;">Preferred Location</td>
       <td style="padding: 10px 4px;">${locationName}</td>
     </tr>
     <tr style="border-bottom: 1px solid #E0D5C5;">
-      <td style="padding: 10px 4px; font-weight: 600; color: #78716C;">Intake Date</td>
+      <td style="padding: 10px 4px; font-weight: 600; color: #78716C;">Requested Move-in</td>
       <td style="padding: 10px 4px;">${form.intake_date}</td>
     </tr>
     <tr style="border-bottom: 1px solid #E0D5C5;">
       <td style="padding: 10px 4px; font-weight: 600; color: #78716C;">Recovery Pathway</td>
-      <td style="padding: 10px 4px;">${form.recovery_pathway?.replace(/_/g, ' ') || '—'}</td>
+      <td style="padding: 10px 4px; text-transform: capitalize;">${form.recovery_pathway?.replace(/_/g, ' ') || '—'}</td>
     </tr>
     <tr style="border-bottom: 1px solid #E0D5C5;">
       <td style="padding: 10px 4px; font-weight: 600; color: #78716C;">Referred By</td>
       <td style="padding: 10px 4px;">${form.referred_by || '—'}</td>
     </tr>
     <tr>
-      <td style="padding: 10px 4px; font-weight: 600; color: #78716C;">House Rules Signed</td>
-      <td style="padding: 10px 4px; color: #065F46; font-weight: 600;">✅ Yes — ${signedAt ? new Date(signedAt).toLocaleString() : 'Signed'}</td>
+      <td style="padding: 10px 4px; font-weight: 600; color: #78716C;">Submitted At</td>
+      <td style="padding: 10px 4px; color: #065F46; font-weight: 600;">${submittedAt}</td>
     </tr>
   </table>
 
-  <div style="margin-top: 24px; text-align: center;">
+  ${openBedsHtml}
+
+  ${form.phone ? `<div style="text-align: center; margin: 20px 0;">
+    <a href="tel:${form.phone}" style="display: inline-block; background: #065F46; color: #fff; text-decoration: none; padding: 12px 28px; border-radius: 8px; font-weight: 700; font-size: 15px; margin-right: 10px;">
+      📞 Call Now: ${form.phone}
+    </a>
+  </div>` : ''}
+
+  <div style="text-align: center; margin: 12px 0 24px;">
     <a href="${reviewUrl}" style="display: inline-block; background: #B45309; color: #fff; text-decoration: none; padding: 12px 28px; border-radius: 8px; font-weight: 600; font-size: 14px;">
-      Review Applicant →
+      View Full Application in ClearPath →
     </a>
   </div>
 
-  <p style="margin-top: 20px; font-size: 12px; color: #A09080; text-align: center;">
-    Sent automatically by ClearPath when a new intake form is submitted.
+  <p style="font-size: 12px; color: #A09080; text-align: center;">
+    All ClearPath staff are notified instantly when a new application arrives. The sooner you connect, the better the outcome.
   </p>
 </div>`.trim(),
       }).catch(() => {})
