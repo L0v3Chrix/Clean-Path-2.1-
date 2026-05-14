@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { base44 } from '@/api/base44Client';
-import { Plus, Search, AlertTriangle, BarChart2, List, Filter } from 'lucide-react';
+import { Link } from 'react-router-dom';
+import { Plus, Search, AlertTriangle, BarChart2, List, TrendingUp } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -102,6 +103,11 @@ export default function Incidents() {
               </button>
             ))}
           </div>
+          <Link to="/incident-safety">
+            <Button variant="outline" className="gap-2" style={{ borderColor: '#E0D5C5', color: '#B45309' }}>
+              <TrendingUp className="w-4 h-4" /> Safety Trends
+            </Button>
+          </Link>
           <Button onClick={() => { setEditing(null); setShowForm(true); }} className="gap-2" style={{ background: '#B45309', color: '#fff' }}>
             <Plus className="w-4 h-4" /> Log Incident
           </Button>

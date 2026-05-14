@@ -16,6 +16,7 @@ import Incidents from './pages/Incidents';
 import Chat from './pages/Chat';
 import Compliance from './pages/Compliance';
 import Inventory from './pages/Inventory';
+import IncidentSafetyDashboard from './pages/IncidentSafetyDashboard';
 
 const AuthenticatedApp = () => {
   const { isLoadingAuth, isLoadingPublicSettings, authError, navigateToLogin } = useAuth();
@@ -51,6 +52,7 @@ const AuthenticatedApp = () => {
         <Route path="/chat" element={<Chat />} />
         <Route path="/compliance" element={<Compliance />} />
         <Route path="/inventory" element={<Inventory />} />
+        <Route path="/incident-safety" element={<IncidentSafetyDashboard />} />
         <Route path="/reports" element={<ComingSoon title="Reports & Analytics" description="Outcome data, occupancy reports, incident trends, and quality improvement metrics." />} />
         <Route path="/settings" element={<ComingSoon title="Organization Settings" description="Configure your housing types, recovery pathways, harm reduction modules, and platform preferences." />} />
         <Route path="/my-profile" element={<ComingSoon title="My Profile" description="Your personal recovery journey dashboard, documents, and information." />} />
