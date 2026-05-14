@@ -56,7 +56,7 @@ export default function Layout() {
   const handleLogout = () => base44.auth.logout();
 
   return (
-    <div className="flex h-screen bg-slate-50 overflow-hidden">
+    <div className="flex h-screen overflow-hidden" style={{ background: '#FAF6EF' }}>
       {/* Mobile overlay */}
       {mobileOpen && (
         <div className="fixed inset-0 bg-black/50 z-40 lg:hidden" onClick={() => setMobileOpen(false)} />
@@ -64,31 +64,32 @@ export default function Layout() {
 
       {/* Sidebar */}
       <aside className={cn(
-        "fixed lg:relative z-50 h-full bg-slate-900 text-white flex flex-col transition-all duration-300",
+        "fixed lg:relative z-50 h-full flex flex-col transition-all duration-300",
         sidebarOpen ? "w-64" : "w-16",
         mobileOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0"
-      )}>
+      )} style={{ background: '#1C1917', color: '#E7DDD0' }}>
         {/* Logo */}
-        <div className="flex items-center justify-between p-4 border-b border-slate-700">
+        <div className="flex items-center justify-between p-4" style={{ borderBottom: '1px solid #2C2825' }}>
           {sidebarOpen && (
             <div className="flex items-center gap-2">
-              <div className="w-8 h-8 bg-teal-500 rounded-lg flex items-center justify-center">
+              <div className="w-8 h-8 rounded-lg flex items-center justify-center" style={{ background: '#B45309' }}>
                 <Shield className="w-5 h-5 text-white" />
               </div>
               <div>
                 <div className="font-bold text-sm text-white">ClearPath</div>
-                <div className="text-xs text-teal-400">Production 2</div>
+                <div className="text-xs" style={{ color: '#F59E0B' }}>Production 2</div>
               </div>
             </div>
           )}
           {!sidebarOpen && (
-            <div className="w-8 h-8 bg-teal-500 rounded-lg flex items-center justify-center mx-auto">
+            <div className="w-8 h-8 rounded-lg flex items-center justify-center mx-auto" style={{ background: '#B45309' }}>
               <Shield className="w-5 h-5 text-white" />
             </div>
           )}
           <button
             onClick={() => setSidebarOpen(!sidebarOpen)}
-            className="hidden lg:flex text-slate-400 hover:text-white p-1"
+            className="hidden lg:flex p-1 hover:text-white"
+            style={{ color: '#8C7B6E' }}
           >
             <Menu className="w-4 h-4" />
           </button>
@@ -96,9 +97,9 @@ export default function Layout() {
 
         {/* Role badge */}
         {sidebarOpen && user && (
-          <div className="px-4 py-3 border-b border-slate-700">
-            <div className="text-xs text-slate-400 mb-1">{user.full_name || user.email}</div>
-            <Badge className="bg-teal-500/20 text-teal-400 border-teal-500/30 text-xs capitalize">
+          <div className="px-4 py-3" style={{ borderBottom: '1px solid #2C2825' }}>
+            <div className="text-xs mb-1" style={{ color: '#A09080' }}>{user.full_name || user.email}</div>
+            <Badge className="text-xs capitalize border-0" style={{ background: '#B45309', color: '#fff' }}>
               {effectiveRole.replace('_', ' ')}
             </Badge>
           </div>
@@ -114,12 +115,13 @@ export default function Layout() {
                 key={item.id}
                 to={item.path}
                 onClick={() => setMobileOpen(false)}
-                className={cn(
-                  "flex items-center gap-3 px-4 py-3 text-sm transition-colors",
-                  active
-                    ? "bg-teal-500/20 text-teal-400 border-r-2 border-teal-400"
-                    : "text-slate-400 hover:text-white hover:bg-slate-800"
-                )}
+                className={cn("flex items-center gap-3 px-4 py-2.5 text-sm transition-colors")}
+                style={active
+                  ? { background: '#2C2420', color: '#F59E0B', borderRight: '2px solid #F59E0B' }
+                  : { color: '#A09080' }
+                }
+                onMouseEnter={e => { if (!active) { e.currentTarget.style.color = '#E7DDD0'; e.currentTarget.style.background = '#252220'; } }}
+                onMouseLeave={e => { if (!active) { e.currentTarget.style.color = '#A09080'; e.currentTarget.style.background = 'transparent'; } }}
               >
                 <Icon className="w-4 h-4 flex-shrink-0" />
                 {sidebarOpen && <span>{item.label}</span>}
@@ -129,13 +131,11 @@ export default function Layout() {
         </nav>
 
         {/* Logout */}
-        <div className="p-4 border-t border-slate-700">
+        <div className="p-4" style={{ borderTop: '1px solid #2C2825' }}>
           <button
             onClick={handleLogout}
-            className={cn(
-              "flex items-center gap-3 text-slate-400 hover:text-white text-sm w-full",
-              !sidebarOpen && "justify-center"
-            )}
+            className={cn("flex items-center gap-3 text-sm w-full hover:text-white transition-colors", !sidebarOpen && "justify-center")}
+            style={{ color: '#8C7B6E' }}
           >
             <LogOut className="w-4 h-4" />
             {sidebarOpen && "Sign Out"}
@@ -146,28 +146,29 @@ export default function Layout() {
       {/* Main content */}
       <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
         {/* Top bar */}
-        <header className="bg-white border-b border-slate-200 px-4 py-3 flex items-center justify-between flex-shrink-0">
+        <header className="px-4 py-3 flex items-center justify-between flex-shrink-0" style={{ background: '#1C1917', borderBottom: '1px solid #2C2825' }}>
           <button
-            className="lg:hidden text-slate-600"
+            className="lg:hidden"
+            style={{ color: '#A09080' }}
             onClick={() => setMobileOpen(true)}
           >
             <Menu className="w-5 h-5" />
           </button>
-          <div className="text-sm text-slate-500 hidden sm:block">
+          <div className="text-sm font-medium hidden sm:block" style={{ color: '#F59E0B' }}>
             Recovery-Oriented Housing Platform
           </div>
           <div className="flex items-center gap-2">
-            <button className="p-2 text-slate-400 hover:text-slate-600 relative">
+            <button className="p-2 relative" style={{ color: '#A09080' }}>
               <Bell className="w-4 h-4" />
             </button>
-            <div className="text-sm font-medium text-slate-700">
+            <div className="text-sm font-medium" style={{ color: '#E7DDD0' }}>
               {user?.full_name || user?.email || ''}
             </div>
           </div>
         </header>
 
         {/* Page content */}
-        <main className="flex-1 overflow-auto">
+        <main className="flex-1 overflow-auto" style={{ background: '#FAF6EF' }}>
           <Outlet />
         </main>
       </div>

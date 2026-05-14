@@ -49,20 +49,20 @@ export default function Dashboard() {
   }
 
   const statCards = [
-    { label: 'Active Residents', value: stats.residents, icon: Users, color: 'text-teal-600', bg: 'bg-teal-50', path: '/residents' },
-    { label: 'Active Locations', value: stats.locations, icon: Building2, color: 'text-blue-600', bg: 'bg-blue-50', path: '/locations' },
-    { label: 'Open Incidents', value: stats.incidents, icon: AlertTriangle, color: 'text-amber-600', bg: 'bg-amber-50', path: '/incidents' },
-    { label: 'Active Staff', value: stats.staff, icon: Shield, color: 'text-purple-600', bg: 'bg-purple-50', path: '/staff' },
+    { label: 'Active Residents', value: stats.residents, icon: Users, iconColor: '#B45309', borderColor: '#D97706', path: '/residents' },
+    { label: 'Active Locations', value: stats.locations, icon: Building2, iconColor: '#B45309', borderColor: '#D97706', path: '/locations' },
+    { label: 'Open Incidents', value: stats.incidents, icon: AlertTriangle, iconColor: '#B45309', borderColor: '#D97706', path: '/incidents' },
+    { label: 'Active Staff', value: stats.staff, icon: Shield, iconColor: '#B45309', borderColor: '#D97706', path: '/staff' },
   ];
 
   return (
-    <div className="p-6 space-y-6">
+    <div className="p-6 space-y-6" style={{ background: '#FAF6EF', minHeight: '100%' }}>
       {/* Welcome */}
       <div>
-        <h1 className="text-2xl font-bold text-slate-900">
+        <h1 className="text-3xl font-bold" style={{ color: '#1C1917' }}>
           Welcome back{user?.full_name ? `, ${user.full_name.split(' ')[0]}` : ''}
         </h1>
-        <p className="text-slate-500 mt-1">Here's what's happening across your housing community today.</p>
+        <p className="mt-1" style={{ color: '#78716C' }}>Here's what's happening across your housing community today.</p>
       </div>
 
       {/* Stats */}
@@ -71,21 +71,17 @@ export default function Dashboard() {
           const Icon = card.icon;
           return (
             <Link key={card.label} to={card.path}>
-              <Card className="hover:shadow-md transition-shadow cursor-pointer">
-                <CardContent className="p-4">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-xs text-slate-500 font-medium">{card.label}</p>
-                      <p className="text-3xl font-bold text-slate-900 mt-1">
-                        {loading ? '—' : card.value}
-                      </p>
-                    </div>
-                    <div className={`w-10 h-10 rounded-xl ${card.bg} flex items-center justify-center`}>
-                      <Icon className={`w-5 h-5 ${card.color}`} />
-                    </div>
+              <div className="rounded-2xl p-4 cursor-pointer transition-shadow hover:shadow-md" style={{ background: '#F0E9DC', borderLeft: `3px solid ${card.borderColor}` }}>
+                <div className="flex items-start justify-between">
+                  <div>
+                    <p className="text-3xl font-bold" style={{ color: '#1C1917' }}>
+                      {loading ? '—' : card.value}
+                    </p>
+                    <p className="text-sm mt-1" style={{ color: '#78716C' }}>{card.label}</p>
                   </div>
-                </CardContent>
-              </Card>
+                  <Icon className="w-6 h-6 mt-1" style={{ color: card.iconColor }} />
+                </div>
+              </div>
             </Link>
           );
         })}
@@ -93,104 +89,97 @@ export default function Dashboard() {
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Recent Residents */}
-        <Card>
-          <CardHeader className="pb-3 flex flex-row items-center justify-between">
-            <CardTitle className="text-base">Recent Residents</CardTitle>
-            <Link to="/residents">
-              <Button variant="ghost" size="sm" className="text-teal-600 gap-1">
-                View all <ArrowRight className="w-3 h-3" />
-              </Button>
+        <div className="rounded-2xl p-5" style={{ background: '#F0E9DC', border: '1px solid #E0D5C5' }}>
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="font-semibold text-base" style={{ color: '#1C1917' }}>Recent Residents</h2>
+            <Link to="/residents" className="flex items-center gap-1 text-sm font-medium" style={{ color: '#B45309' }}>
+              View all <ArrowRight className="w-3 h-3" />
             </Link>
-          </CardHeader>
-          <CardContent className="space-y-3">
+          </div>
+          <div className="space-y-3">
             {loading ? (
-              <div className="space-y-2">{[1,2,3].map(i => <div key={i} className="h-12 bg-slate-100 rounded animate-pulse" />)}</div>
+              <div className="space-y-2">{[1,2,3].map(i => <div key={i} className="h-12 rounded-xl animate-pulse" style={{ background: '#E5DDD0' }} />)}</div>
             ) : recentResidents.length === 0 ? (
-              <p className="text-sm text-slate-500 text-center py-4">No residents yet. <Link to="/residents" className="text-teal-600 hover:underline">Add your first resident.</Link></p>
+              <p className="text-sm text-center py-6" style={{ color: '#78716C' }}>No residents yet. <Link to="/residents" className="underline" style={{ color: '#B45309' }}>Add your first resident.</Link></p>
             ) : recentResidents.map(r => (
-              <div key={r.id} className="flex items-center justify-between py-2 border-b last:border-0">
+              <div key={r.id} className="flex items-center justify-between py-2" style={{ borderBottom: '1px solid #DDD5C5' }}>
                 <div className="flex items-center gap-3">
-                  <div className="w-8 h-8 rounded-full bg-teal-100 flex items-center justify-center text-teal-700 text-sm font-bold">
+                  <div className="w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold" style={{ background: '#D97706', color: '#fff' }}>
                     {r.first_name?.[0]}{r.last_name?.[0]}
                   </div>
                   <div>
-                    <p className="text-sm font-medium">{r.first_name} {r.last_name}</p>
-                    <p className="text-xs text-slate-500">{r.room ? `Room ${r.room}` : 'No room assigned'}</p>
+                    <p className="text-sm font-medium" style={{ color: '#1C1917' }}>{r.first_name} {r.last_name}</p>
+                    <p className="text-xs" style={{ color: '#78716C' }}>{r.room ? `Room ${r.room}` : 'No room assigned'}</p>
                   </div>
                 </div>
-                <Badge className={
-                  r.status === 'active' ? 'bg-green-100 text-green-700 border-0' :
-                  r.status === 'applicant' ? 'bg-blue-100 text-blue-700 border-0' :
-                  'bg-slate-100 text-slate-600 border-0'
-                }>
-                  {r.status}
-                </Badge>
+                <span className="text-xs font-medium px-2 py-0.5 rounded-full" style={
+                  r.status === 'active' ? { background: '#D1FAE5', color: '#065F46' } :
+                  r.status === 'applicant' ? { background: '#DBEAFE', color: '#1E40AF' } :
+                  { background: '#E5E7EB', color: '#374151' }
+                }>{r.status}</span>
               </div>
             ))}
-          </CardContent>
-        </Card>
+          </div>
+        </div>
 
         {/* Recent Incidents */}
-        <Card>
-          <CardHeader className="pb-3 flex flex-row items-center justify-between">
-            <CardTitle className="text-base">Recent Incidents</CardTitle>
-            <Link to="/incidents">
-              <Button variant="ghost" size="sm" className="text-teal-600 gap-1">
-                View all <ArrowRight className="w-3 h-3" />
-              </Button>
+        <div className="rounded-2xl p-5" style={{ background: '#F0E9DC', border: '1px solid #E0D5C5' }}>
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="font-semibold text-base" style={{ color: '#1C1917' }}>Recent Incidents</h2>
+            <Link to="/incidents" className="flex items-center gap-1 text-sm font-medium" style={{ color: '#B45309' }}>
+              View all <ArrowRight className="w-3 h-3" />
             </Link>
-          </CardHeader>
-          <CardContent className="space-y-3">
+          </div>
+          <div className="space-y-3">
             {loading ? (
-              <div className="space-y-2">{[1,2,3].map(i => <div key={i} className="h-12 bg-slate-100 rounded animate-pulse" />)}</div>
+              <div className="space-y-2">{[1,2,3].map(i => <div key={i} className="h-12 rounded-xl animate-pulse" style={{ background: '#E5DDD0' }} />)}</div>
             ) : recentIncidents.length === 0 ? (
-              <p className="text-sm text-slate-500 text-center py-4">No incidents reported. That's great!</p>
+              <p className="text-sm text-center py-6" style={{ color: '#78716C' }}>No incidents reported. That's great!</p>
             ) : recentIncidents.map(inc => (
-              <div key={inc.id} className="flex items-center justify-between py-2 border-b last:border-0">
+              <div key={inc.id} className="flex items-center justify-between py-2" style={{ borderBottom: '1px solid #DDD5C5' }}>
                 <div className="flex items-center gap-3">
-                  <div className={`w-2 h-2 rounded-full flex-shrink-0 ${
-                    inc.severity === 'critical' ? 'bg-red-500' :
-                    inc.severity === 'high' ? 'bg-orange-500' :
-                    inc.severity === 'medium' ? 'bg-yellow-500' : 'bg-slate-400'
-                  }`} />
+                  <div className={`w-2 h-2 rounded-full flex-shrink-0`} style={{
+                    background: inc.severity === 'critical' ? '#EF4444' : inc.severity === 'high' ? '#F97316' : inc.severity === 'medium' ? '#EAB308' : '#9CA3AF'
+                  }} />
                   <div>
-                    <p className="text-sm font-medium capitalize">{inc.type?.replace('_', ' ')}</p>
-                    <p className="text-xs text-slate-500">{inc.incident_date}</p>
+                    <p className="text-sm font-medium capitalize" style={{ color: '#1C1917' }}>{inc.type?.replace('_', ' ')}</p>
+                    <p className="text-xs" style={{ color: '#78716C' }}>{inc.incident_date}</p>
                   </div>
                 </div>
-                <Badge className={
-                  inc.status === 'open' ? 'bg-red-100 text-red-700 border-0' :
-                  inc.status === 'resolved' ? 'bg-green-100 text-green-700 border-0' :
-                  'bg-slate-100 text-slate-600 border-0'
-                }>
-                  {inc.status}
-                </Badge>
+                <span className="text-xs font-medium px-2 py-0.5 rounded-full" style={
+                  inc.status === 'open' ? { background: '#FEE2E2', color: '#991B1B' } :
+                  inc.status === 'resolved' ? { background: '#D1FAE5', color: '#065F46' } :
+                  { background: '#E5E7EB', color: '#374151' }
+                }>{inc.status}</span>
               </div>
             ))}
-          </CardContent>
-        </Card>
+          </div>
+        </div>
       </div>
 
       {/* Quick actions */}
-      <Card>
-        <CardHeader className="pb-3">
-          <CardTitle className="text-base">Quick Actions</CardTitle>
-        </CardHeader>
-        <CardContent className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+      <div className="rounded-2xl p-5" style={{ background: '#F0E9DC', border: '1px solid #E0D5C5' }}>
+        <h2 className="font-semibold text-base mb-4" style={{ color: '#1C1917' }}>Quick Actions</h2>
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
           {[
-            { label: 'New Intake', path: '/residents?action=new', color: 'bg-teal-50 text-teal-700 hover:bg-teal-100' },
-            { label: 'Log Incident', path: '/incidents?action=new', color: 'bg-amber-50 text-amber-700 hover:bg-amber-100' },
-            { label: 'Open Chat', path: '/chat', color: 'bg-blue-50 text-blue-700 hover:bg-blue-100' },
-            { label: 'NARR Compliance', path: '/compliance', color: 'bg-purple-50 text-purple-700 hover:bg-purple-100' },
-          ].map(a => (
-            <Link key={a.label} to={a.path}>
-              <button className={`w-full py-3 px-4 rounded-xl text-sm font-medium transition-colors ${a.color}`}>
-                {a.label}
-              </button>
-            </Link>
-          ))}
-        </CardContent>
-      </Card>
+            { label: 'New Intake', path: '/residents?action=new', bg: '#86B8B1', color: '#1C3A37', icon: Users },
+            { label: 'Log Incident', path: '/incidents?action=new', bg: '#C9A227', color: '#3D2E00', icon: AlertTriangle },
+            { label: 'Open Chat', path: '/chat', bg: '#4A6B8A', color: '#E8F0F8', icon: ArrowRight },
+            { label: 'NARR Compliance', path: '/compliance', bg: '#8B6BAE', color: '#F3EEF8', icon: Shield },
+          ].map(a => {
+            const Icon = a.icon;
+            return (
+              <Link key={a.label} to={a.path}>
+                <button className="w-full py-5 px-3 rounded-2xl text-sm font-medium transition-opacity hover:opacity-90 flex flex-col items-center gap-2"
+                  style={{ background: a.bg, color: a.color }}>
+                  <Icon className="w-5 h-5" />
+                  {a.label}
+                </button>
+              </Link>
+            );
+          })}
+        </div>
+      </div>
     </div>
   );
 }
