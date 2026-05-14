@@ -157,8 +157,11 @@ export default function Layout() {
           >
             <Menu className="w-5 h-5" />
           </button>
-          <div className="text-sm font-medium hidden sm:block" style={{ color: '#F59E0B' }}>
-            Recovery-Oriented Housing Platform
+          <div className="hidden sm:flex items-center gap-2">
+            <span className="text-sm font-bold" style={{ color: '#FFFFFF' }}>ClearPath</span>
+            <span className="text-xs px-2 py-0.5 rounded-full font-medium" style={{ background: '#B45309', color: '#FEF3C7' }}>
+              Recovery-Oriented Housing Platform
+            </span>
           </div>
           <div className="flex items-center gap-2">
             <button className="p-2 relative" style={{ color: '#A09080' }}>
