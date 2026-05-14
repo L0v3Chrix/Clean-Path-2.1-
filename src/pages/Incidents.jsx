@@ -2,6 +2,8 @@ import { useState, useEffect } from 'react';
 import { base44 } from '@/api/base44Client';
 import { Link } from 'react-router-dom';
 import { Plus, Search, AlertTriangle, BarChart2, List, TrendingUp } from 'lucide-react';
+import { toast } from 'sonner';
+import { notifyCriticalIncident } from '@/lib/criticalIncidentNotifier';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -250,8 +252,38 @@ export default function Incidents() {
           locations={locations}
           staff={staff}
           onSave={async (data) => {
-            if (data.id) await base44.entities.IncidentReport.update(data.id, data);
-            else await base44.entities.IncidentReport.create(data);
+            const isNew = !data.id;
+            const saved = data.id
+              ? await base44.entities.IncidentReport.update(data.id, data)
+              : await base44.entities.IncidentReport.create(data);
+
+            // Critical incident notifications (new reports only)
+            if (isNew && data.severity === 'critical') {
+              const incidentRecord = { ...data, id: saved?.id || saved };
+              const result = await notifyCriticalIncident(incidentRecord, staff, locations);
+              const incidentUrl = result?.incidentUrl;
+
+              toast.error(
+                <div className="space-y-1">
+                  <p className="font-bold text-sm">🔴 Critical Incident Logged</p>
+                  <p className="text-xs opacity-90">{data.type?.replace(/_/g, ' ')} — immediate attention required</p>
+                  {incidentUrl && (
+                    <a
+                      href={incidentUrl}
+                      className="text-xs underline font-medium block mt-1"
+                      style={{ color: '#FCA5A5' }}
+                    >
+                      View Incident Report →
+                    </a>
+                  )}
+                  {result?.recipientCount > 0 && (
+                    <p className="text-xs opacity-75">{result.recipientCount} staff member{result.recipientCount !== 1 ? 's' : ''} notified by email</p>
+                  )}
+                </div>,
+                { duration: 10000, style: { background: '#7F1D1D', color: '#FEF2F2', border: '1px solid #EF4444' } }
+              );
+            }
+
             setShowForm(false);
             setEditing(null);
             setViewing(null);
