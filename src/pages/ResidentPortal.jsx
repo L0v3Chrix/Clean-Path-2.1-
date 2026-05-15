@@ -9,6 +9,7 @@ import MeetingsPanel from '@/components/resident_portal/MeetingsPanel';
 import LedgerPanel from '@/components/resident_portal/LedgerPanel';
 import MorningReflectionWidget from '@/components/resident_portal/MorningReflectionWidget';
 import ESignaturePanel from '@/components/esignature/ESignaturePanel';
+import ResidentWallet from '@/components/resident_portal/ResidentWallet';
 
 export default function ResidentPortal() {
   const [user, setUser] = useState(null);
@@ -94,6 +95,9 @@ export default function ResidentPortal() {
 
       {/* Payments & Ledger */}
       <LedgerPanel resident={resident} location={location} organizationName={org?.name} />
+
+      {/* Wallet — centralized document access */}
+      {resident && <ResidentWallet resident={resident} />}
     </div>
   );
 }
