@@ -11,6 +11,7 @@ import ResidentForm from '@/components/residents/ResidentForm';
 import ResidentDetail from '@/components/residents/ResidentDetail';
 import DataImportModal from '@/components/shared/DataImportModal';
 import ResidentAlertBadge from '@/components/residents/ResidentAlertBadge';
+import DocumentAlertPanel from '@/components/residents/DocumentAlertPanel';
 import { getResidentAlerts } from '@/lib/residentAlerts';
 
 const statusColors = {
@@ -89,12 +90,7 @@ export default function Residents() {
         <div>
           <h1 className="text-2xl font-bold text-slate-900">Residents</h1>
           <p className="text-slate-500 text-sm mt-1">
-            {residents.filter(r => r.status === 'active').length} active residents
-            {totalAlerts > 0 && (
-              <span className="ml-2 inline-flex items-center gap-1 text-orange-600 font-semibold">
-                <AlertTriangle className="w-3.5 h-3.5" /> {totalAlerts} with document alerts
-              </span>
-            )}
+            {residents.filter(r => r.status === 'active').length} active · {residents.filter(r => r.status === 'applicant').length} applicants
           </p>
         </div>
         <div className="flex gap-2">
@@ -111,6 +107,13 @@ export default function Residents() {
           </Button>
         </div>
       </div>
+
+      {/* Document Alert Panel */}
+      <DocumentAlertPanel
+        residents={residents}
+        documents={documents}
+        onSelectResident={(r) => { setSelectedResident(r); setShowForm(false); }}
+      />
 
       {/* Filters */}
       <div className="flex flex-wrap gap-3 mb-6">
