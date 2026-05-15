@@ -1,0 +1,80 @@
+{
+  "name": "ResidentInterview",
+  "type": "object",
+  "properties": {
+    "resident_id": {
+      "type": "string"
+    },
+    "organization_id": {
+      "type": "string"
+    },
+    "conducted_by_name": {
+      "type": "string"
+    },
+    "conducted_by_id": {
+      "type": "string"
+    },
+    "interview_date": {
+      "type": "string",
+      "format": "date"
+    },
+    "interview_mode": {
+      "type": "string",
+      "enum": [
+        "in_person",
+        "phone",
+        "video"
+      ],
+      "default": "in_person"
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "in_progress",
+        "completed",
+        "pending_review"
+      ],
+      "default": "in_progress"
+    },
+    "screening_answers": {
+      "type": "object",
+      "description": "Answers to pre-screening questions (sex offender, arson, charges, ID)"
+    },
+    "question_notes": {
+      "type": "object",
+      "description": "Staff notes per question index, keyed by question id"
+    },
+    "question_scores": {
+      "type": "object",
+      "description": "1-5 score per question index keyed by question id"
+    },
+    "overall_score": {
+      "type": "number",
+      "description": "Calculated average score (1-5)"
+    },
+    "recommendation": {
+      "type": "string",
+      "enum": [
+        "approve",
+        "conditional_approve",
+        "waitlist",
+        "deny",
+        "pending"
+      ],
+      "default": "pending"
+    },
+    "summary_notes": {
+      "type": "string",
+      "description": "Staff overall interview summary"
+    },
+    "ai_summary": {
+      "type": "string",
+      "description": "AI-generated interview summary and recommendation rationale"
+    }
+  },
+  "required": [
+    "resident_id",
+    "conducted_by_name",
+    "interview_date"
+  ]
+}
