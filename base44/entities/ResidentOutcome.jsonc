@@ -1,0 +1,149 @@
+{
+  "name": "ResidentOutcome",
+  "type": "object",
+  "properties": {
+    "resident_id": {
+      "type": "string"
+    },
+    "organization_id": {
+      "type": "string"
+    },
+    "exit_date": {
+      "type": "string",
+      "format": "date",
+      "description": "Date resident exited the program"
+    },
+    "exit_type": {
+      "type": "string",
+      "enum": [
+        "graduated",
+        "voluntary",
+        "administrative",
+        "relapse",
+        "medical",
+        "incarcerated",
+        "deceased",
+        "unknown"
+      ],
+      "default": "graduated"
+    },
+    "employment_status": {
+      "type": "string",
+      "enum": [
+        "employed_full_time",
+        "employed_part_time",
+        "self_employed",
+        "unemployed_seeking",
+        "unemployed_not_seeking",
+        "disabled",
+        "student",
+        "retired",
+        "unknown"
+      ],
+      "default": "unknown"
+    },
+    "employer_name": {
+      "type": "string"
+    },
+    "income_range": {
+      "type": "string",
+      "enum": [
+        "under_15k",
+        "15k_30k",
+        "30k_50k",
+        "50k_75k",
+        "over_75k",
+        "unknown"
+      ],
+      "default": "unknown"
+    },
+    "housing_status": {
+      "type": "string",
+      "enum": [
+        "stable_owned",
+        "stable_rented",
+        "with_family",
+        "sober_living",
+        "shelter",
+        "transitional",
+        "unstable",
+        "homeless",
+        "unknown"
+      ],
+      "default": "unknown"
+    },
+    "housing_stable_since": {
+      "type": "string",
+      "format": "date",
+      "description": "Date they secured stable housing post-exit"
+    },
+    "education_status": {
+      "type": "string",
+      "enum": [
+        "enrolled_degree",
+        "enrolled_vocational",
+        "completed_degree",
+        "completed_vocational",
+        "completed_ged",
+        "not_enrolled",
+        "unknown"
+      ],
+      "default": "unknown"
+    },
+    "education_program": {
+      "type": "string",
+      "description": "Name of school, program, or certification pursued"
+    },
+    "sobriety_maintained": {
+      "type": "boolean",
+      "default": true
+    },
+    "days_sober_at_exit": {
+      "type": "number"
+    },
+    "current_sobriety_days": {
+      "type": "number",
+      "description": "Updated at follow-up check-ins"
+    },
+    "recovery_support_active": {
+      "type": "boolean",
+      "default": false,
+      "description": "Still engaged in meetings, counseling, MAT, etc."
+    },
+    "support_type": {
+      "type": "string",
+      "description": "e.g. AA, counseling, MAT, church"
+    },
+    "follow_up_date": {
+      "type": "string",
+      "format": "date",
+      "description": "Date of last follow-up contact"
+    },
+    "follow_up_method": {
+      "type": "string",
+      "enum": [
+        "phone",
+        "email",
+        "in_person",
+        "text",
+        "no_contact"
+      ],
+      "default": "phone"
+    },
+    "grant_ids": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "Grants this resident was enrolled under during their stay"
+    },
+    "notes": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "resident_id",
+    "exit_date",
+    "exit_type"
+  ]
+}
