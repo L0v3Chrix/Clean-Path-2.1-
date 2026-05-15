@@ -26,7 +26,10 @@
         "family",
         "graduation",
         "relapse",
-        "other"
+        "other",
+        "status_change",
+        "interview_completed",
+        "care_plan_update"
       ]
     },
     "title": {
@@ -39,6 +42,25 @@
       "type": "string"
     },
     "phase_to": {
+      "type": "string"
+    },
+    "source": {
+      "type": "string",
+      "enum": [
+        "manual",
+        "auto"
+      ],
+      "default": "manual",
+      "description": "Whether this was added manually by staff or auto-logged by the system"
+    },
+    "staff_annotation": {
+      "type": "string",
+      "description": "Staff note added to any timeline event"
+    },
+    "annotated_by": {
+      "type": "string"
+    },
+    "annotated_at": {
       "type": "string"
     }
   },
