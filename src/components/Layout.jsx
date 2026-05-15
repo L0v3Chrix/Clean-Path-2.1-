@@ -16,15 +16,23 @@ const cn = (...inputs) => twMerge(clsx(inputs));
 const FULL_NAV = ['dashboard', 'applications', 'residents', 'locations', 'staff', 'scheduling', 'incidents', 'incident_safety', 'chat', 'compliance', 'inventory', 'analytics', 'grants', 'outcomes', 'finance', 'training', 'hipaa', 'integrations', 'reports', 'settings'];
 
 const roleNavMap = {
-  admin:          FULL_NAV,
-  platform_admin: FULL_NAV,
-  owner:          FULL_NAV,
-  director:       ['dashboard', 'applications', 'residents', 'locations', 'staff', 'scheduling', 'incidents', 'incident_safety', 'chat', 'compliance', 'inventory', 'analytics', 'grants', 'outcomes', 'finance', 'training', 'hipaa', 'reports'],
-  house_manager:  ['dashboard', 'applications', 'residents', 'scheduling', 'incidents', 'incident_safety', 'chat', 'inventory', 'training'],
-  peer_support:   ['dashboard', 'residents', 'chat', 'training'],
-  case_manager:   ['dashboard', 'applications', 'residents', 'incidents', 'incident_safety', 'chat', 'inventory', 'training'],
-  staff:          ['dashboard', 'applications', 'residents', 'chat', 'training'],
-  resident:       ['my_profile', 'chat', 'resources'],
+  // Full platform access — ownership/leadership only
+  admin:                  FULL_NAV,
+  platform_admin:         FULL_NAV,
+  owner:                  FULL_NAV,
+  director:               ['dashboard', 'applications', 'residents', 'locations', 'staff', 'scheduling', 'incidents', 'incident_safety', 'chat', 'compliance', 'inventory', 'analytics', 'grants', 'outcomes', 'finance', 'training', 'hipaa', 'reports'],
+
+  // Operational staff
+  house_manager:          ['dashboard', 'applications', 'residents', 'scheduling', 'incidents', 'incident_safety', 'chat', 'inventory', 'compliance', 'training'],
+  assistant_manager:      ['dashboard', 'applications', 'residents', 'scheduling', 'incidents', 'incident_safety', 'chat', 'inventory', 'training'],
+  house_manager_trainee:  ['dashboard', 'residents', 'scheduling', 'chat', 'inventory', 'training'],
+  case_manager:           ['dashboard', 'applications', 'residents', 'incidents', 'incident_safety', 'chat', 'inventory', 'training'],
+  peer_support:           ['dashboard', 'residents', 'chat', 'training'],
+  staff:                  ['dashboard', 'residents', 'chat', 'training'],
+
+  // Residents — portal only, no staff/admin views
+  resident:               ['my_profile', 'chat', 'resources'],
+  user:                   ['my_profile', 'chat', 'resources'],
 };
 
 const allNavItems = [
@@ -63,9 +71,10 @@ export default function Layout() {
     base44.auth.me().then(me => {
       setUser(me);
       // Redirect residents to their portal if they land on admin pages
-      const isResident = me?.role === 'resident' || me?.role === 'user';
-      const adminPaths = ['/residents', '/locations', '/staff', '/incidents', '/compliance', '/inventory', '/incident-safety', '/scheduling'];
-      if (isResident && (location.pathname === '/' || adminPaths.includes(location.pathname))) {
+      const residentRoles = ['resident', 'user'];
+      const isResidentRole = residentRoles.includes(me?.role);
+      const adminPaths = ['/residents', '/locations', '/staff', '/incidents', '/compliance', '/inventory', '/incident-safety', '/scheduling', '/intake'];
+      if (isResidentRole && (location.pathname === '/' || adminPaths.includes(location.pathname))) {
         navigate('/my-profile', { replace: true });
       }
     }).catch(() => {});
@@ -73,7 +82,7 @@ export default function Layout() {
 
   const userRole = user?.role || 'staff';
   const isResident = userRole === 'resident' || userRole === 'user';
-  const effectiveRole = isResident ? 'resident' : userRole;
+  const effectiveRole = userRole;
   const allowedNav = roleNavMap[effectiveRole] || roleNavMap['staff'];
   const navItems = allNavItems.filter(item => allowedNav.includes(item.id));
 
