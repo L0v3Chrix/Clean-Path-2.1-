@@ -30,6 +30,7 @@ import HipaaCompliance from './pages/HipaaCompliance';
 import Integrations from './pages/Integrations';
 import Chores from './pages/Chores';
 import Masterlist from './pages/Masterlist';
+import SecureDocuments from './pages/SecureDocuments';
 
 const AuthenticatedApp = () => {
   const { isLoadingAuth, isLoadingPublicSettings, authError, navigateToLogin } = useAuth();
@@ -80,6 +81,7 @@ const AuthenticatedApp = () => {
         <Route path="/integrations" element={<Integrations />} />
         <Route path="/chores" element={<Chores />} />
         <Route path="/masterlist" element={<Masterlist />} />
+        <Route path="/secure-docs" element={<SecureDocuments />} />
         <Route path="/resources" element={<ComingSoon title="Resources" description="Community resource directory, local services, and recovery support tools." />} />
       </Route>
       <Route path="*" element={<PageNotFound />} />

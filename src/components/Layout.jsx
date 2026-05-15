@@ -5,7 +5,7 @@ import {
   Home, Users, Building2, MessageSquare, FileText,
   Shield, BarChart3, Settings, Menu, X, ChevronDown,
   LogOut, Bell, User, AlertTriangle, ClipboardList, Package, TrendingUp, CalendarDays,
-  DollarSign, BookOpen, Lock, Zap, PieChart, Award, Activity, ClipboardCheck
+  DollarSign, BookOpen, Lock, Zap, PieChart, Award, Activity, ClipboardCheck, FolderLock
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -13,22 +13,22 @@ import { clsx } from 'clsx';
 import { twMerge } from 'tailwind-merge';
 const cn = (...inputs) => twMerge(clsx(inputs));
 
-const FULL_NAV = ['dashboard', 'masterlist', 'applications', 'residents', 'locations', 'staff', 'scheduling', 'chores', 'incidents', 'incident_safety', 'chat', 'compliance', 'inventory', 'analytics', 'grants', 'outcomes', 'finance', 'training', 'hipaa', 'integrations', 'reports', 'settings'];
+const FULL_NAV = ['dashboard', 'masterlist', 'applications', 'residents', 'locations', 'staff', 'scheduling', 'chores', 'incidents', 'incident_safety', 'chat', 'compliance', 'inventory', 'analytics', 'grants', 'outcomes', 'finance', 'training', 'hipaa', 'integrations', 'reports', 'secure_docs', 'settings'];
 
 const roleNavMap = {
   // Full platform access — ownership/leadership only
   admin:                  FULL_NAV,
   platform_admin:         FULL_NAV,
   owner:                  FULL_NAV,
-  director:               ['dashboard', 'applications', 'residents', 'locations', 'staff', 'scheduling', 'incidents', 'incident_safety', 'chat', 'compliance', 'inventory', 'analytics', 'grants', 'outcomes', 'finance', 'training', 'hipaa', 'reports'],
+  director:               ['dashboard', 'applications', 'residents', 'locations', 'staff', 'scheduling', 'incidents', 'incident_safety', 'chat', 'compliance', 'inventory', 'analytics', 'grants', 'outcomes', 'finance', 'training', 'hipaa', 'reports', 'secure_docs'],
 
   // Operational staff
-  house_manager:          ['dashboard', 'masterlist', 'applications', 'residents', 'scheduling', 'chores', 'incidents', 'incident_safety', 'chat', 'inventory', 'compliance', 'training'],
-  assistant_manager:      ['dashboard', 'masterlist', 'applications', 'residents', 'scheduling', 'chores', 'incidents', 'incident_safety', 'chat', 'inventory', 'training'],
+  house_manager:          ['dashboard', 'masterlist', 'applications', 'residents', 'scheduling', 'chores', 'incidents', 'incident_safety', 'chat', 'inventory', 'compliance', 'training', 'secure_docs'],
+  assistant_manager:      ['dashboard', 'masterlist', 'applications', 'residents', 'scheduling', 'chores', 'incidents', 'incident_safety', 'chat', 'inventory', 'training', 'secure_docs'],
   house_manager_trainee:  ['dashboard', 'masterlist', 'residents', 'scheduling', 'chores', 'chat', 'inventory', 'training'],
-  case_manager:           ['dashboard', 'masterlist', 'applications', 'residents', 'incidents', 'incident_safety', 'chat', 'inventory', 'training'],
+  case_manager:           ['dashboard', 'masterlist', 'applications', 'residents', 'incidents', 'incident_safety', 'chat', 'inventory', 'training', 'secure_docs'],
   peer_support:           ['dashboard', 'residents', 'chat', 'training'],
-  staff:                  ['dashboard', 'residents', 'chat', 'training'],
+  staff:                  ['dashboard', 'residents', 'chat', 'training', 'secure_docs'],
 
   // Residents — portal only, no staff/admin views
   resident:               ['my_profile', 'chat', 'resources'],
@@ -58,6 +58,7 @@ const allNavItems = [
   { id: 'masterlist', label: 'Masterlist', icon: Users, path: '/masterlist' },
   { id: 'chores', label: 'Chore Management', icon: ClipboardList, path: '/chores' },
   { id: 'integrations', label: 'Integrations', icon: Zap, path: '/integrations' },
+  { id: 'secure_docs', label: 'Secure Documents', icon: FolderLock, path: '/secure-docs' },
   { id: 'my_profile', label: 'My Profile', icon: User, path: '/my-profile' },
   { id: 'resources', label: 'Resources', icon: ClipboardList, path: '/resources' },
 ];
