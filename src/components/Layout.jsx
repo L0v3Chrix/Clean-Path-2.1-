@@ -5,7 +5,7 @@ import {
   Home, Users, Building2, MessageSquare, FileText,
   Shield, BarChart3, Settings, Menu, X, ChevronDown,
   LogOut, Bell, User, AlertTriangle, ClipboardList, Package, TrendingUp, CalendarDays,
-  DollarSign, BookOpen, Lock, Zap, PieChart, Award, Activity, ClipboardCheck, FolderLock, Play
+  DollarSign, BookOpen, Lock, Zap, PieChart, Award, Activity, ClipboardCheck, FolderLock, Play, BedDouble
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -13,14 +13,14 @@ import { clsx } from 'clsx';
 import { twMerge } from 'tailwind-merge';
 const cn = (...inputs) => twMerge(clsx(inputs));
 
-const FULL_NAV = ['dashboard', 'masterlist', 'applications', 'residents', 'locations', 'staff', 'scheduling', 'chores', 'incidents', 'incident_safety', 'chat', 'compliance', 'inventory', 'analytics', 'grants', 'outcomes', 'finance', 'training', 'hipaa', 'integrations', 'reports', 'secure_docs', 'settings', 'presentation'];
+const FULL_NAV = ['dashboard', 'bed_capacity', 'masterlist', 'applications', 'residents', 'locations', 'staff', 'scheduling', 'chores', 'incidents', 'incident_safety', 'chat', 'compliance', 'inventory', 'analytics', 'grants', 'outcomes', 'finance', 'training', 'hipaa', 'integrations', 'reports', 'secure_docs', 'settings', 'presentation'];
 
 const roleNavMap = {
   // Full platform access — ownership/leadership only
   admin:                  FULL_NAV,
   platform_admin:         FULL_NAV,
   owner:                  FULL_NAV,
-  director:               ['dashboard', 'applications', 'residents', 'locations', 'staff', 'scheduling', 'incidents', 'incident_safety', 'chat', 'compliance', 'inventory', 'analytics', 'grants', 'outcomes', 'finance', 'training', 'hipaa', 'reports', 'secure_docs'],
+  director:               ['dashboard', 'bed_capacity', 'applications', 'residents', 'locations', 'staff', 'scheduling', 'incidents', 'incident_safety', 'chat', 'compliance', 'inventory', 'analytics', 'grants', 'outcomes', 'finance', 'training', 'hipaa', 'reports', 'secure_docs'],
 
   // Operational staff
   house_manager:          ['dashboard', 'masterlist', 'applications', 'residents', 'scheduling', 'chores', 'incidents', 'incident_safety', 'chat', 'inventory', 'compliance', 'training', 'secure_docs'],
@@ -39,6 +39,7 @@ const allNavItems = [
   { id: 'dashboard', label: 'Dashboard', icon: Home, path: '/' },
   { id: 'applications', label: 'Applications', icon: ClipboardCheck, path: '/intake' },
   { id: 'residents', label: 'Residents', icon: Users, path: '/residents' },
+  { id: 'bed_capacity', label: 'Bed Capacity', icon: BedDouble, path: '/bed-capacity' },
   { id: 'locations', label: 'Locations', icon: Building2, path: '/locations' },
   { id: 'staff', label: 'Staff', icon: User, path: '/staff' },
   { id: 'scheduling', label: 'Scheduling', icon: CalendarDays, path: '/scheduling' },
