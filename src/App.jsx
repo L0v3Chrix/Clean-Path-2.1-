@@ -31,6 +31,7 @@ import Integrations from './pages/Integrations';
 import Chores from './pages/Chores';
 import Masterlist from './pages/Masterlist';
 import SecureDocuments from './pages/SecureDocuments';
+import Presentation from './pages/Presentation';
 
 const AuthenticatedApp = () => {
   const { isLoadingAuth, isLoadingPublicSettings, authError, navigateToLogin } = useAuth();
@@ -83,6 +84,7 @@ const AuthenticatedApp = () => {
         <Route path="/masterlist" element={<Masterlist />} />
         <Route path="/secure-docs" element={<SecureDocuments />} />
         <Route path="/resources" element={<ComingSoon title="Resources" description="Community resource directory, local services, and recovery support tools." />} />
+        <Route path="/presentation" element={<Presentation />} />
       </Route>
       <Route path="*" element={<PageNotFound />} />
     </Routes>

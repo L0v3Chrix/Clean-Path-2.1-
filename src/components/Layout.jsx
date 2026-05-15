@@ -5,7 +5,7 @@ import {
   Home, Users, Building2, MessageSquare, FileText,
   Shield, BarChart3, Settings, Menu, X, ChevronDown,
   LogOut, Bell, User, AlertTriangle, ClipboardList, Package, TrendingUp, CalendarDays,
-  DollarSign, BookOpen, Lock, Zap, PieChart, Award, Activity, ClipboardCheck, FolderLock
+  DollarSign, BookOpen, Lock, Zap, PieChart, Award, Activity, ClipboardCheck, FolderLock, Play
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -13,7 +13,7 @@ import { clsx } from 'clsx';
 import { twMerge } from 'tailwind-merge';
 const cn = (...inputs) => twMerge(clsx(inputs));
 
-const FULL_NAV = ['dashboard', 'masterlist', 'applications', 'residents', 'locations', 'staff', 'scheduling', 'chores', 'incidents', 'incident_safety', 'chat', 'compliance', 'inventory', 'analytics', 'grants', 'outcomes', 'finance', 'training', 'hipaa', 'integrations', 'reports', 'secure_docs', 'settings'];
+const FULL_NAV = ['dashboard', 'masterlist', 'applications', 'residents', 'locations', 'staff', 'scheduling', 'chores', 'incidents', 'incident_safety', 'chat', 'compliance', 'inventory', 'analytics', 'grants', 'outcomes', 'finance', 'training', 'hipaa', 'integrations', 'reports', 'secure_docs', 'settings', 'presentation'];
 
 const roleNavMap = {
   // Full platform access — ownership/leadership only
@@ -61,6 +61,7 @@ const allNavItems = [
   { id: 'secure_docs', label: 'Secure Documents', icon: FolderLock, path: '/secure-docs' },
   { id: 'my_profile', label: 'My Profile', icon: User, path: '/my-profile' },
   { id: 'resources', label: 'Resources', icon: ClipboardList, path: '/resources' },
+  { id: 'presentation', label: 'Sales Presentation', icon: Play, path: '/presentation' },
 ];
 
 export default function Layout() {
