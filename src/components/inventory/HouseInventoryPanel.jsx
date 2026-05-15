@@ -6,9 +6,10 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Badge } from '@/components/ui/badge';
 import {
   Package, Plus, AlertTriangle, Search, Pencil, Trash2,
-  CheckCircle2, MinusCircle, XCircle, RefreshCw
+  CheckCircle2, MinusCircle, XCircle, RefreshCw, ScanLine
 } from 'lucide-react';
 import InventoryItemForm from './InventoryItemForm';
+import QRScannerModal from './QRScannerModal';
 
 const CATEGORY_LABELS = {
   toiletries: 'Toiletries',
@@ -45,6 +46,7 @@ export default function HouseInventoryPanel({ organizationId, locationId }) {
   const [showForm, setShowForm] = useState(false);
   const [editItem, setEditItem] = useState(null);
   const [updatingQty, setUpdatingQty] = useState({});
+  const [showScanner, setShowScanner] = useState(false);
 
   const load = async () => {
     setLoading(true);
@@ -116,6 +118,9 @@ export default function HouseInventoryPanel({ organizationId, locationId }) {
           </SelectContent>
         </Select>
         <Button variant="outline" size="icon" onClick={load} title="Refresh"><RefreshCw className="w-4 h-4" /></Button>
+        <Button variant="outline" onClick={() => setShowScanner(true)} className="gap-1.5">
+          <ScanLine className="w-4 h-4" /> Scan QR
+        </Button>
         <Button onClick={() => { setEditItem(null); setShowForm(true); }} className="gap-1.5">
           <Plus className="w-4 h-4" /> Add Item
         </Button>
@@ -185,6 +190,16 @@ export default function HouseInventoryPanel({ organizationId, locationId }) {
             );
           })}
         </div>
+      )}
+
+      {showScanner && (
+        <QRScannerModal
+          items={items}
+          onClose={() => setShowScanner(false)}
+          onUpdated={(updatedItem) => {
+            setItems(prev => prev.map(i => i.id === updatedItem.id ? updatedItem : i));
+          }}
+        />
       )}
 
       {showForm && (
