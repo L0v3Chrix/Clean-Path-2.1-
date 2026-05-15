@@ -5,7 +5,7 @@ import {
   Home, Users, Building2, MessageSquare, FileText,
   Shield, BarChart3, Settings, Menu, X, ChevronDown,
   LogOut, Bell, User, AlertTriangle, ClipboardList, Package, TrendingUp, CalendarDays,
-  DollarSign, BookOpen, Lock, Zap, PieChart, Award, Activity
+  DollarSign, BookOpen, Lock, Zap, PieChart, Award, Activity, ClipboardCheck
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -13,19 +13,23 @@ import { clsx } from 'clsx';
 import { twMerge } from 'tailwind-merge';
 const cn = (...inputs) => twMerge(clsx(inputs));
 
+const FULL_NAV = ['dashboard', 'applications', 'residents', 'locations', 'staff', 'scheduling', 'incidents', 'incident_safety', 'chat', 'compliance', 'inventory', 'analytics', 'grants', 'outcomes', 'finance', 'training', 'hipaa', 'integrations', 'reports', 'settings'];
+
 const roleNavMap = {
-  platform_admin: ['dashboard', 'residents', 'locations', 'staff', 'scheduling', 'incidents', 'incident_safety', 'chat', 'compliance', 'inventory', 'analytics', 'grants', 'outcomes', 'finance', 'training', 'outcomes', 'hipaa', 'integrations', 'reports', 'settings'],
-  owner: ['dashboard', 'residents', 'locations', 'staff', 'scheduling', 'incidents', 'incident_safety', 'chat', 'compliance', 'inventory', 'analytics', 'grants', 'outcomes', 'finance', 'training', 'outcomes', 'hipaa', 'integrations', 'reports', 'settings'],
-  director: ['dashboard', 'residents', 'locations', 'staff', 'scheduling', 'incidents', 'incident_safety', 'chat', 'compliance', 'inventory', 'analytics', 'grants', 'outcomes', 'finance', 'training', 'outcomes', 'hipaa', 'reports'],
-  house_manager: ['dashboard', 'residents', 'scheduling', 'incidents', 'incident_safety', 'chat', 'inventory', 'training'],
-  peer_support: ['dashboard', 'residents', 'chat', 'training'],
-  case_manager: ['dashboard', 'residents', 'incidents', 'incident_safety', 'chat', 'inventory', 'training'],
-  staff: ['dashboard', 'residents', 'chat', 'training'],
-  resident: ['my_profile', 'chat', 'resources'],
+  admin:          FULL_NAV,
+  platform_admin: FULL_NAV,
+  owner:          FULL_NAV,
+  director:       ['dashboard', 'applications', 'residents', 'locations', 'staff', 'scheduling', 'incidents', 'incident_safety', 'chat', 'compliance', 'inventory', 'analytics', 'grants', 'outcomes', 'finance', 'training', 'hipaa', 'reports'],
+  house_manager:  ['dashboard', 'applications', 'residents', 'scheduling', 'incidents', 'incident_safety', 'chat', 'inventory', 'training'],
+  peer_support:   ['dashboard', 'residents', 'chat', 'training'],
+  case_manager:   ['dashboard', 'applications', 'residents', 'incidents', 'incident_safety', 'chat', 'inventory', 'training'],
+  staff:          ['dashboard', 'applications', 'residents', 'chat', 'training'],
+  resident:       ['my_profile', 'chat', 'resources'],
 };
 
 const allNavItems = [
   { id: 'dashboard', label: 'Dashboard', icon: Home, path: '/' },
+  { id: 'applications', label: 'Applications', icon: ClipboardCheck, path: '/intake' },
   { id: 'residents', label: 'Residents', icon: Users, path: '/residents' },
   { id: 'locations', label: 'Locations', icon: Building2, path: '/locations' },
   { id: 'staff', label: 'Staff', icon: User, path: '/staff' },
