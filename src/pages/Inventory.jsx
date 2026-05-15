@@ -2,11 +2,12 @@ import { useState, useEffect } from 'react';
 import { base44 } from '@/api/base44Client';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
-import { Package, ClipboardList, Syringe, Bell } from 'lucide-react';
+import { Package, ClipboardList, Syringe, Bell, BarChart2 } from 'lucide-react';
 import HouseInventoryPanel from '@/components/inventory/HouseInventoryPanel';
 import InventoryRequestsPanel from '@/components/inventory/InventoryRequestsPanel';
 import InventoryRequestForm from '@/components/inventory/InventoryRequestForm';
 import MedicationInventory from '@/components/medications/MedicationInventory';
+import InventoryReports from '@/components/inventory/InventoryReports';
 
 export default function Inventory() {
   const [org, setOrg] = useState(null);
@@ -86,6 +87,9 @@ export default function Inventory() {
           <TabsTrigger value="medications" className="gap-1.5">
             <Syringe className="w-4 h-4" /> Medications
           </TabsTrigger>
+          <TabsTrigger value="reports" className="gap-1.5">
+            <BarChart2 className="w-4 h-4" /> Reports
+          </TabsTrigger>
         </TabsList>
 
         <TabsContent value="supplies">
@@ -105,6 +109,10 @@ export default function Inventory() {
 
         <TabsContent value="medications">
           <MedicationInventory organizationId={org?.id} />
+        </TabsContent>
+
+        <TabsContent value="reports">
+          <InventoryReports requests={requests} items={items} />
         </TabsContent>
       </Tabs>
 
