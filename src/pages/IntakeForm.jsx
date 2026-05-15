@@ -95,10 +95,26 @@ export default function IntakeForm() {
 
   const set = (k, v) => setForm(p => ({ ...p, [k]: v }));
 
+  const [orgId, setOrgId] = useState('');
+  const [orgName, setOrgName] = useState('ClearPath');
+
   useEffect(() => {
-    base44.entities.Location.filter({ status: 'active' }).then(setLocations).catch(() => {});
+    const params = new URLSearchParams(window.location.search);
+    const paramOrgId = params.get('org');
+
     base44.entities.Organization.list().then(orgs => {
-      if (orgs[0]?.house_rules) setHouseRules(orgs[0].house_rules);
+      // Use org from URL param if provided, otherwise fall back to first org
+      const org = paramOrgId ? orgs.find(o => o.id === paramOrgId) : orgs[0];
+      if (org) {
+        setOrgId(org.id);
+        setOrgName(org.name || 'ClearPath');
+        if (org.house_rules) setHouseRules(org.house_rules);
+      }
+    }).catch(() => {});
+
+    base44.entities.Location.filter({ status: 'active' }).then(locs => {
+      // If org param given, filter locations to that org
+      setLocations(paramOrgId ? locs.filter(l => l.organization_id === paramOrgId) : locs);
     }).catch(() => {});
   }, []);
 
@@ -167,6 +183,7 @@ export default function IntakeForm() {
 
     const residentData = {
       ...form,
+      organization_id: orgId || undefined,
       status: 'applicant',
       consent_signed: true,
       resident_agreement_signed: true,
@@ -289,7 +306,7 @@ export default function IntakeForm() {
             <Shield className="w-5 h-5 text-white" />
           </div>
           <div>
-            <h1 className="text-xl font-bold" style={{ color: '#1C1917' }}>ClearPath Resident Application</h1>
+            <h1 className="text-xl font-bold" style={{ color: '#1C1917' }}>{orgName} — Resident Application</h1>
             <p className="text-xs" style={{ color: '#78716C' }}>Secure & Confidential — Step {step + 1} of {STEPS.length}</p>
           </div>
         </div>

@@ -1,5 +1,6 @@
 import { Settings } from 'lucide-react';
 import HouseRulesEditor from '@/components/settings/HouseRulesEditor';
+import IntakeLinkGenerator from '@/components/settings/IntakeLinkGenerator';
 
 export default function OrgSettings() {
   return (
@@ -12,6 +13,10 @@ export default function OrgSettings() {
           <h1 className="text-xl font-bold text-slate-900">Organization Settings</h1>
           <p className="text-sm text-slate-500">Configure your house rules and platform preferences.</p>
         </div>
+      </div>
+
+      <div className="bg-white rounded-2xl border border-slate-200 p-6">
+        <IntakeLinkGenerator />
       </div>
 
       <div className="bg-white rounded-2xl border border-slate-200 p-6">
