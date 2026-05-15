@@ -18,7 +18,7 @@ import Compliance from './pages/Compliance';
 import Inventory from './pages/Inventory';
 import IncidentSafetyDashboard from './pages/IncidentSafetyDashboard';
 import Scheduling from './pages/Scheduling';
-import IntakeForm from './pages/IntakeForm';
+import IntakeForm from './pages/IntakeForm.jsx';
 import OrgSettings from './pages/OrgSettings';
 import ResidentPortal from './pages/ResidentPortal';
 import Analytics from './pages/Analytics';

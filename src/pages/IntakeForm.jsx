@@ -1,18 +1,31 @@
 import { useState, useEffect, useRef } from 'react';
 import { base44 } from '@/api/base44Client';
-import { CheckCircle, ChevronRight, ChevronLeft, Shield, PenLine, RotateCcw, Loader2 } from 'lucide-react';
+import {
+  CheckCircle, ChevronRight, ChevronLeft, Shield, PenLine,
+  RotateCcw, Loader2, Upload, FileText, X, AlertCircle, Search
+} from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Badge } from '@/components/ui/badge';
 
 const STEPS = [
-  { id: 'personal',   label: 'Personal Info',    icon: '👤' },
-  { id: 'contact',    label: 'Contact & Emergency', icon: '📞' },
-  { id: 'recovery',   label: 'Recovery Info',    icon: '💚' },
-  { id: 'placement',  label: 'Housing Placement', icon: '🏠' },
-  { id: 'rules',      label: 'House Rules & Signature', icon: '✍️' },
+  { id: 'personal',    label: 'Personal Info',        icon: '👤' },
+  { id: 'contact',     label: 'Contact & Emergency',  icon: '📞' },
+  { id: 'recovery',    label: 'Recovery Info',        icon: '💚' },
+  { id: 'placement',   label: 'Housing Placement',    icon: '🏠' },
+  { id: 'documents',   label: 'Documents',            icon: '📄' },
+  { id: 'background',  label: 'Background Check',     icon: '🔍' },
+  { id: 'rules',       label: 'Agreement & Signature', icon: '✍️' },
+];
+
+const REQUIRED_DOCS = [
+  { key: 'photo_id',       label: 'Government-Issued Photo ID', doc_type: 'photo_id',      required: true  },
+  { key: 'insurance_card', label: 'Insurance Card',             doc_type: 'insurance_card', required: false },
+  { key: 'release_of_info',label: 'Release of Information',     doc_type: 'release_of_information', required: false },
+  { key: 'tb_test',        label: 'TB Test Result',             doc_type: 'tb_test',        required: false },
 ];
 
 const DEFAULT_HOUSE_RULES = `[Your Organization Name] — House Guidelines & Resident Agreement
@@ -44,217 +57,180 @@ const DEFAULT_HOUSE_RULES = `[Your Organization Name] — House Guidelines & Res
 By signing below, I acknowledge that I have read, understand, and agree to abide by all house rules and policies. I understand that violations may result in discharge from the program.`;
 
 export default function IntakeForm() {
-  const [step, setStep]         = useState(0);
+  const [step, setStep] = useState(0);
   const [locations, setLocations] = useState([]);
   const [houseRules, setHouseRules] = useState(DEFAULT_HOUSE_RULES);
   const [submitting, setSubmitting] = useState(false);
-  const [submitted, setSubmitted]  = useState(false);
+  const [submitted, setSubmitted] = useState(false);
   const [createdName, setCreatedName] = useState('');
 
+  // Signature
   const canvasRef = useRef(null);
-  const [drawing, setDrawing]     = useState(false);
-  const [hasSig, setHasSig]       = useState(false);
-  const [signedAt, setSignedAt]   = useState(null);
+  const [drawing, setDrawing] = useState(false);
+  const [hasSig, setHasSig] = useState(false);
+  const [signedAt, setSignedAt] = useState(null);
+  const [agreedToRules, setAgreedToRules] = useState(false);
+
+  // Documents
+  const [uploadedDocs, setUploadedDocs] = useState({});
+  const [uploading, setUploading] = useState({});
+
+  // Background check
+  const [bgConsent, setBgConsent] = useState(false);
 
   const [form, setForm] = useState({
-    // Personal
     first_name: '', last_name: '', date_of_birth: '', gender: '',
-    // Contact
     phone: '', email: '',
     emergency_contact_name: '', emergency_contact_phone: '', emergency_contact_relationship: '',
-    // Recovery
     sober_date: '', recovery_pathway: '', referred_by: '', notes: '',
-    // Placement
     location_id: '', room: '', intake_date: new Date().toISOString().split('T')[0],
   });
 
   const set = (k, v) => setForm(p => ({ ...p, [k]: v }));
 
   useEffect(() => {
-    base44.entities.Location.filter({ status: 'active' }).then(setLocations);
+    base44.entities.Location.filter({ status: 'active' }).then(setLocations).catch(() => {});
     base44.entities.Organization.list().then(orgs => {
       if (orgs[0]?.house_rules) setHouseRules(orgs[0].house_rules);
-    });
+    }).catch(() => {});
   }, []);
 
-  // ── Canvas signature ──────────────────────────────────────────────────────
+  // ── File upload ──────────────────────────────────────────────────────────
+  const handleFileUpload = async (docKey, file) => {
+    if (!file) return;
+    setUploading(p => ({ ...p, [docKey]: true }));
+    const { file_url } = await base44.integrations.Core.UploadFile({ file });
+    setUploadedDocs(p => ({ ...p, [docKey]: { file_url, name: file.name } }));
+    setUploading(p => ({ ...p, [docKey]: false }));
+  };
+
+  const removeDoc = (docKey) => {
+    setUploadedDocs(p => { const n = { ...p }; delete n[docKey]; return n; });
+  };
+
+  // ── Canvas signature ─────────────────────────────────────────────────────
   const getPos = (e, canvas) => {
     const rect = canvas.getBoundingClientRect();
     const src = e.touches?.[0] || e;
     return { x: src.clientX - rect.left, y: src.clientY - rect.top };
   };
-
   const startDraw = (e) => {
     e.preventDefault();
     const canvas = canvasRef.current;
     const ctx = canvas.getContext('2d');
     const { x, y } = getPos(e, canvas);
-    ctx.beginPath();
-    ctx.moveTo(x, y);
+    ctx.beginPath(); ctx.moveTo(x, y);
     setDrawing(true);
   };
-
   const draw = (e) => {
     if (!drawing) return;
     e.preventDefault();
     const canvas = canvasRef.current;
     const ctx = canvas.getContext('2d');
-    ctx.lineWidth = 2.5;
-    ctx.lineCap = 'round';
-    ctx.strokeStyle = '#1C1917';
+    ctx.lineWidth = 2.5; ctx.lineCap = 'round'; ctx.strokeStyle = '#1C1917';
     const { x, y } = getPos(e, canvas);
-    ctx.lineTo(x, y);
-    ctx.stroke();
+    ctx.lineTo(x, y); ctx.stroke();
     setHasSig(true);
   };
-
   const endDraw = () => {
     setDrawing(false);
     if (hasSig && !signedAt) setSignedAt(new Date().toISOString());
   };
-
   const clearSig = () => {
     const canvas = canvasRef.current;
     canvas.getContext('2d').clearRect(0, 0, canvas.width, canvas.height);
-    setHasSig(false);
-    setSignedAt(null);
+    setHasSig(false); setSignedAt(null);
   };
-  // ─────────────────────────────────────────────────────────────────────────
 
+  // ── Validation ───────────────────────────────────────────────────────────
   const isStepValid = () => {
     if (step === 0) return form.first_name.trim() && form.last_name.trim() && form.date_of_birth;
-    if (step === 4) return hasSig;
+    if (step === 4) return REQUIRED_DOCS.filter(d => d.required).every(d => uploadedDocs[d.key]);
+    if (step === 5) return bgConsent;
+    if (step === 6) return hasSig && agreedToRules;
     return true;
   };
 
+  // ── Submit ───────────────────────────────────────────────────────────────
   const handleSubmit = async () => {
     setSubmitting(true);
-    // Get signature as data URL
-    const sigDataUrl = canvasRef.current.toDataURL('image/png');
 
-    // Build resident record
+    const sigDataUrl = canvasRef.current.toDataURL('image/png');
+    const residentName = `${form.first_name} ${form.last_name}`;
+
     const residentData = {
       ...form,
       status: 'applicant',
       consent_signed: true,
       resident_agreement_signed: true,
+      background_check_consent: bgConsent,
+      background_check_status: 'pending',
+      background_check_date: new Date().toISOString().split('T')[0],
       notes: form.notes ? `[Intake Form]\n${form.notes}` : '[Intake Form — submitted digitally]',
     };
 
-    // Create the resident profile
     const created = await base44.entities.Resident.create(residentData);
     const residentId = created?.id || created;
 
-    // Save signature as a ResidentDocument record (store data URL as file_url for now)
+    // Save e-signature document
     await base44.entities.ResidentDocument.create({
       resident_id: residentId,
-      organization_id: form.organization_id || undefined,
       document_type: 'resident_agreement',
       label: 'House Rules E-Signature',
       file_url: sigDataUrl,
       signed_date: new Date().toISOString().split('T')[0],
       status: 'current',
-      notes: `Digitally signed via intake form at ${signedAt}. IP: client-side.`,
+      notes: `Digitally signed via intake form at ${signedAt}.`,
     });
 
-    // Notify ALL active staff immediately — the faster the follow-up, the better the conversion
-    const allStaff = await base44.entities.StaffMember.filter({ status: 'active' });
-    const staffToNotify = allStaff.filter(s => s.email);
+    // Save uploaded documents
+    await Promise.allSettled(
+      REQUIRED_DOCS.filter(d => uploadedDocs[d.key]).map(d =>
+        base44.entities.ResidentDocument.create({
+          resident_id: residentId,
+          document_type: d.doc_type,
+          label: d.label,
+          file_url: uploadedDocs[d.key].file_url,
+          signed_date: new Date().toISOString().split('T')[0],
+          status: 'current',
+        })
+      )
+    );
 
-    const residentName = `${form.first_name} ${form.last_name}`;
+    // Notify all active staff
+    const allStaff = await base44.entities.StaffMember.filter({ status: 'active' }).catch(() => []);
+    const staffToNotify = allStaff.filter(s => s.email);
     const preferredLocation = locations.find(l => l.id === form.location_id);
     const locationName = preferredLocation?.name || 'No preference';
     const reviewUrl = `${window.location.origin}/residents`;
     const submittedAt = new Date().toLocaleString();
-
-    // Find locations with open beds to highlight for staff
-    const locationsWithBeds = locations.filter(l =>
-      l.total_beds && l.occupied_beds != null && l.total_beds > l.occupied_beds
-    );
-    const openBedsHtml = locationsWithBeds.length > 0
-      ? `<div style="background: #ECFDF5; border: 1px solid #A7F3D0; border-radius: 8px; padding: 12px 16px; margin: 16px 0;">
-          <p style="margin: 0 0 8px; font-weight: 700; font-size: 13px; color: #065F46;">🏠 Locations with Open Beds Right Now:</p>
-          ${locationsWithBeds.map(l => `<p style="margin: 4px 0; font-size: 13px; color: #047857;">• <strong>${l.name}</strong> — ${l.total_beds - l.occupied_beds} bed(s) available</p>`).join('')}
-        </div>`
-      : '';
-
-    // Is this person's preferred location the same one with openings?
-    const preferredHasOpenings = preferredLocation &&
-      preferredLocation.total_beds &&
-      preferredLocation.occupied_beds != null &&
-      preferredLocation.total_beds > preferredLocation.occupied_beds;
-
-    const urgencyBanner = preferredHasOpenings
-      ? `<div style="background: #FEF3C7; border: 2px solid #F59E0B; border-radius: 10px; padding: 14px 18px; margin-bottom: 20px;">
-          <p style="margin: 0; font-size: 16px; font-weight: 700; color: #92400E;">⚡ BEDS AVAILABLE at their preferred location!</p>
-          <p style="margin: 6px 0 0; font-size: 13px; color: #B45309;">Contact <strong>${residentName}</strong> now — ${form.phone ? form.phone : form.email || 'see details below'}</p>
-        </div>`
-      : `<div style="background: #FEE2E2; border: 2px solid #FCA5A5; border-radius: 10px; padding: 14px 18px; margin-bottom: 20px;">
-          <p style="margin: 0; font-size: 16px; font-weight: 700; color: #991B1B;">🚨 New Application — Respond Within the Hour</p>
-          <p style="margin: 6px 0 0; font-size: 13px; color: #B91C1C;">Early contact dramatically increases placement success. Reach out to <strong>${residentName}</strong> ASAP.</p>
-        </div>`;
+    const docList = REQUIRED_DOCS.filter(d => uploadedDocs[d.key]).map(d => `• ${d.label}`).join('<br/>');
 
     await Promise.allSettled(staffToNotify.map(staff =>
       base44.integrations.Core.SendEmail({
         to: staff.email,
-        subject: `🚨 New Application — ${residentName} | ${locationName}${preferredHasOpenings ? ' ✅ Beds Available!' : ''}`,
+        subject: `🚨 New Application Pending — ${residentName} | Background Check Initiated`,
         body: `
-<div style="font-family: sans-serif; max-width: 600px; margin: 0 auto; padding: 24px; background: #FAF6EF; border-radius: 12px;">
-
-  ${urgencyBanner}
-
-  <table style="width: 100%; font-size: 14px; color: #1C1917; border-collapse: collapse; margin-bottom: 16px;">
-    <tr style="border-bottom: 1px solid #E0D5C5;">
-      <td style="padding: 10px 4px; font-weight: 600; color: #78716C; width: 38%;">Applicant Name</td>
-      <td style="padding: 10px 4px; font-weight: 700;">${residentName}</td>
-    </tr>
-    <tr style="border-bottom: 1px solid #E0D5C5;">
-      <td style="padding: 10px 4px; font-weight: 600; color: #78716C;">Phone</td>
-      <td style="padding: 10px 4px;">${form.phone || '—'}</td>
-    </tr>
-    <tr style="border-bottom: 1px solid #E0D5C5;">
-      <td style="padding: 10px 4px; font-weight: 600; color: #78716C;">Email</td>
-      <td style="padding: 10px 4px;">${form.email || '—'}</td>
-    </tr>
-    <tr style="border-bottom: 1px solid #E0D5C5;">
-      <td style="padding: 10px 4px; font-weight: 600; color: #78716C;">Preferred Location</td>
-      <td style="padding: 10px 4px;">${locationName}</td>
-    </tr>
-    <tr style="border-bottom: 1px solid #E0D5C5;">
-      <td style="padding: 10px 4px; font-weight: 600; color: #78716C;">Requested Move-in</td>
-      <td style="padding: 10px 4px;">${form.intake_date}</td>
-    </tr>
-    <tr style="border-bottom: 1px solid #E0D5C5;">
-      <td style="padding: 10px 4px; font-weight: 600; color: #78716C;">Recovery Pathway</td>
-      <td style="padding: 10px 4px; text-transform: capitalize;">${form.recovery_pathway?.replace(/_/g, ' ') || '—'}</td>
-    </tr>
-    <tr style="border-bottom: 1px solid #E0D5C5;">
-      <td style="padding: 10px 4px; font-weight: 600; color: #78716C;">Referred By</td>
-      <td style="padding: 10px 4px;">${form.referred_by || '—'}</td>
-    </tr>
-    <tr>
-      <td style="padding: 10px 4px; font-weight: 600; color: #78716C;">Submitted At</td>
-      <td style="padding: 10px 4px; color: #065F46; font-weight: 600;">${submittedAt}</td>
-    </tr>
-  </table>
-
-  ${openBedsHtml}
-
-  ${form.phone ? `<div style="text-align: center; margin: 20px 0;">
-    <a href="tel:${form.phone}" style="display: inline-block; background: #065F46; color: #fff; text-decoration: none; padding: 12px 28px; border-radius: 8px; font-weight: 700; font-size: 15px; margin-right: 10px;">
-      📞 Call Now: ${form.phone}
-    </a>
-  </div>` : ''}
-
-  <div style="text-align: center; margin: 12px 0 24px;">
-    <a href="${reviewUrl}" style="display: inline-block; background: #B45309; color: #fff; text-decoration: none; padding: 12px 28px; border-radius: 8px; font-weight: 600; font-size: 14px;">
-      View Full Application in ClearPath →
-    </a>
+<div style="font-family:sans-serif;max-width:600px;margin:0 auto;padding:24px;background:#FAF6EF;border-radius:12px;">
+  <div style="background:#FEE2E2;border:2px solid #FCA5A5;border-radius:10px;padding:14px 18px;margin-bottom:20px;">
+    <p style="margin:0;font-size:16px;font-weight:700;color:#991B1B;">🚨 New Applicant — Action Required</p>
+    <p style="margin:6px 0 0;font-size:13px;color:#B91C1C;">Review their application and follow up within the hour for best placement outcomes.</p>
   </div>
-
-  <p style="font-size: 12px; color: #A09080; text-align: center;">
-    All ClearPath staff are notified instantly when a new application arrives. The sooner you connect, the better the outcome.
-  </p>
+  <table style="width:100%;font-size:14px;color:#1C1917;border-collapse:collapse;margin-bottom:16px;">
+    <tr style="border-bottom:1px solid #E0D5C5;"><td style="padding:10px 4px;font-weight:600;color:#78716C;width:38%;">Applicant</td><td style="padding:10px 4px;font-weight:700;">${residentName}</td></tr>
+    <tr style="border-bottom:1px solid #E0D5C5;"><td style="padding:10px 4px;font-weight:600;color:#78716C;">Phone</td><td style="padding:10px 4px;">${form.phone || '—'}</td></tr>
+    <tr style="border-bottom:1px solid #E0D5C5;"><td style="padding:10px 4px;font-weight:600;color:#78716C;">Email</td><td style="padding:10px 4px;">${form.email || '—'}</td></tr>
+    <tr style="border-bottom:1px solid #E0D5C5;"><td style="padding:10px 4px;font-weight:600;color:#78716C;">Preferred Location</td><td style="padding:10px 4px;">${locationName}</td></tr>
+    <tr style="border-bottom:1px solid #E0D5C5;"><td style="padding:10px 4px;font-weight:600;color:#78716C;">Requested Move-in</td><td style="padding:10px 4px;">${form.intake_date}</td></tr>
+    <tr style="border-bottom:1px solid #E0D5C5;"><td style="padding:10px 4px;font-weight:600;color:#78716C;">Recovery Pathway</td><td style="padding:10px 4px;text-transform:capitalize;">${form.recovery_pathway?.replace(/_/g,' ') || '—'}</td></tr>
+    <tr style="border-bottom:1px solid #E0D5C5;"><td style="padding:10px 4px;font-weight:600;color:#78716C;">Background Check</td><td style="padding:10px 4px;color:#B45309;font-weight:600;">⏳ Pending — consent given</td></tr>
+    <tr style="border-bottom:1px solid #E0D5C5;"><td style="padding:10px 4px;font-weight:600;color:#78716C;">Documents Uploaded</td><td style="padding:10px 4px;">${docList || '—'}</td></tr>
+    <tr><td style="padding:10px 4px;font-weight:600;color:#78716C;">Submitted At</td><td style="padding:10px 4px;color:#065F46;font-weight:600;">${submittedAt}</td></tr>
+  </table>
+  <div style="text-align:center;margin:20px 0;">
+    <a href="${reviewUrl}" style="display:inline-block;background:#B45309;color:#fff;text-decoration:none;padding:12px 28px;border-radius:8px;font-weight:600;font-size:14px;">Review Full Application →</a>
+  </div>
+  <p style="font-size:12px;color:#A09080;text-align:center;">ClearPath — All staff are notified instantly when a new application arrives.</p>
 </div>`.trim(),
       }).catch(() => {})
     ));
@@ -264,6 +240,7 @@ export default function IntakeForm() {
     setSubmitting(false);
   };
 
+  // ── Success screen ───────────────────────────────────────────────────────
   if (submitted) {
     return (
       <div className="min-h-screen flex items-center justify-center p-6" style={{ background: '#FAF6EF' }}>
@@ -271,17 +248,18 @@ export default function IntakeForm() {
           <div className="w-20 h-20 rounded-full flex items-center justify-center mx-auto" style={{ background: '#D1FAE5' }}>
             <CheckCircle className="w-10 h-10" style={{ color: '#065F46' }} />
           </div>
-          <h1 className="text-2xl font-bold" style={{ color: '#1C1917' }}>Intake Submitted!</h1>
+          <h1 className="text-2xl font-bold" style={{ color: '#1C1917' }}>Application Submitted!</h1>
           <p style={{ color: '#78716C' }}>
-            Thank you, <strong>{createdName}</strong>. Your intake form has been received and your profile has been created. The house manager has been notified and will be in touch shortly.
+            Thank you, <strong>{createdName}</strong>. Your application has been received, your documents are on file, and a background check has been initiated. Staff have been notified and will be in touch shortly.
           </p>
-          <div className="rounded-xl p-4" style={{ background: '#F0E9DC', border: '1px solid #E0D5C5' }}>
-            <p className="text-sm font-semibold" style={{ color: '#B45309' }}>What happens next?</p>
-            <ul className="text-sm mt-2 space-y-1 text-left" style={{ color: '#78716C' }}>
-              <li>✅ Your profile is created as "Applicant"</li>
-              <li>✅ Your signed house rules agreement is on file</li>
+          <div className="rounded-xl p-4 text-left" style={{ background: '#F0E9DC', border: '1px solid #E0D5C5' }}>
+            <p className="text-sm font-semibold mb-2" style={{ color: '#B45309' }}>What happens next?</p>
+            <ul className="text-sm space-y-1.5" style={{ color: '#78716C' }}>
+              <li>✅ Your applicant profile has been created</li>
+              <li>✅ Uploaded documents are securely stored</li>
+              <li>🔍 Background check is <strong>pending</strong> — staff will update you</li>
               <li>📋 A house manager will review and contact you</li>
-              <li>🏠 Your housing placement will be confirmed</li>
+              <li>🏠 Housing placement will be confirmed upon approval</li>
             </ul>
           </div>
         </div>
@@ -289,6 +267,7 @@ export default function IntakeForm() {
     );
   }
 
+  // ── Wizard ───────────────────────────────────────────────────────────────
   return (
     <div className="min-h-screen p-4 sm:p-6" style={{ background: '#FAF6EF' }}>
       <div className="max-w-2xl mx-auto">
@@ -298,60 +277,58 @@ export default function IntakeForm() {
             <Shield className="w-5 h-5 text-white" />
           </div>
           <div>
-            <h1 className="text-xl font-bold" style={{ color: '#1C1917' }}>ClearPath Resident Intake</h1>
-            <p className="text-xs" style={{ color: '#78716C' }}>Secure & Confidential</p>
+            <h1 className="text-xl font-bold" style={{ color: '#1C1917' }}>ClearPath Resident Application</h1>
+            <p className="text-xs" style={{ color: '#78716C' }}>Secure & Confidential — Step {step + 1} of {STEPS.length}</p>
           </div>
         </div>
 
-        {/* Step progress */}
-        <div className="flex items-center gap-1 mb-6 overflow-x-auto pb-1">
-          {STEPS.map((s, i) => (
-            <div key={s.id} className="flex items-center gap-1 flex-shrink-0">
-              <div className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium transition-all ${
-                i === step ? 'text-white' : i < step ? 'text-white' : ''
-              }`}
-                style={{
+        {/* Progress bar */}
+        <div className="mb-5">
+          <div className="flex items-center gap-1 overflow-x-auto pb-2">
+            {STEPS.map((s, i) => (
+              <div key={s.id} className="flex items-center gap-1 flex-shrink-0">
+                <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium" style={{
                   background: i === step ? '#B45309' : i < step ? '#065F46' : '#E0D5C5',
                   color: i === step || i < step ? '#fff' : '#78716C',
-                }}
-              >
-                {i < step ? '✓' : s.icon} <span className="hidden sm:inline">{s.label}</span>
+                }}>
+                  {i < step ? '✓' : s.icon}
+                  <span className="hidden sm:inline">{s.label}</span>
+                </div>
+                {i < STEPS.length - 1 && <ChevronRight className="w-3 h-3 flex-shrink-0" style={{ color: '#C5B8AA' }} />}
               </div>
-              {i < STEPS.length - 1 && (
-                <ChevronRight className="w-3.5 h-3.5 flex-shrink-0" style={{ color: '#C5B8AA' }} />
-              )}
-            </div>
-          ))}
+            ))}
+          </div>
+          <div className="h-1.5 rounded-full mt-2" style={{ background: '#E0D5C5' }}>
+            <div className="h-full rounded-full transition-all duration-300" style={{ width: `${((step + 1) / STEPS.length) * 100}%`, background: '#B45309' }} />
+          </div>
         </div>
 
-        {/* Card */}
         <div className="rounded-2xl shadow-sm" style={{ background: '#fff', border: '1px solid #E0D5C5' }}>
           <div className="p-5 border-b" style={{ borderColor: '#F0E9DC' }}>
-            <p className="text-xs font-bold uppercase tracking-wide" style={{ color: '#B45309' }}>
-              Step {step + 1} of {STEPS.length}
-            </p>
-            <h2 className="text-lg font-bold mt-0.5" style={{ color: '#1C1917' }}>{STEPS[step].label}</h2>
+            <h2 className="text-lg font-bold" style={{ color: '#1C1917' }}>
+              {STEPS[step].icon} {STEPS[step].label}
+            </h2>
           </div>
 
           <div className="p-5 space-y-4">
 
-            {/* ── STEP 0: Personal ─────────────────────────── */}
+            {/* STEP 0 — Personal */}
             {step === 0 && (
               <>
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-1.5">
                     <Label>First Name *</Label>
-                    <Input value={form.first_name} onChange={e => set('first_name', e.target.value)} required />
+                    <Input value={form.first_name} onChange={e => set('first_name', e.target.value)} />
                   </div>
                   <div className="space-y-1.5">
                     <Label>Last Name *</Label>
-                    <Input value={form.last_name} onChange={e => set('last_name', e.target.value)} required />
+                    <Input value={form.last_name} onChange={e => set('last_name', e.target.value)} />
                   </div>
                 </div>
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-1.5">
                     <Label>Date of Birth *</Label>
-                    <Input type="date" value={form.date_of_birth} onChange={e => set('date_of_birth', e.target.value)} required />
+                    <Input type="date" value={form.date_of_birth} onChange={e => set('date_of_birth', e.target.value)} />
                   </div>
                   <div className="space-y-1.5">
                     <Label>Gender</Label>
@@ -371,7 +348,7 @@ export default function IntakeForm() {
               </>
             )}
 
-            {/* ── STEP 1: Contact ──────────────────────────── */}
+            {/* STEP 1 — Contact */}
             {step === 1 && (
               <>
                 <div className="grid grid-cols-2 gap-4">
@@ -402,7 +379,7 @@ export default function IntakeForm() {
               </>
             )}
 
-            {/* ── STEP 2: Recovery ─────────────────────────── */}
+            {/* STEP 2 — Recovery */}
             {step === 2 && (
               <>
                 <div className="grid grid-cols-2 gap-4">
@@ -439,7 +416,7 @@ export default function IntakeForm() {
               </>
             )}
 
-            {/* ── STEP 3: Placement ────────────────────────── */}
+            {/* STEP 3 — Placement */}
             {step === 3 && (
               <>
                 <div className="grid grid-cols-2 gap-4">
@@ -453,7 +430,7 @@ export default function IntakeForm() {
                     </Select>
                   </div>
                   <div className="space-y-1.5">
-                    <Label>Preferred Room (if any)</Label>
+                    <Label>Preferred Room (optional)</Label>
                     <Input value={form.room} onChange={e => set('room', e.target.value)} placeholder="e.g. 2B" />
                   </div>
                 </div>
@@ -463,16 +440,116 @@ export default function IntakeForm() {
                 </div>
                 <div className="rounded-xl p-4 text-sm" style={{ background: '#FEF3C7', border: '1px solid #FDE68A' }}>
                   <p style={{ color: '#92400E' }}>
-                    <strong>Note:</strong> Room and placement assignments are subject to availability and will be confirmed by your house manager.
+                    <strong>Note:</strong> Room and placement are subject to availability and confirmed by your house manager.
                   </p>
                 </div>
               </>
             )}
 
-            {/* ── STEP 4: House Rules + E-Signature ────────── */}
+            {/* STEP 4 — Documents */}
             {step === 4 && (
+              <div className="space-y-4">
+                <p className="text-sm" style={{ color: '#78716C' }}>
+                  Please upload the documents listed below. Items marked <strong>Required *</strong> must be provided to proceed.
+                </p>
+                {REQUIRED_DOCS.map(doc => (
+                  <div key={doc.key} className="rounded-xl p-4" style={{ border: `1px solid ${uploadedDocs[doc.key] ? '#A7F3D0' : '#E0D5C5'}`, background: uploadedDocs[doc.key] ? '#ECFDF5' : '#FAFAF9' }}>
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="flex items-center gap-2">
+                        <FileText className="w-4 h-4 flex-shrink-0" style={{ color: uploadedDocs[doc.key] ? '#065F46' : '#78716C' }} />
+                        <div>
+                          <p className="text-sm font-medium" style={{ color: '#1C1917' }}>
+                            {doc.label} {doc.required && <span style={{ color: '#B45309' }}>*</span>}
+                          </p>
+                          {uploadedDocs[doc.key] && (
+                            <p className="text-xs mt-0.5" style={{ color: '#065F46' }}>✓ {uploadedDocs[doc.key].name}</p>
+                          )}
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2 flex-shrink-0">
+                        {uploadedDocs[doc.key] ? (
+                          <button onClick={() => removeDoc(doc.key)} className="p-1 rounded hover:bg-red-50">
+                            <X className="w-4 h-4 text-red-400" />
+                          </button>
+                        ) : (
+                          <label className="cursor-pointer">
+                            <input type="file" className="hidden" accept="image/*,.pdf,.doc,.docx"
+                              onChange={e => handleFileUpload(doc.key, e.target.files[0])} />
+                            <span className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors"
+                              style={{ background: uploading[doc.key] ? '#E0D5C5' : '#B45309', color: '#fff', cursor: uploading[doc.key] ? 'not-allowed' : 'pointer' }}>
+                              {uploading[doc.key]
+                                ? <><Loader2 className="w-3 h-3 animate-spin" /> Uploading…</>
+                                : <><Upload className="w-3 h-3" /> Upload</>}
+                            </span>
+                          </label>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                ))}
+                <p className="text-xs" style={{ color: '#A09080' }}>
+                  Accepted formats: PDF, JPG, PNG, DOC. All documents are encrypted and stored securely.
+                </p>
+              </div>
+            )}
+
+            {/* STEP 5 — Background Check */}
+            {step === 5 && (
+              <div className="space-y-4">
+                <div className="rounded-xl p-5" style={{ background: '#F0F9FF', border: '1px solid #BAE6FD' }}>
+                  <div className="flex items-start gap-3">
+                    <Search className="w-6 h-6 mt-0.5 flex-shrink-0" style={{ color: '#0369A1' }} />
+                    <div>
+                      <h3 className="font-semibold" style={{ color: '#0C4A6E' }}>Background Screening Consent</h3>
+                      <p className="text-sm mt-1" style={{ color: '#0369A1' }}>
+                        As part of our admissions process, we conduct a background screening to ensure the safety of all residents and staff. This is a standard requirement for placement.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="space-y-3 text-sm" style={{ color: '#3C3530' }}>
+                  <p><strong>What is checked:</strong></p>
+                  <ul className="space-y-1 pl-4" style={{ color: '#78716C' }}>
+                    <li>• Criminal history (national & county-level)</li>
+                    <li>• Sex offender registry</li>
+                    <li>• Identity verification</li>
+                  </ul>
+                  <p className="mt-2"><strong>Your rights:</strong></p>
+                  <ul className="space-y-1 pl-4" style={{ color: '#78716C' }}>
+                    <li>• You will be notified of any adverse action taken</li>
+                    <li>• You have the right to dispute inaccurate information</li>
+                    <li>• A criminal history does not automatically disqualify you</li>
+                  </ul>
+                </div>
+
+                <div className="rounded-xl p-4" style={{ background: '#FEF3C7', border: '1px solid #FDE68A' }}>
+                  <div className="flex items-start gap-2">
+                    <AlertCircle className="w-4 h-4 mt-0.5 flex-shrink-0" style={{ color: '#92400E' }} />
+                    <p className="text-xs" style={{ color: '#78400E' }}>
+                      Background check results are reviewed by the admissions team. A history of criminal charges does not automatically disqualify an applicant — each application is reviewed holistically.
+                    </p>
+                  </div>
+                </div>
+
+                <div className="mt-2">
+                  <Badge className="mb-3 text-xs" style={{ background: bgConsent ? '#D1FAE5' : '#FEE2E2', color: bgConsent ? '#065F46' : '#991B1B', border: 'none' }}>
+                    Status: {bgConsent ? '✓ Consent Given' : '⏳ Consent Required'}
+                  </Badge>
+                  <label className="flex items-start gap-3 cursor-pointer p-4 rounded-xl" style={{ border: `2px solid ${bgConsent ? '#6EE7B7' : '#E0D5C5'}`, background: bgConsent ? '#ECFDF5' : '#fff' }}>
+                    <input type="checkbox" checked={bgConsent} onChange={e => setBgConsent(e.target.checked)} className="mt-0.5 rounded" />
+                    <span className="text-sm" style={{ color: '#1C1917' }}>
+                      I, <strong>{form.first_name || 'Applicant'} {form.last_name}</strong>, consent to a background check being conducted as part of my application to this recovery housing program. I understand my rights as described above.
+                    </span>
+                  </label>
+                </div>
+              </div>
+            )}
+
+            {/* STEP 6 — Agreement & Signature */}
+            {step === 6 && (
               <>
-                <div className="rounded-xl p-4 overflow-y-auto text-xs leading-relaxed whitespace-pre-wrap max-h-52"
+                <div className="rounded-xl p-4 overflow-y-auto text-xs leading-relaxed whitespace-pre-wrap max-h-48"
                   style={{ background: '#F8F5F0', border: '1px solid #E0D5C5', color: '#3C3530', fontFamily: 'monospace' }}>
                   {houseRules}
                 </div>
@@ -480,8 +557,7 @@ export default function IntakeForm() {
                 <div className="space-y-2">
                   <div className="flex items-center justify-between">
                     <Label className="flex items-center gap-2">
-                      <PenLine className="w-4 h-4" style={{ color: '#B45309' }} />
-                      Sign Below *
+                      <PenLine className="w-4 h-4" style={{ color: '#B45309' }} /> Sign Below *
                     </Label>
                     <button onClick={clearSig} className="flex items-center gap-1 text-xs" style={{ color: '#78716C' }}>
                       <RotateCcw className="w-3 h-3" /> Clear
@@ -489,72 +565,43 @@ export default function IntakeForm() {
                   </div>
                   <div className="rounded-xl overflow-hidden" style={{ border: `2px solid ${hasSig ? '#B45309' : '#E0D5C5'}`, background: '#FFFEF9' }}>
                     <canvas
-                      ref={canvasRef}
-                      width={580}
-                      height={140}
+                      ref={canvasRef} width={580} height={130}
                       className="w-full touch-none cursor-crosshair"
-                      onMouseDown={startDraw}
-                      onMouseMove={draw}
-                      onMouseUp={endDraw}
-                      onMouseLeave={endDraw}
-                      onTouchStart={startDraw}
-                      onTouchMove={draw}
-                      onTouchEnd={endDraw}
+                      onMouseDown={startDraw} onMouseMove={draw} onMouseUp={endDraw} onMouseLeave={endDraw}
+                      onTouchStart={startDraw} onTouchMove={draw} onTouchEnd={endDraw}
                     />
                   </div>
-                  {!hasSig && (
-                    <p className="text-xs" style={{ color: '#A09080' }}>Draw your signature in the box above to proceed</p>
-                  )}
-                  {hasSig && signedAt && (
-                    <p className="text-xs" style={{ color: '#065F46' }}>
-                      ✅ Signed on {new Date(signedAt).toLocaleString()}
-                    </p>
-                  )}
+                  {!hasSig && <p className="text-xs" style={{ color: '#A09080' }}>Draw your signature in the box above</p>}
+                  {hasSig && signedAt && <p className="text-xs" style={{ color: '#065F46' }}>✅ Signed on {new Date(signedAt).toLocaleString()}</p>}
                 </div>
 
                 <label className="flex items-start gap-3 text-sm cursor-pointer">
-                  <input type="checkbox" required className="mt-1 rounded" />
+                  <input type="checkbox" checked={agreedToRules} onChange={e => setAgreedToRules(e.target.checked)} className="mt-1 rounded" />
                   <span style={{ color: '#3C3530' }}>
-                    I confirm that I have read the house rules in full, that the signature above is mine, and that I agree to abide by all terms of this agreement.
+                    I confirm I have read the house rules in full, the signature above is mine, and I agree to abide by all terms of this agreement.
                   </span>
                 </label>
               </>
             )}
-
           </div>
 
           {/* Footer nav */}
           <div className="flex items-center justify-between p-5 border-t" style={{ borderColor: '#F0E9DC' }}>
-            <Button
-              variant="outline"
-              onClick={() => setStep(s => s - 1)}
-              disabled={step === 0}
-              className="gap-2"
-            >
+            <Button variant="outline" onClick={() => setStep(s => s - 1)} disabled={step === 0} className="gap-2">
               <ChevronLeft className="w-4 h-4" /> Back
             </Button>
 
             {step < STEPS.length - 1 ? (
-              <Button
-                onClick={() => setStep(s => s + 1)}
-                disabled={!isStepValid()}
-                style={{ background: '#B45309', color: '#fff' }}
-                className="gap-2"
-              >
+              <Button onClick={() => setStep(s => s + 1)} disabled={!isStepValid()}
+                style={{ background: '#B45309', color: '#fff' }} className="gap-2">
                 Continue <ChevronRight className="w-4 h-4" />
               </Button>
             ) : (
-              <Button
-                onClick={handleSubmit}
-                disabled={!hasSig || submitting}
-                style={{ background: '#065F46', color: '#fff' }}
-                className="gap-2"
-              >
-                {submitting ? (
-                  <><Loader2 className="w-4 h-4 animate-spin" /> Submitting…</>
-                ) : (
-                  <><CheckCircle className="w-4 h-4" /> Submit Intake</>
-                )}
+              <Button onClick={handleSubmit} disabled={!isStepValid() || submitting}
+                style={{ background: '#065F46', color: '#fff' }} className="gap-2">
+                {submitting
+                  ? <><Loader2 className="w-4 h-4 animate-spin" /> Submitting…</>
+                  : <><CheckCircle className="w-4 h-4" /> Submit Application</>}
               </Button>
             )}
           </div>
