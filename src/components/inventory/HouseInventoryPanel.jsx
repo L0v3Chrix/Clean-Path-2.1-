@@ -6,10 +6,11 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Badge } from '@/components/ui/badge';
 import {
   Package, Plus, AlertTriangle, Search, Pencil, Trash2,
-  CheckCircle2, MinusCircle, XCircle, RefreshCw, ScanLine
+  CheckCircle2, MinusCircle, XCircle, RefreshCw, ScanLine, FileUp
 } from 'lucide-react';
 import InventoryItemForm from './InventoryItemForm';
 import QRScannerModal from './QRScannerModal';
+import CSVImportModal from './CSVImportModal';
 
 const CATEGORY_LABELS = {
   toiletries: 'Toiletries',
@@ -47,6 +48,7 @@ export default function HouseInventoryPanel({ organizationId, locationId }) {
   const [editItem, setEditItem] = useState(null);
   const [updatingQty, setUpdatingQty] = useState({});
   const [showScanner, setShowScanner] = useState(false);
+  const [showCSVImport, setShowCSVImport] = useState(false);
 
   const load = async () => {
     setLoading(true);
@@ -121,6 +123,9 @@ export default function HouseInventoryPanel({ organizationId, locationId }) {
         <Button variant="outline" onClick={() => setShowScanner(true)} className="gap-1.5">
           <ScanLine className="w-4 h-4" /> Scan QR
         </Button>
+        <Button variant="outline" onClick={() => setShowCSVImport(true)} className="gap-1.5">
+          <FileUp className="w-4 h-4" /> Import CSV
+        </Button>
         <Button onClick={() => { setEditItem(null); setShowForm(true); }} className="gap-1.5">
           <Plus className="w-4 h-4" /> Add Item
         </Button>
@@ -190,6 +195,15 @@ export default function HouseInventoryPanel({ organizationId, locationId }) {
             );
           })}
         </div>
+      )}
+
+      {showCSVImport && (
+        <CSVImportModal
+          organizationId={organizationId}
+          locationId={locationId}
+          onClose={() => setShowCSVImport(false)}
+          onImported={() => { setShowCSVImport(false); load(); }}
+        />
       )}
 
       {showScanner && (
