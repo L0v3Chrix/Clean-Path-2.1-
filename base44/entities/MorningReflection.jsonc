@@ -16,6 +16,10 @@
       "type": "number",
       "description": "1-5 scale: 1=Very Low, 2=Low, 3=Okay, 4=Good, 5=Great"
     },
+    "physical_wellbeing": {
+      "type": "number",
+      "description": "1-5 scale: 1=Very Poor, 2=Poor, 3=Fair, 4=Good, 5=Excellent \u2014 physical health today"
+    },
     "sleep_quality": {
       "type": "number",
       "description": "1-5 scale: 1=Very Poor, 2=Poor, 3=Fair, 4=Good, 5=Excellent"
@@ -35,6 +39,24 @@
     "flagged_for_support": {
       "type": "boolean",
       "default": false
+    },
+    "flag_reason": {
+      "type": "string",
+      "description": "Auto-generated reason explaining why this check-in was flagged"
+    },
+    "staff_reviewed": {
+      "type": "boolean",
+      "default": false,
+      "description": "Case manager has reviewed this flagged check-in"
+    },
+    "reviewed_by": {
+      "type": "string"
+    },
+    "reviewed_at": {
+      "type": "string"
+    },
+    "review_notes": {
+      "type": "string"
     },
     "barc10_answers": {
       "type": "object",

@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { base44 } from '@/api/base44Client';
-import { Sun, Moon, Star, Heart, CheckCircle2, ChevronRight, ClipboardList } from 'lucide-react';
+import { Sun, Moon, Star, Heart, CheckCircle2, ChevronRight, ClipboardList, Activity } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { format } from 'date-fns';
@@ -30,6 +30,7 @@ export default function MorningReflectionForm({ resident, onComplete, existingLo
 
   const [form, setForm] = useState({
     mood: existingLog?.mood || null,
+    physical_wellbeing: existingLog?.physical_wellbeing || null,
     sleep_quality: existingLog?.sleep_quality || null,
     sleep_hours: existingLog?.sleep_hours || '',
     daily_goal: existingLog?.daily_goal || '',
@@ -48,13 +49,19 @@ export default function MorningReflectionForm({ resident, onComplete, existingLo
 
   const canAdvance = () => {
     if (step === 0) return form.mood !== null;
-    if (step === 1) return form.sleep_quality !== null;
+    if (step === 1) return form.physical_wellbeing !== null;
+    if (step === 2) return form.sleep_quality !== null;
     return true;
   };
 
   const handleSubmit = async () => {
     setSaving(true);
-    const flagged = form.mood <= 2 || form.sleep_quality <= 2;
+    const lowScores = [];
+    if (form.mood < 3) lowScores.push(`mood (${form.mood}/5)`);
+    if (form.physical_wellbeing < 3) lowScores.push(`physical well-being (${form.physical_wellbeing}/5)`);
+    if (form.sleep_quality < 3) lowScores.push(`sleep quality (${form.sleep_quality}/5)`);
+    const flagged = lowScores.length > 0;
+    const flag_reason = flagged ? `Low scores reported: ${lowScores.join(', ')}` : undefined;
 
     const barc10Score = Object.keys(form.barc10_answers).length === BARC10_COUNT
       ? Object.values(form.barc10_answers).reduce((a, b) => a + b, 0)
@@ -69,12 +76,15 @@ export default function MorningReflectionForm({ resident, onComplete, existingLo
       organization_id: resident.organization_id,
       log_date: today,
       mood: form.mood,
+      physical_wellbeing: form.physical_wellbeing,
       sleep_quality: form.sleep_quality,
       sleep_hours: form.sleep_hours ? Number(form.sleep_hours) : undefined,
       daily_goal: form.daily_goal || undefined,
       gratitude: form.gratitude || undefined,
       concerns: form.concerns || undefined,
       flagged_for_support: flagged,
+      flag_reason,
+      staff_reviewed: false,
       barc10_answers: Object.keys(form.barc10_answers).length ? form.barc10_answers : undefined,
       barc10_score: barc10Score,
       qol_answers: Object.keys(form.qol_answers).length ? form.qol_answers : undefined,
@@ -166,7 +176,41 @@ export default function MorningReflectionForm({ resident, onComplete, existingLo
       </div>
     </div>,
 
-    // Step 1: Sleep
+    // Step 1: Physical Well-being
+    <div key="physical" className="space-y-4">
+      <div className="text-center">
+        <Activity className="w-8 h-8 text-rose-400 mx-auto mb-2" />
+        <h3 className="font-bold text-slate-800 text-lg">How is your body feeling today?</h3>
+        <p className="text-slate-400 text-sm mt-1">Rate your physical well-being</p>
+      </div>
+      <div className="flex justify-center gap-3 flex-wrap pt-2">
+        {[
+          { value: 1, emoji: '🤕', label: 'Very Poor' },
+          { value: 2, emoji: '😓', label: 'Poor' },
+          { value: 3, emoji: '😌', label: 'Fair' },
+          { value: 4, emoji: '💪', label: 'Good' },
+          { value: 5, emoji: '🌟', label: 'Excellent' },
+        ].map(opt => (
+          <button
+            key={opt.value}
+            onClick={() => set('physical_wellbeing', opt.value)}
+            className={`flex flex-col items-center gap-1 p-3 rounded-2xl border-2 transition-all ${
+              form.physical_wellbeing === opt.value ? 'border-rose-400 bg-rose-50 scale-110' : 'border-slate-200 hover:border-rose-300'
+            }`}
+          >
+            <span className="text-3xl">{opt.emoji}</span>
+            <span className="text-xs text-slate-600 font-medium">{opt.label}</span>
+          </button>
+        ))}
+      </div>
+      {form.physical_wellbeing !== null && form.physical_wellbeing < 3 && (
+        <div className="bg-orange-50 border border-orange-200 rounded-xl p-3 text-center">
+          <p className="text-sm text-orange-700 font-medium">💛 Your care team will check in with you today.</p>
+        </div>
+      )}
+    </div>,
+
+    // Step 2: Sleep
     <div key="sleep" className="space-y-4">
       <div className="text-center">
         <Moon className="w-8 h-8 text-indigo-400 mx-auto mb-2" />

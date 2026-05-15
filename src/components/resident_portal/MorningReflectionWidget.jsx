@@ -40,14 +40,20 @@ export default function MorningReflectionWidget({ resident }) {
             <RotateCcw className="w-3 h-3" /> Edit
           </button>
         </div>
-        <div className="p-4 grid grid-cols-2 gap-3">
+        <div className="p-4 grid grid-cols-3 gap-3">
           <div className="bg-amber-50 rounded-xl p-3 text-center">
             <p className="text-3xl">{MOOD_EMOJI[todayLog.mood] || '😐'}</p>
             <p className="text-xs text-slate-500 mt-1">Mood</p>
           </div>
+          <div className="rounded-xl p-3 text-center" style={{ background: `${SLEEP_COLOR[todayLog.physical_wellbeing] || '#EAB308'}15` }}>
+            <p className="text-xl font-black" style={{ color: SLEEP_COLOR[todayLog.physical_wellbeing] || '#EAB308' }}>
+              {todayLog.physical_wellbeing || '—'}
+            </p>
+            <p className="text-xs text-slate-400">Physical</p>
+          </div>
           <div className="rounded-xl p-3 text-center" style={{ background: `${SLEEP_COLOR[todayLog.sleep_quality]}15` }}>
             <p className="text-xl font-black" style={{ color: SLEEP_COLOR[todayLog.sleep_quality] }}>{SLEEP_LABEL[todayLog.sleep_quality]}</p>
-            {todayLog.sleep_hours && <p className="text-xs text-slate-500 mt-0.5">{todayLog.sleep_hours}h sleep</p>}
+            {todayLog.sleep_hours && <p className="text-xs text-slate-500 mt-0.5">{todayLog.sleep_hours}h</p>}
             <p className="text-xs text-slate-400">Sleep</p>
           </div>
           {todayLog.daily_goal && (
