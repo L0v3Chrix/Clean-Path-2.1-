@@ -15,7 +15,7 @@ import Staff from './pages/Staff';
 import Incidents from './pages/Incidents';
 import Chat from './pages/Chat';
 import Compliance from './pages/Compliance';
-import Inventory from './pages/Inventory';
+import Inventory from './pages/Inventory.jsx';
 import IncidentSafetyDashboard from './pages/IncidentSafetyDashboard';
 import Scheduling from './pages/Scheduling';
 import IntakeForm from './pages/IntakeForm.jsx';

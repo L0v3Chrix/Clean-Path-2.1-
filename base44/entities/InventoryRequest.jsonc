@@ -1,0 +1,73 @@
+{
+  "name": "InventoryRequest",
+  "type": "object",
+  "properties": {
+    "organization_id": {
+      "type": "string"
+    },
+    "location_id": {
+      "type": "string"
+    },
+    "item_id": {
+      "type": "string",
+      "description": "Linked HouseInventoryItem id (optional if new item)"
+    },
+    "item_name": {
+      "type": "string",
+      "description": "Name of item being requested"
+    },
+    "category": {
+      "type": "string",
+      "enum": [
+        "toiletries",
+        "cleaning_supplies",
+        "pantry",
+        "paper_goods",
+        "laundry",
+        "first_aid",
+        "other"
+      ],
+      "default": "other"
+    },
+    "requested_by_name": {
+      "type": "string"
+    },
+    "requested_by_id": {
+      "type": "string"
+    },
+    "quantity_requested": {
+      "type": "number",
+      "default": 1
+    },
+    "urgency": {
+      "type": "string",
+      "enum": [
+        "low",
+        "medium",
+        "high"
+      ],
+      "default": "medium"
+    },
+    "notes": {
+      "type": "string"
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "pending",
+        "ordered",
+        "fulfilled",
+        "denied"
+      ],
+      "default": "pending"
+    },
+    "staff_notes": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "organization_id",
+    "item_name",
+    "requested_by_name"
+  ]
+}

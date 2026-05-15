@@ -1,0 +1,64 @@
+{
+  "name": "HouseInventoryItem",
+  "type": "object",
+  "properties": {
+    "organization_id": {
+      "type": "string"
+    },
+    "location_id": {
+      "type": "string"
+    },
+    "name": {
+      "type": "string",
+      "description": "Item name, e.g. Hand Soap, Toilet Paper"
+    },
+    "category": {
+      "type": "string",
+      "enum": [
+        "toiletries",
+        "cleaning_supplies",
+        "pantry",
+        "paper_goods",
+        "laundry",
+        "first_aid",
+        "other"
+      ],
+      "default": "other"
+    },
+    "unit": {
+      "type": "string",
+      "description": "e.g. rolls, bottles, boxes, lbs",
+      "default": "units"
+    },
+    "current_quantity": {
+      "type": "number",
+      "default": 0
+    },
+    "low_stock_threshold": {
+      "type": "number",
+      "description": "Alert when quantity falls at or below this value",
+      "default": 2
+    },
+    "reorder_quantity": {
+      "type": "number",
+      "description": "Suggested reorder amount"
+    },
+    "notes": {
+      "type": "string"
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "in_stock",
+        "low_stock",
+        "out_of_stock"
+      ],
+      "default": "in_stock"
+    }
+  },
+  "required": [
+    "organization_id",
+    "name",
+    "category"
+  ]
+}
