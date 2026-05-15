@@ -12,13 +12,14 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Badge } from '@/components/ui/badge';
 
 const STEPS = [
-  { id: 'personal',    label: 'Personal Info',        icon: '👤' },
-  { id: 'contact',     label: 'Contact & Emergency',  icon: '📞' },
-  { id: 'recovery',    label: 'Recovery Info',        icon: '💚' },
-  { id: 'placement',   label: 'Housing Placement',    icon: '🏠' },
-  { id: 'documents',   label: 'Documents',            icon: '📄' },
-  { id: 'background',  label: 'Background Check',     icon: '🔍' },
-  { id: 'rules',       label: 'Agreement & Signature', icon: '✍️' },
+  { id: 'personal',      label: 'Personal Info',        icon: '👤' },
+  { id: 'demographics',  label: 'Demographics',         icon: '🌍' },
+  { id: 'contact',       label: 'Emergency Contact',    icon: '📞' },
+  { id: 'recovery',      label: 'Recovery Info',        icon: '💚' },
+  { id: 'placement',     label: 'Housing Placement',    icon: '🏠' },
+  { id: 'documents',     label: 'Documents',            icon: '📄' },
+  { id: 'background',    label: 'Background Check',     icon: '🔍' },
+  { id: 'rules',         label: 'Agreement & Signature', icon: '✍️' },
 ];
 
 const REQUIRED_DOCS = [
@@ -79,11 +80,17 @@ export default function IntakeForm() {
   const [bgConsent, setBgConsent] = useState(false);
 
   const [form, setForm] = useState({
-    first_name: '', last_name: '', date_of_birth: '', gender: '',
+    first_name: '', last_name: '', date_of_birth: '', gender_identity: '', pronouns: '',
     phone: '', email: '',
     emergency_contact_name: '', emergency_contact_phone: '', emergency_contact_relationship: '',
     sober_date: '', recovery_pathway: '', referred_by: '', notes: '',
     location_id: '', room: '', intake_date: new Date().toISOString().split('T')[0],
+    // demographics
+    race: '', ethnicity: '', primary_language: '', sexual_orientation: '',
+    veteran_status: '', disability_status: '', housing_status_at_intake: '',
+    religion_spirituality: '', interpreter_needed: false,
+    // sobriety extras
+    substances_used: '', treatment_history: '', mat_medications: '',
   });
 
   const set = (k, v) => setForm(p => ({ ...p, [k]: v }));
@@ -145,9 +152,9 @@ export default function IntakeForm() {
   // ── Validation ───────────────────────────────────────────────────────────
   const isStepValid = () => {
     if (step === 0) return form.first_name.trim() && form.last_name.trim() && form.date_of_birth;
-    if (step === 4) return REQUIRED_DOCS.filter(d => d.required).every(d => uploadedDocs[d.key]);
-    if (step === 5) return bgConsent;
-    if (step === 6) return hasSig && agreedToRules;
+    if (step === 5) return REQUIRED_DOCS.filter(d => d.required).every(d => uploadedDocs[d.key]);
+    if (step === 6) return bgConsent;
+    if (step === 7) return hasSig && agreedToRules;
     return true;
   };
 
@@ -166,7 +173,12 @@ export default function IntakeForm() {
       background_check_consent: bgConsent,
       background_check_status: 'pending',
       background_check_date: new Date().toISOString().split('T')[0],
-      notes: form.notes ? `[Intake Form]\n${form.notes}` : '[Intake Form — submitted digitally]',
+      notes: [
+        form.notes ? `[Intake Form]\n${form.notes}` : '[Intake Form — submitted digitally]',
+        form.substances_used ? `Substances: ${form.substances_used}` : '',
+        form.treatment_history ? `Treatment history: ${form.treatment_history}` : '',
+        form.mat_medications ? `MAT medications: ${form.mat_medications}` : '',
+      ].filter(Boolean).join('\n'),
     };
 
     const created = await base44.entities.Resident.create(residentData);
@@ -331,15 +343,189 @@ export default function IntakeForm() {
                     <Input type="date" value={form.date_of_birth} onChange={e => set('date_of_birth', e.target.value)} />
                   </div>
                   <div className="space-y-1.5">
-                    <Label>Gender</Label>
-                    <Select value={form.gender} onValueChange={v => set('gender', v)}>
+                    <Label>Gender Identity</Label>
+                    <Select value={form.gender_identity} onValueChange={v => set('gender_identity', v)}>
                       <SelectTrigger><SelectValue placeholder="Select" /></SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="male">Male</SelectItem>
-                        <SelectItem value="female">Female</SelectItem>
+                        <SelectItem value="man">Man</SelectItem>
+                        <SelectItem value="woman">Woman</SelectItem>
                         <SelectItem value="non_binary">Non-Binary</SelectItem>
-                        <SelectItem value="transgender">Transgender</SelectItem>
-                        <SelectItem value="prefer_not_to_say">Prefer not to say</SelectItem>
+                        <SelectItem value="genderqueer">Genderqueer</SelectItem>
+                        <SelectItem value="transgender_man">Transgender Man</SelectItem>
+                        <SelectItem value="transgender_woman">Transgender Woman</SelectItem>
+                        <SelectItem value="agender">Agender</SelectItem>
+                        <SelectItem value="two_spirit">Two-Spirit</SelectItem>
+                        <SelectItem value="questioning">Questioning</SelectItem>
+                        <SelectItem value="prefer_not_to_answer">Prefer not to answer</SelectItem>
+                        <SelectItem value="other">Other</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-1.5">
+                    <Label>Pronouns</Label>
+                    <Select value={form.pronouns} onValueChange={v => set('pronouns', v)}>
+                      <SelectTrigger><SelectValue placeholder="Select" /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="he_him">He / Him</SelectItem>
+                        <SelectItem value="she_her">She / Her</SelectItem>
+                        <SelectItem value="they_them">They / Them</SelectItem>
+                        <SelectItem value="he_they">He / They</SelectItem>
+                        <SelectItem value="she_they">She / They</SelectItem>
+                        <SelectItem value="ze_zir">Ze / Zir</SelectItem>
+                        <SelectItem value="prefer_not_to_answer">Prefer not to answer</SelectItem>
+                        <SelectItem value="other">Other</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label>Phone</Label>
+                    <Input value={form.phone} onChange={e => set('phone', e.target.value)} placeholder="(555) 000-0000" />
+                  </div>
+                </div>
+                <div className="space-y-1.5">
+                  <Label>Email</Label>
+                  <Input type="email" value={form.email} onChange={e => set('email', e.target.value)} />
+                </div>
+              </>
+            )}
+
+            {/* STEP 1 — Demographics */}
+            {step === 1 && (
+              <>
+                <div className="rounded-xl p-3 text-xs mb-1" style={{ background: '#F0F9FF', border: '1px solid #BAE6FD', color: '#0369A1' }}>
+                  🌍 This information is voluntary and used solely for equitable service delivery and grant reporting. It does not affect your admission decision.
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-1.5">
+                    <Label>Race</Label>
+                    <Select value={form.race} onValueChange={v => set('race', v)}>
+                      <SelectTrigger><SelectValue placeholder="Select" /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="american_indian_alaska_native">American Indian / Alaska Native</SelectItem>
+                        <SelectItem value="asian">Asian</SelectItem>
+                        <SelectItem value="black_african_american">Black / African American</SelectItem>
+                        <SelectItem value="hispanic_latino">Hispanic / Latino</SelectItem>
+                        <SelectItem value="middle_eastern_north_african">Middle Eastern / North African</SelectItem>
+                        <SelectItem value="native_hawaiian_pacific_islander">Native Hawaiian / Pacific Islander</SelectItem>
+                        <SelectItem value="white">White</SelectItem>
+                        <SelectItem value="multiracial">Multiracial</SelectItem>
+                        <SelectItem value="prefer_not_to_answer">Prefer not to answer</SelectItem>
+                        <SelectItem value="other">Other</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label>Ethnicity</Label>
+                    <Select value={form.ethnicity} onValueChange={v => set('ethnicity', v)}>
+                      <SelectTrigger><SelectValue placeholder="Select" /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="hispanic_latino">Hispanic / Latino</SelectItem>
+                        <SelectItem value="not_hispanic_latino">Not Hispanic / Latino</SelectItem>
+                        <SelectItem value="prefer_not_to_answer">Prefer not to answer</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-1.5">
+                    <Label>Primary Language</Label>
+                    <Select value={form.primary_language} onValueChange={v => set('primary_language', v)}>
+                      <SelectTrigger><SelectValue placeholder="Select" /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="english">English</SelectItem>
+                        <SelectItem value="spanish">Spanish</SelectItem>
+                        <SelectItem value="arabic">Arabic</SelectItem>
+                        <SelectItem value="chinese_mandarin">Chinese (Mandarin)</SelectItem>
+                        <SelectItem value="french">French</SelectItem>
+                        <SelectItem value="haitian_creole">Haitian Creole</SelectItem>
+                        <SelectItem value="hindi">Hindi</SelectItem>
+                        <SelectItem value="portuguese">Portuguese</SelectItem>
+                        <SelectItem value="russian">Russian</SelectItem>
+                        <SelectItem value="somali">Somali</SelectItem>
+                        <SelectItem value="tagalog">Tagalog</SelectItem>
+                        <SelectItem value="vietnamese">Vietnamese</SelectItem>
+                        <SelectItem value="american_sign_language">American Sign Language</SelectItem>
+                        <SelectItem value="prefer_not_to_answer">Prefer not to answer</SelectItem>
+                        <SelectItem value="other">Other</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label>Interpreter Needed?</Label>
+                    <Select value={form.interpreter_needed ? 'yes' : 'no'} onValueChange={v => set('interpreter_needed', v === 'yes')}>
+                      <SelectTrigger><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="no">No</SelectItem>
+                        <SelectItem value="yes">Yes</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-1.5">
+                    <Label>Veteran Status</Label>
+                    <Select value={form.veteran_status} onValueChange={v => set('veteran_status', v)}>
+                      <SelectTrigger><SelectValue placeholder="Select" /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="not_a_veteran">Not a Veteran</SelectItem>
+                        <SelectItem value="active_duty">Active Duty</SelectItem>
+                        <SelectItem value="veteran">Veteran</SelectItem>
+                        <SelectItem value="national_guard_reserve">National Guard / Reserve</SelectItem>
+                        <SelectItem value="prefer_not_to_answer">Prefer not to answer</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label>Disability Status</Label>
+                    <Select value={form.disability_status} onValueChange={v => set('disability_status', v)}>
+                      <SelectTrigger><SelectValue placeholder="Select" /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="none">None</SelectItem>
+                        <SelectItem value="physical">Physical</SelectItem>
+                        <SelectItem value="cognitive_intellectual">Cognitive / Intellectual</SelectItem>
+                        <SelectItem value="mental_health">Mental Health</SelectItem>
+                        <SelectItem value="sensory_vision_hearing">Sensory (Vision / Hearing)</SelectItem>
+                        <SelectItem value="multiple">Multiple</SelectItem>
+                        <SelectItem value="prefer_not_to_answer">Prefer not to answer</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-1.5">
+                    <Label>Housing Status at Intake</Label>
+                    <Select value={form.housing_status_at_intake} onValueChange={v => set('housing_status_at_intake', v)}>
+                      <SelectTrigger><SelectValue placeholder="Select" /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="housed">Housed</SelectItem>
+                        <SelectItem value="couch_surfing">Couch Surfing</SelectItem>
+                        <SelectItem value="transitional_housing">Transitional Housing</SelectItem>
+                        <SelectItem value="shelter">Shelter</SelectItem>
+                        <SelectItem value="vehicle">Living in Vehicle</SelectItem>
+                        <SelectItem value="unsheltered">Unsheltered</SelectItem>
+                        <SelectItem value="incarcerated">Incarcerated / Releasing</SelectItem>
+                        <SelectItem value="prefer_not_to_answer">Prefer not to answer</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label>Religion / Spirituality</Label>
+                    <Select value={form.religion_spirituality} onValueChange={v => set('religion_spirituality', v)}>
+                      <SelectTrigger><SelectValue placeholder="Select" /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="christian">Christian</SelectItem>
+                        <SelectItem value="catholic">Catholic</SelectItem>
+                        <SelectItem value="muslim">Muslim</SelectItem>
+                        <SelectItem value="jewish">Jewish</SelectItem>
+                        <SelectItem value="buddhist">Buddhist</SelectItem>
+                        <SelectItem value="hindu">Hindu</SelectItem>
+                        <SelectItem value="native_spiritual">Native / Spiritual</SelectItem>
+                        <SelectItem value="spiritual_not_religious">Spiritual, not religious</SelectItem>
+                        <SelectItem value="agnostic">Agnostic</SelectItem>
+                        <SelectItem value="atheist">Atheist</SelectItem>
+                        <SelectItem value="prefer_not_to_answer">Prefer not to answer</SelectItem>
                         <SelectItem value="other">Other</SelectItem>
                       </SelectContent>
                     </Select>
@@ -348,76 +534,122 @@ export default function IntakeForm() {
               </>
             )}
 
-            {/* STEP 1 — Contact */}
-            {step === 1 && (
+            {/* STEP 2 — Emergency Contact */}
+            {step === 2 && (
               <>
+                <div className="rounded-xl p-3 text-xs mb-1" style={{ background: '#FFF7ED', border: '1px solid #FED7AA', color: '#9A3412' }}>
+                  📞 In case of emergency, who should we contact on your behalf?
+                </div>
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-1.5">
-                    <Label>Phone</Label>
-                    <Input value={form.phone} onChange={e => set('phone', e.target.value)} placeholder="(555) 000-0000" />
+                    <Label>Full Name *</Label>
+                    <Input value={form.emergency_contact_name} onChange={e => set('emergency_contact_name', e.target.value)} placeholder="Contact's full name" />
                   </div>
                   <div className="space-y-1.5">
-                    <Label>Email</Label>
-                    <Input type="email" value={form.email} onChange={e => set('email', e.target.value)} />
+                    <Label>Phone *</Label>
+                    <Input value={form.emergency_contact_phone} onChange={e => set('emergency_contact_phone', e.target.value)} placeholder="(555) 000-0000" />
                   </div>
                 </div>
-                <p className="text-xs font-bold uppercase tracking-wide pt-2" style={{ color: '#B45309' }}>Emergency Contact</p>
-                <div className="grid grid-cols-3 gap-3">
+                <div className="space-y-1.5">
+                  <Label>Relationship to Applicant</Label>
+                  <Select value={form.emergency_contact_relationship} onValueChange={v => set('emergency_contact_relationship', v)}>
+                    <SelectTrigger><SelectValue placeholder="Select relationship" /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="parent">Parent</SelectItem>
+                      <SelectItem value="sibling">Sibling</SelectItem>
+                      <SelectItem value="spouse_partner">Spouse / Partner</SelectItem>
+                      <SelectItem value="child">Child</SelectItem>
+                      <SelectItem value="grandparent">Grandparent</SelectItem>
+                      <SelectItem value="aunt_uncle">Aunt / Uncle</SelectItem>
+                      <SelectItem value="friend">Friend</SelectItem>
+                      <SelectItem value="sponsor">Sponsor / Mentor</SelectItem>
+                      <SelectItem value="case_manager">Case Manager</SelectItem>
+                      <SelectItem value="other">Other</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-1.5 pt-2">
+                  <p className="text-xs font-bold uppercase tracking-wide" style={{ color: '#B45309' }}>Secondary Emergency Contact (Optional)</p>
+                </div>
+                <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-1.5">
-                    <Label>Name</Label>
-                    <Input value={form.emergency_contact_name} onChange={e => set('emergency_contact_name', e.target.value)} />
+                    <Label>Full Name</Label>
+                    <Input value={form.emergency_contact_2_name || ''} onChange={e => set('emergency_contact_2_name', e.target.value)} placeholder="Contact's full name" />
                   </div>
                   <div className="space-y-1.5">
                     <Label>Phone</Label>
-                    <Input value={form.emergency_contact_phone} onChange={e => set('emergency_contact_phone', e.target.value)} />
+                    <Input value={form.emergency_contact_2_phone || ''} onChange={e => set('emergency_contact_2_phone', e.target.value)} placeholder="(555) 000-0000" />
                   </div>
-                  <div className="space-y-1.5">
-                    <Label>Relationship</Label>
-                    <Input value={form.emergency_contact_relationship} onChange={e => set('emergency_contact_relationship', e.target.value)} />
-                  </div>
+                </div>
+                <div className="space-y-1.5">
+                  <Label>Relationship</Label>
+                  <Input value={form.emergency_contact_2_relationship || ''} onChange={e => set('emergency_contact_2_relationship', e.target.value)} placeholder="e.g. Sponsor, Friend" />
                 </div>
               </>
             )}
 
-            {/* STEP 2 — Recovery */}
-            {step === 2 && (
+            {/* STEP 3 — Recovery & Sobriety */}
+            {step === 3 && (
               <>
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-1.5">
-                    <Label>Sobriety / Recovery Date</Label>
+                    <Label>Sobriety / Clean Date</Label>
                     <Input type="date" value={form.sober_date} onChange={e => set('sober_date', e.target.value)} />
+                    {form.sober_date && (
+                      <p className="text-xs" style={{ color: '#065F46' }}>
+                        🎉 {Math.floor((new Date() - new Date(form.sober_date)) / 86400000)} days of recovery
+                      </p>
+                    )}
                   </div>
                   <div className="space-y-1.5">
                     <Label>Recovery Pathway</Label>
                     <Select value={form.recovery_pathway} onValueChange={v => set('recovery_pathway', v)}>
                       <SelectTrigger><SelectValue placeholder="Select pathway" /></SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="12_step">12-Step</SelectItem>
+                        <SelectItem value="12_step">12-Step (AA / NA / CA)</SelectItem>
                         <SelectItem value="smart_recovery">SMART Recovery</SelectItem>
                         <SelectItem value="faith_based">Faith-Based</SelectItem>
                         <SelectItem value="mat">Medication-Assisted (MAT)</SelectItem>
                         <SelectItem value="harm_reduction">Harm Reduction</SelectItem>
                         <SelectItem value="peer_support">Peer Support</SelectItem>
                         <SelectItem value="refuge_recovery">Refuge Recovery</SelectItem>
-                        <SelectItem value="secular">Secular/Non-12-Step</SelectItem>
+                        <SelectItem value="secular">Secular / Non-12-Step</SelectItem>
                         <SelectItem value="other">Other</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
                 </div>
+
+                <div className="space-y-1.5">
+                  <Label>Primary Substance(s) Used</Label>
+                  <Input value={form.substances_used} onChange={e => set('substances_used', e.target.value)} placeholder="e.g. Alcohol, Opioids, Methamphetamine" />
+                </div>
+
+                <div className="space-y-1.5">
+                  <Label>Prior Treatment History</Label>
+                  <Textarea value={form.treatment_history} onChange={e => set('treatment_history', e.target.value)} rows={2}
+                    placeholder="Previous detox, inpatient, outpatient, sober living stays…" />
+                </div>
+
+                <div className="space-y-1.5">
+                  <Label>Current MAT Medications (if any)</Label>
+                  <Input value={form.mat_medications} onChange={e => set('mat_medications', e.target.value)} placeholder="e.g. Suboxone 8mg daily, Vivitrol monthly" />
+                </div>
+
                 <div className="space-y-1.5">
                   <Label>Referred By</Label>
                   <Input value={form.referred_by} onChange={e => set('referred_by', e.target.value)} placeholder="Organization, person, or source" />
                 </div>
+
                 <div className="space-y-1.5">
-                  <Label>Additional Notes</Label>
-                  <Textarea value={form.notes} onChange={e => set('notes', e.target.value)} rows={3} placeholder="Any additional information you'd like to share with staff…" />
+                  <Label>Additional Notes for Staff</Label>
+                  <Textarea value={form.notes} onChange={e => set('notes', e.target.value)} rows={2} placeholder="Anything else you'd like staff to know…" />
                 </div>
               </>
             )}
 
-            {/* STEP 3 — Placement */}
-            {step === 3 && (
+            {/* STEP 4 — Placement */}
+            {step === 4 && (
               <>
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-1.5">
@@ -446,8 +678,8 @@ export default function IntakeForm() {
               </>
             )}
 
-            {/* STEP 4 — Documents */}
-            {step === 4 && (
+            {/* STEP 5 — Documents */}
+            {step === 5 && (
               <div className="space-y-4">
                 <p className="text-sm" style={{ color: '#78716C' }}>
                   Please upload the documents listed below. Items marked <strong>Required *</strong> must be provided to proceed.
@@ -493,8 +725,8 @@ export default function IntakeForm() {
               </div>
             )}
 
-            {/* STEP 5 — Background Check */}
-            {step === 5 && (
+            {/* STEP 6 — Background Check */}
+            {step === 6 && (
               <div className="space-y-4">
                 <div className="rounded-xl p-5" style={{ background: '#F0F9FF', border: '1px solid #BAE6FD' }}>
                   <div className="flex items-start gap-3">
@@ -546,8 +778,8 @@ export default function IntakeForm() {
               </div>
             )}
 
-            {/* STEP 6 — Agreement & Signature */}
-            {step === 6 && (
+            {/* STEP 7 — Agreement & Signature */}
+            {step === 7 && (
               <>
                 <div className="rounded-xl p-4 overflow-y-auto text-xs leading-relaxed whitespace-pre-wrap max-h-48"
                   style={{ background: '#F8F5F0', border: '1px solid #E0D5C5', color: '#3C3530', fontFamily: 'monospace' }}>
