@@ -10,6 +10,7 @@ import LedgerPanel from '@/components/resident_portal/LedgerPanel';
 import MorningReflectionWidget from '@/components/resident_portal/MorningReflectionWidget';
 import ESignaturePanel from '@/components/esignature/ESignaturePanel';
 import ResidentWallet from '@/components/resident_portal/ResidentWallet';
+import JourneyTracker from '@/components/resident_portal/JourneyTracker';
 
 export default function ResidentPortal() {
   const [user, setUser] = useState(null);
@@ -86,6 +87,9 @@ export default function ResidentPortal() {
 
       {/* Sobriety tracker */}
       <SobrietyMilestoneCard resident={resident} />
+
+      {/* Journey / Phase Progress Tracker */}
+      <JourneyTracker resident={resident} />
 
       {/* Chores + Meetings grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
