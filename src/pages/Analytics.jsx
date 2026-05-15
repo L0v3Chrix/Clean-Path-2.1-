@@ -42,14 +42,15 @@ export default function Analytics() {
   const [selectedLocation, setSelectedLocation] = useState(null);
 
   useEffect(() => {
+    const safe = (promise) => promise.catch(() => []);
     Promise.all([
-      base44.entities.Resident.list('-created_date', 500),
-      base44.entities.Location.list(),
-      base44.entities.IncidentReport.list('-incident_date', 500),
-      base44.entities.MorningReflection.list('-log_date', 500),
-      base44.entities.ResidentFee.list('-due_date', 500),
-      base44.entities.ResidentPayment.list('-payment_date', 500),
-      base44.entities.StaffMember.list(),
+      safe(base44.entities.Resident.list('-created_date', 500)),
+      safe(base44.entities.Location.list()),
+      safe(base44.entities.IncidentReport.list('-incident_date', 500)),
+      safe(base44.entities.MorningReflection.list('-log_date', 500)),
+      safe(base44.entities.ResidentFee.list('-due_date', 500)),
+      safe(base44.entities.ResidentPayment.list('-payment_date', 500)),
+      safe(base44.entities.StaffMember.list()),
     ]).then(([residents, locations, incidents, reflections, fees, payments, staff]) => {
       setData({ residents, locations, incidents, reflections, fees, payments, staff });
       if (locations.length) setSelectedLocation(locations[0].id);
