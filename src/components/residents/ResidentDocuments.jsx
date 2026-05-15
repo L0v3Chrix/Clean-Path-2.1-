@@ -1,10 +1,16 @@
 import { useState, useEffect, useRef } from 'react';
 import { base44 } from '@/api/base44Client';
-import { Upload, FileText, CheckCircle2, AlertTriangle, AlertCircle, Clock, Trash2, ExternalLink, Plus } from 'lucide-react';
+import { Upload, FileText, CheckCircle2, AlertTriangle, AlertCircle, Clock, Trash2, ExternalLink, PenLine } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { REQUIRED_DOCUMENTS, getResidentAlerts } from '@/lib/residentAlerts';
 import { differenceInDays, parseISO, isValid, format } from 'date-fns';
+import ConsentFormModal from './ConsentFormModal';
+
+const CONSENT_FORM_TYPES = new Set([
+  'consent_form','resident_agreement','house_rules','intake_assessment',
+  'release_of_information','recovery_plan','photo_id','tb_test',
+]);
 
 const DOC_TYPE_LABELS = {
   consent_form: 'Consent Form',
@@ -50,9 +56,9 @@ export default function ResidentDocuments({ resident }) {
   const [documents, setDocuments] = useState([]);
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState(null);
-  const [addingType, setAddingType] = useState(null);
   const fileRef = useRef();
   const [pendingUploadType, setPendingUploadType] = useState(null);
+  const [consentFormDocType, setConsentFormDocType] = useState(null);
 
   useEffect(() => {
     loadDocs();
@@ -110,6 +116,7 @@ export default function ResidentDocuments({ resident }) {
   const extraDocs = documents.filter(d => !requiredTypes.includes(d.document_type));
 
   return (
+    <>
     <div className="space-y-3">
       <input ref={fileRef} type="file" className="hidden" onChange={handleFileChange}
         accept=".pdf,.doc,.docx,.jpg,.jpeg,.png" />
@@ -164,6 +171,15 @@ export default function ResidentDocuments({ resident }) {
                 </div>
                 <div className="flex items-center gap-1.5 flex-shrink-0">
                   <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${cfg.color}`}>{cfg.label}</span>
+                  {CONSENT_FORM_TYPES.has(req.type) && (
+                    <button
+                      onClick={() => setConsentFormDocType(req.type)}
+                      className="flex items-center gap-1 text-xs px-2 py-0.5 rounded bg-teal-50 text-teal-700 border border-teal-200 hover:bg-teal-100 transition-colors opacity-0 group-hover:opacity-100"
+                      title="Fill out & sign form"
+                    >
+                      <PenLine className="w-3 h-3" /> Fill & Sign
+                    </button>
+                  )}
                   {doc?.file_url && (
                     <a href={doc.file_url} target="_blank" rel="noopener noreferrer"
                       className="p-1 rounded hover:bg-slate-200 text-slate-400">
@@ -174,7 +190,7 @@ export default function ResidentDocuments({ resident }) {
                     onClick={() => triggerUpload(req.type)}
                     disabled={isUploading}
                     className="p-1 rounded hover:bg-teal-100 text-teal-600 opacity-0 group-hover:opacity-100 transition-opacity"
-                    title="Upload document"
+                    title="Upload existing document"
                   >
                     {isUploading ? (
                       <div className="w-3.5 h-3.5 border-2 border-teal-400 border-t-transparent rounded-full animate-spin" />
@@ -226,5 +242,15 @@ export default function ResidentDocuments({ resident }) {
         </div>
       )}
     </div>
+
+      {consentFormDocType && (
+        <ConsentFormModal
+          docType={consentFormDocType}
+          resident={resident}
+          onClose={() => setConsentFormDocType(null)}
+          onSaved={() => { setConsentFormDocType(null); loadDocs(); }}
+        />
+      )}
+    </>
   );
 }
