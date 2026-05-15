@@ -1,12 +1,13 @@
 import { useState, useEffect } from 'react';
 import { base44 } from '@/api/base44Client';
-import { Plus, User, X, ChevronRight } from 'lucide-react';
+import { Plus, User, X, ChevronRight, Wrench } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import MaintenanceBoard from '@/components/maintenance/MaintenanceBoard';
 
 const roleColors = {
   platform_admin: 'bg-red-100 text-red-700',
@@ -21,14 +22,21 @@ const roleColors = {
 
 export default function Staff() {
   const [staff, setStaff] = useState([]);
+  const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [editing, setEditing] = useState(null);
+  const [tab, setTab] = useState('staff');
 
   useEffect(() => { loadData(); }, []);
   const loadData = async () => {
     try {
-      setStaff(await base44.entities.StaffMember.list('-created_date', 100));
+      const [s, u] = await Promise.all([
+        base44.entities.StaffMember.list('-created_date', 100),
+        base44.auth.me(),
+      ]);
+      setStaff(s);
+      setUser(u);
     } catch (e) { console.error(e); }
     finally { setLoading(false); }
   };
@@ -40,12 +48,32 @@ export default function Staff() {
           <h1 className="text-2xl font-bold text-slate-900">Staff</h1>
           <p className="text-slate-500 text-sm mt-1">{staff.filter(s => s.status === 'active').length} active staff members</p>
         </div>
-        <Button onClick={() => { setEditing(null); setShowForm(true); }} className="bg-teal-600 hover:bg-teal-700 gap-2">
-          <Plus className="w-4 h-4" /> Add Staff
-        </Button>
+        {tab === 'staff' && (
+          <Button onClick={() => { setEditing(null); setShowForm(true); }} className="bg-teal-600 hover:bg-teal-700 gap-2">
+            <Plus className="w-4 h-4" /> Add Staff
+          </Button>
+        )}
       </div>
 
-      <Card>
+      {/* Tabs */}
+      <div className="flex gap-1 mb-6 bg-slate-100 p-1 rounded-lg w-fit">
+        <button
+          onClick={() => setTab('staff')}
+          className={`flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-colors ${tab === 'staff' ? 'bg-white shadow text-slate-900' : 'text-slate-500 hover:text-slate-700'}`}
+        >
+          <User className="w-4 h-4" /> Staff Members
+        </button>
+        <button
+          onClick={() => setTab('maintenance')}
+          className={`flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-colors ${tab === 'maintenance' ? 'bg-white shadow text-slate-900' : 'text-slate-500 hover:text-slate-700'}`}
+        >
+          <Wrench className="w-4 h-4" /> Maintenance
+        </button>
+      </div>
+
+      {tab === 'maintenance' && <MaintenanceBoard user={user} />}
+
+      {tab === 'staff' && <Card>
         <CardContent className="p-0">
           {loading ? (
             <div className="p-4 space-y-2">{[1,2,3].map(i => <div key={i} className="h-14 bg-slate-100 rounded animate-pulse" />)}</div>
@@ -79,7 +107,7 @@ export default function Staff() {
             </div>
           )}
         </CardContent>
-      </Card>
+      </Card>}
 
       {showForm && (
         <StaffForm
