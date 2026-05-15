@@ -1,0 +1,89 @@
+{
+  "name": "SignatureRequest",
+  "type": "object",
+  "properties": {
+    "organization_id": {
+      "type": "string"
+    },
+    "resident_id": {
+      "type": "string"
+    },
+    "resident_name": {
+      "type": "string"
+    },
+    "resident_email": {
+      "type": "string"
+    },
+    "title": {
+      "type": "string",
+      "description": "Document title, e.g. House Rules Agreement"
+    },
+    "description": {
+      "type": "string",
+      "description": "Brief description shown to resident"
+    },
+    "document_type": {
+      "type": "string",
+      "enum": [
+        "house_rules",
+        "lease_agreement",
+        "consent_form",
+        "release_of_information",
+        "grievance_policy",
+        "medication_policy",
+        "other"
+      ],
+      "default": "other"
+    },
+    "file_url": {
+      "type": "string",
+      "description": "URL of document to be signed"
+    },
+    "file_name": {
+      "type": "string"
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "pending",
+        "viewed",
+        "signed",
+        "declined"
+      ],
+      "default": "pending"
+    },
+    "sent_by_name": {
+      "type": "string"
+    },
+    "sent_by_id": {
+      "type": "string"
+    },
+    "due_date": {
+      "type": "string",
+      "format": "date"
+    },
+    "signed_at": {
+      "type": "string"
+    },
+    "signature_data": {
+      "type": "string",
+      "description": "Base64 PNG of drawn signature"
+    },
+    "signature_name": {
+      "type": "string",
+      "description": "Typed full name at time of signing"
+    },
+    "decline_reason": {
+      "type": "string"
+    },
+    "viewed_at": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "organization_id",
+    "resident_id",
+    "title",
+    "file_url"
+  ]
+}

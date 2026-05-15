@@ -8,6 +8,7 @@ import ChoresPanel from '@/components/resident_portal/ChoresPanel';
 import MeetingsPanel from '@/components/resident_portal/MeetingsPanel';
 import LedgerPanel from '@/components/resident_portal/LedgerPanel';
 import MorningReflectionWidget from '@/components/resident_portal/MorningReflectionWidget';
+import ESignaturePanel from '@/components/esignature/ESignaturePanel';
 
 export default function ResidentPortal() {
   const [user, setUser] = useState(null);
@@ -75,6 +76,9 @@ export default function ResidentPortal() {
           </div>
         </div>
       </div>
+
+      {/* E-Signature requests — shown prominently if any are pending */}
+      {resident && <ESignaturePanel resident={resident} />}
 
       {/* Morning Reflection */}
       <MorningReflectionWidget resident={resident} />

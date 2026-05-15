@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { X, Edit, Phone, Mail, Calendar, MapPin, Heart, FileText, AlertTriangle, GitBranch, ClipboardList, Pill, Activity, CalendarDays, Mic } from 'lucide-react';
+import { X, Edit, Phone, Mail, Calendar, MapPin, Heart, FileText, AlertTriangle, GitBranch, ClipboardList, Pill, Activity, CalendarDays, Mic, FilePen } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { base44 } from '@/api/base44Client';
@@ -11,6 +11,7 @@ import VitalsTracker from '../vitals/VitalsTracker';
 import ResidentTasks from '../tasks/ResidentTasks';
 import InterviewModal from './InterviewModal';
 import InterviewHistory from './InterviewHistory';
+import ESignatureManager from '../esignature/ESignatureManager';
 
 const statusColors = {
   applicant: 'bg-blue-100 text-blue-700',
@@ -74,6 +75,7 @@ export default function ResidentDetail({ resident: r, locations, onEdit, onClose
             { id: 'timeline', label: 'Timeline', icon: GitBranch },
             { id: 'documents', label: 'Docs', icon: FileText },
             { id: 'interview', label: 'Interview', icon: Mic },
+            { id: 'esign', label: 'E-Sign', icon: FilePen },
           ].map(t => (
             <button
               key={t.id}
@@ -178,6 +180,12 @@ export default function ResidentDetail({ resident: r, locations, onEdit, onClose
               <Mic className="w-4 h-4" /> Start New Interview
             </Button>
             <InterviewHistory residentId={r.id} />
+          </div>
+        )}
+
+        {tab === 'esign' && (
+          <div className="p-5">
+            <ESignatureManager resident={r} />
           </div>
         )}
       </div>
