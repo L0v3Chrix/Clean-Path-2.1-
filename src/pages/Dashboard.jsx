@@ -61,7 +61,7 @@ export default function Dashboard() {
       {/* Welcome */}
       <div>
         <h1 className="text-3xl font-bold" style={{ color: '#1C1917' }}>
-          Welcome back{user?.full_name ? `, ${user.full_name.split(' ')[0]}` : ''}
+          Welcome back, Slade
         </h1>
         <p className="mt-1" style={{ color: '#78716C' }}>Here's what's happening across your housing community today.</p>
       </div>
