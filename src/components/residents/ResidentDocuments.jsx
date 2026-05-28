@@ -1,10 +1,8 @@
 import { useState, useEffect, useRef } from 'react';
-import { base44 } from '@/api/base44Client';
+import { appClient } from '@/services/appClient';
 import { Upload, FileText, CheckCircle2, AlertTriangle, AlertCircle, Clock, Trash2, ExternalLink, PenLine } from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
 import { REQUIRED_DOCUMENTS, getResidentAlerts } from '@/lib/residentAlerts';
-import { differenceInDays, parseISO, isValid, format } from 'date-fns';
+import { differenceInDays, parseISO, isValid } from 'date-fns';
 import ConsentFormModal from './ConsentFormModal';
 
 const CONSENT_FORM_TYPES = new Set([
@@ -66,7 +64,7 @@ export default function ResidentDocuments({ resident }) {
 
   const loadDocs = async () => {
     setLoading(true);
-    const docs = await base44.entities.ResidentDocument.filter({ resident_id: resident.id });
+    const docs = await appClient.entities.ResidentDocument.filter({ resident_id: resident.id });
     setDocuments(docs);
     setLoading(false);
   };
@@ -81,7 +79,7 @@ export default function ResidentDocuments({ resident }) {
     if (!file || !pendingUploadType) return;
     e.target.value = '';
     setUploading(pendingUploadType);
-    const { file_url } = await base44.integrations.Core.UploadFile({ file });
+    const { file_url } = await appClient.integrations.Core.UploadFile({ file });
     const existing = documents.find(d => d.document_type === pendingUploadType);
     const payload = {
       resident_id: resident.id,
@@ -93,10 +91,10 @@ export default function ResidentDocuments({ resident }) {
       status: 'current',
     };
     if (existing) {
-      const updated = await base44.entities.ResidentDocument.update(existing.id, payload);
+      const updated = await appClient.entities.ResidentDocument.update(existing.id, payload);
       setDocuments(prev => prev.map(d => d.id === existing.id ? updated : d));
     } else {
-      const created = await base44.entities.ResidentDocument.create(payload);
+      const created = await appClient.entities.ResidentDocument.create(payload);
       setDocuments(prev => [...prev, created]);
     }
     setUploading(null);
@@ -104,7 +102,7 @@ export default function ResidentDocuments({ resident }) {
   };
 
   const handleDelete = async (docId) => {
-    await base44.entities.ResidentDocument.delete(docId);
+    await appClient.entities.ResidentDocument.delete(docId);
     setDocuments(prev => prev.filter(d => d.id !== docId));
   };
 

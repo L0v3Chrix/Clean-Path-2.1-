@@ -1,11 +1,10 @@
 import { useState, useEffect } from 'react';
-import { base44 } from '@/api/base44Client';
-import { BookOpen, Plus, Play, Upload, CheckCircle2, Clock, ChevronRight, ChevronLeft, X, Edit2 } from 'lucide-react';
+import { appClient } from '@/services/appClient';
+import { BookOpen, Plus, Play, CheckCircle2, Clock, ChevronRight, ChevronLeft, X, Edit2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Badge } from '@/components/ui/badge';
 
 const CATEGORIES = [
   { value: 'onboarding', label: 'Onboarding', color: '#6366F1' },
@@ -92,9 +91,9 @@ function ModuleForm({ orgId, module, onSave, onCancel }) {
     setSaving(true);
     const payload = { ...form, organization_id: orgId, estimated_minutes: form.estimated_minutes ? Number(form.estimated_minutes) : undefined };
     if (module?.id) {
-      await base44.entities.TrainingModule.update(module.id, payload);
+      await appClient.entities.TrainingModule.update(module.id, payload);
     } else {
-      await base44.entities.TrainingModule.create(payload);
+      await appClient.entities.TrainingModule.create(payload);
     }
     setSaving(false);
     onSave();
@@ -184,8 +183,8 @@ export default function TrainingCenter() {
 
   const load = async () => {
     const [orgs, mods] = await Promise.all([
-      base44.entities.Organization.list(),
-      base44.entities.TrainingModule.list('-created_date', 200),
+      appClient.entities.Organization.list(),
+      appClient.entities.TrainingModule.list('-created_date', 200),
     ]);
     if (orgs[0]) setOrgId(orgs[0].id);
     setModules(mods);

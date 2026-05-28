@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
-import { base44 } from '@/api/base44Client';
-import { CalendarDays, Clock, MapPin, Users } from 'lucide-react';
-import { format, parseISO, isToday, isFuture, isPast, addDays } from 'date-fns';
+import { appClient } from '@/services/appClient';
+import { CalendarDays, Clock, Users } from 'lucide-react';
+import { format, parseISO, isToday, addDays } from 'date-fns';
 
 export default function MeetingsPanel({ locationId }) {
   const [shifts, setShifts] = useState([]);
@@ -13,8 +13,8 @@ export default function MeetingsPanel({ locationId }) {
     const future = addDays(new Date(), 14).toISOString().split('T')[0];
 
     const fetchShifts = locationId
-      ? base44.entities.Shift.filter({ location_id: locationId })
-      : base44.entities.Shift.list();
+      ? appClient.entities.Shift.filter({ location_id: locationId })
+      : appClient.entities.Shift.list();
 
     fetchShifts
       .then(all => {

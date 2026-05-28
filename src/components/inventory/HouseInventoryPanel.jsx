@@ -1,9 +1,8 @@
 import { useState, useEffect } from 'react';
-import { base44 } from '@/api/base44Client';
+import { appClient } from '@/services/appClient';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Badge } from '@/components/ui/badge';
 import {
   Package, Plus, AlertTriangle, Search, Pencil, Trash2,
   CheckCircle2, MinusCircle, XCircle, RefreshCw, ScanLine, FileUp
@@ -52,7 +51,7 @@ export default function HouseInventoryPanel({ organizationId, locationId }) {
 
   const load = async () => {
     setLoading(true);
-    const data = await base44.entities.HouseInventoryItem.filter({ organization_id: organizationId });
+    const data = await appClient.entities.HouseInventoryItem.filter({ organization_id: organizationId });
     setItems(data);
     setLoading(false);
   };
@@ -61,7 +60,7 @@ export default function HouseInventoryPanel({ organizationId, locationId }) {
 
   const handleDelete = async (id) => {
     if (!confirm('Remove this item from inventory?')) return;
-    await base44.entities.HouseInventoryItem.delete(id);
+    await appClient.entities.HouseInventoryItem.delete(id);
     load();
   };
 
@@ -70,7 +69,7 @@ export default function HouseInventoryPanel({ organizationId, locationId }) {
     const threshold = item.low_stock_threshold || 2;
     const status = newQty === 0 ? 'out_of_stock' : newQty <= threshold ? 'low_stock' : 'in_stock';
     setUpdatingQty(u => ({ ...u, [item.id]: true }));
-    await base44.entities.HouseInventoryItem.update(item.id, { current_quantity: newQty, status });
+    await appClient.entities.HouseInventoryItem.update(item.id, { current_quantity: newQty, status });
     setItems(prev => prev.map(i => i.id === item.id ? { ...i, current_quantity: newQty, status } : i));
     setUpdatingQty(u => ({ ...u, [item.id]: false }));
   };

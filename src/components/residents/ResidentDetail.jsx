@@ -1,8 +1,8 @@
 import { useState } from 'react';
-import { X, Edit, Phone, Mail, Calendar, MapPin, Heart, FileText, AlertTriangle, GitBranch, ClipboardList, Pill, Activity, CalendarDays, Mic, FilePen } from 'lucide-react';
+import { X, Edit, FileText, GitBranch, ClipboardList, Pill, Activity, CalendarDays, Mic, FilePen } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { base44 } from '@/api/base44Client';
+import { appClient } from '@/services/appClient';
 import ResidentDocuments from './ResidentDocuments';
 import ResidentTimeline from './ResidentTimeline';
 import ResidentCarePlan from './ResidentCarePlan';
@@ -28,7 +28,7 @@ export default function ResidentDetail({ resident: r, locations, onEdit, onClose
 
   const handleDelete = async () => {
     if (!confirm(`Remove ${r.first_name} ${r.last_name} from the system?`)) return;
-    await base44.entities.Resident.delete(r.id);
+    await appClient.entities.Resident.delete(r.id);
     onClose();
     onRefresh();
   };

@@ -1,4 +1,4 @@
-import { base44 } from '@/api/base44Client';
+import { appClient } from '@/services/appClient';
 
 /**
  * Fire in-app toast + email alerts for a newly created critical incident.
@@ -19,7 +19,7 @@ export async function notifyCriticalIncident(incident, staffList, locations) {
   const recipients = staffList.filter(s => s.status === 'active' && s.email);
 
   const emailPromises = recipients.map(staffMember =>
-    base44.integrations.Core.SendEmail({
+    appClient.integrations.Core.SendEmail({
       to: staffMember.email,
       subject: `🔴 CRITICAL Incident Alert — ${incidentType} at ${locationName}`,
       body: `

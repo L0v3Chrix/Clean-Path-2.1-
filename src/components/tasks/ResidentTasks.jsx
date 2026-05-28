@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
-import { base44 } from '@/api/base44Client';
+import { appClient } from '@/services/appClient';
 import {
   Plus, CheckCircle2, XCircle, Clock, CalendarDays,
   RotateCcw, ListChecks, ChevronLeft, ChevronRight, Pencil, Trash2, X
@@ -11,7 +11,7 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import {
   format, parseISO, startOfMonth, endOfMonth, eachDayOfInterval,
-  startOfWeek, endOfWeek, isSameDay, isSameMonth, addMonths, subMonths,
+  startOfWeek, endOfWeek, isSameMonth, addMonths, subMonths,
   isPast, isToday, addDays, addWeeks, addMonths as addMo
 } from 'date-fns';
 
@@ -480,8 +480,8 @@ export default function ResidentTasks({ resident }) {
   const load = async () => {
     setLoading(true);
     const [t, l] = await Promise.all([
-      base44.entities.CarePlanTask.filter({ resident_id: resident.id }, 'due_date', 500),
-      base44.entities.TaskLog.filter({ resident_id: resident.id }, '-log_date', 1000),
+      appClient.entities.CarePlanTask.filter({ resident_id: resident.id }, 'due_date', 500),
+      appClient.entities.TaskLog.filter({ resident_id: resident.id }, '-log_date', 1000),
     ]);
     setTasks(t);
     setLogs(l);
@@ -491,21 +491,21 @@ export default function ResidentTasks({ resident }) {
   useEffect(() => { load(); }, [resident.id]);
 
   const saveTask = async (form) => {
-    if (form.id) await base44.entities.CarePlanTask.update(form.id, form);
-    else await base44.entities.CarePlanTask.create(form);
+    if (form.id) await appClient.entities.CarePlanTask.update(form.id, form);
+    else await appClient.entities.CarePlanTask.create(form);
     setTaskForm(null);
     load();
   };
 
   const deleteTask = async (id) => {
     if (!confirm('Delete this task?')) return;
-    await base44.entities.CarePlanTask.delete(id);
+    await appClient.entities.CarePlanTask.delete(id);
     load();
   };
 
   const saveLog = async (form) => {
-    if (form.id) await base44.entities.TaskLog.update(form.id, form);
-    else await base44.entities.TaskLog.create(form);
+    if (form.id) await appClient.entities.TaskLog.update(form.id, form);
+    else await appClient.entities.TaskLog.create(form);
     setLogModal(null);
     setSelectedDay(null);
     load();

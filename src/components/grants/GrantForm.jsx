@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { base44 } from '@/api/base44Client';
+import { appClient } from '@/services/appClient';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -52,9 +52,9 @@ export default function GrantForm({ grant, locations, orgId, onSave, onCancel })
       beds_funded: form.beds_funded ? Number(form.beds_funded) : undefined,
     };
     if (grant?.id) {
-      await base44.entities.Grant.update(grant.id, payload);
+      await appClient.entities.Grant.update(grant.id, payload);
     } else {
-      await base44.entities.Grant.create(payload);
+      await appClient.entities.Grant.create(payload);
     }
     setSaving(false);
     onSave();

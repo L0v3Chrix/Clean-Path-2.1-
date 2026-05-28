@@ -1,5 +1,5 @@
 import { differenceInDays, differenceInYears, differenceInMonths, parseISO } from 'date-fns';
-import { Flame, Trophy, Heart, Star } from 'lucide-react';
+import { Flame, Heart } from 'lucide-react';
 
 const MILESTONES = [
   { days: 1,    label: '24 Hours',   color: '#F59E0B' },

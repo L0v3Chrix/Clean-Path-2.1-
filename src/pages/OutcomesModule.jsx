@@ -1,11 +1,11 @@
 import { useState, useEffect, useMemo } from 'react';
-import { base44 } from '@/api/base44Client';
+import { appClient } from '@/services/appClient';
 import { Plus, Edit2, TrendingUp, Users, Briefcase, Home, GraduationCap, Heart, Award, Filter } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
 import OutcomeForm from '@/components/outcomes/OutcomeForm';
 import GrantImpactPanel from '@/components/outcomes/GrantImpactPanel';
-import { differenceInDays, parseISO, format } from 'date-fns';
+import { differenceInDays, parseISO } from 'date-fns';
 
 const COLORS = ['#10B981', '#B45309', '#6366F1', '#EC4899', '#F97316', '#14B8A6'];
 
@@ -44,11 +44,11 @@ export default function OutcomesModule() {
 
   const load = async () => {
     const [orgs, os, res, gs, enrs] = await Promise.all([
-      base44.entities.Organization.list(),
-      base44.entities.ResidentOutcome.list('-follow_up_date', 500),
-      base44.entities.Resident.list('-created_date', 500),
-      base44.entities.Grant.list('-created_date', 200),
-      base44.entities.GrantEnrollment.list('-created_date', 1000),
+      appClient.entities.Organization.list(),
+      appClient.entities.ResidentOutcome.list('-follow_up_date', 500),
+      appClient.entities.Resident.list('-created_date', 500),
+      appClient.entities.Grant.list('-created_date', 200),
+      appClient.entities.GrantEnrollment.list('-created_date', 1000),
     ]);
     if (orgs[0]) setOrgId(orgs[0].id);
     setOutcomes(os);

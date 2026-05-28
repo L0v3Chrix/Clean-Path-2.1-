@@ -1,4 +1,4 @@
-import { base44 } from '@/api/base44Client';
+import { appClient } from '@/services/appClient';
 
 /**
  * Given a location, date, and time, find the primary staff member on duty.
@@ -7,7 +7,7 @@ import { base44 } from '@/api/base44Client';
 export async function getStaffOnDuty(locationId, date, time, staffList) {
   if (!locationId || !date) return null;
 
-  const shifts = await base44.entities.Shift.filter({
+  const shifts = await appClient.entities.Shift.filter({
     location_id: locationId,
     shift_date: date,
     status: 'scheduled',

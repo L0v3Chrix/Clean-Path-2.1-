@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { base44 } from '@/api/base44Client';
+import { appClient } from '@/services/appClient';
 import { Sun, Moon, Star, Heart, CheckCircle2, ChevronRight, ClipboardList, Activity } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
@@ -92,9 +92,9 @@ export default function MorningReflectionForm({ resident, onComplete, existingLo
     };
 
     if (existingLog?.id) {
-      await base44.entities.MorningReflection.update(existingLog.id, payload);
+      await appClient.entities.MorningReflection.update(existingLog.id, payload);
     } else {
-      await base44.entities.MorningReflection.create(payload);
+      await appClient.entities.MorningReflection.create(payload);
     }
     setSaving(false);
     setDone(true);

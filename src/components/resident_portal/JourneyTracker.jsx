@@ -1,8 +1,8 @@
 import { useState, useEffect } from 'react';
-import { base44 } from '@/api/base44Client';
-import { format, parseISO, differenceInDays, isPast, isFuture, isToday } from 'date-fns';
+import { appClient } from '@/services/appClient';
+import { format, parseISO, differenceInDays, isPast, isFuture } from 'date-fns';
 import {
-  MapPin, CheckCircle2, Circle, Clock, Star, Trophy, Flame,
+  MapPin, CheckCircle2, Circle, Clock, Trophy, Flame,
   Target, Briefcase, Home, BookOpen, Heart, Scale, DollarSign,
   Users, Sparkles, ChevronDown, ChevronRight, Calendar, AlertCircle
 } from 'lucide-react';
@@ -181,9 +181,9 @@ export default function JourneyTracker({ resident }) {
   useEffect(() => {
     if (!resident?.id) { setLoading(false); return; }
     Promise.all([
-      base44.entities.CarePlanGoal.filter({ resident_id: resident.id }),
-      base44.entities.CarePlanTask.filter({ resident_id: resident.id }),
-      base44.entities.ResidentMilestone.filter({ resident_id: resident.id }),
+      appClient.entities.CarePlanGoal.filter({ resident_id: resident.id }),
+      appClient.entities.CarePlanTask.filter({ resident_id: resident.id }),
+      appClient.entities.ResidentMilestone.filter({ resident_id: resident.id }),
     ]).then(([g, t, m]) => {
       setGoals(g.sort((a, b) => (a.status === 'completed' ? 1 : 0) - (b.status === 'completed' ? 1 : 0)));
       setTasks(t);

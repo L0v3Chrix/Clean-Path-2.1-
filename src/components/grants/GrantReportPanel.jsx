@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
-import { base44 } from '@/api/base44Client';
-import { differenceInDays, parseISO, isWithinInterval, format } from 'date-fns';
-import { FileText, TrendingUp, Users, Clock, Star, Heart, Download } from 'lucide-react';
+import { appClient } from '@/services/appClient';
+import { differenceInDays, parseISO, format } from 'date-fns';
+import { FileText, TrendingUp, Users, Clock, Star, Heart } from 'lucide-react';
 
 function MetricCard({ icon: Icon, label, value, sub, highlight }) {
   return (
@@ -25,10 +25,10 @@ export default function GrantReportPanel({ grant }) {
   useEffect(() => {
     const load = async () => {
       const [enrollments, residents, milestones, reflections] = await Promise.all([
-        base44.entities.GrantEnrollment.filter({ grant_id: grant.id }),
-        base44.entities.Resident.list(),
-        base44.entities.ResidentMilestone.list(),
-        base44.entities.MorningReflection.list('-log_date', 1000),
+        appClient.entities.GrantEnrollment.filter({ grant_id: grant.id }),
+        appClient.entities.Resident.list(),
+        appClient.entities.ResidentMilestone.list(),
+        appClient.entities.MorningReflection.list('-log_date', 1000),
       ]);
       setData({ enrollments, residents, milestones, reflections });
       setLoading(false);

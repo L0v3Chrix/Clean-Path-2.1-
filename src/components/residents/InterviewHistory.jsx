@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { base44 } from '@/api/base44Client';
+import { appClient } from '@/services/appClient';
 import { Star, ChevronDown, ChevronUp, Sparkles } from 'lucide-react';
 
 const REC_STYLES = {
@@ -24,7 +24,7 @@ export default function InterviewHistory({ residentId }) {
   const [expanded, setExpanded] = useState(null);
 
   useEffect(() => {
-    base44.entities.ResidentInterview
+    appClient.entities.ResidentInterview
       .filter({ resident_id: residentId }, '-interview_date', 20)
       .then(setInterviews)
       .finally(() => setLoading(false));

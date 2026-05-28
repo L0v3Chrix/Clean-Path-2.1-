@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { base44 } from '@/api/base44Client';
+import { appClient } from '@/services/appClient';
 import { X, Plus, BedDouble, Building2, Zap, Star, Shield, Crown, CheckCircle2, ChevronRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
@@ -276,12 +276,12 @@ export default function ExpandCapacityModal({ locations, onClose, onSaved }) {
     if (action === 'add_beds') {
       const loc = locations.find(l => l.id === formData.location_id);
       if (loc) {
-        await base44.entities.Location.update(loc.id, {
+        await appClient.entities.Location.update(loc.id, {
           total_beds: (loc.total_beds || 0) + Number(formData.add_beds || 0)
         });
       }
     } else {
-      await base44.entities.Location.create({
+      await appClient.entities.Location.create({
         name: formData.name,
         address: formData.address,
         city: formData.city,

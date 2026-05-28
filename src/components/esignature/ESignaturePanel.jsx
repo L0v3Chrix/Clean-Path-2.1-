@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { base44 } from '@/api/base44Client';
+import { appClient } from '@/services/appClient';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
@@ -25,7 +25,7 @@ function SignModal({ request, onClose, onComplete }) {
 
   useEffect(() => {
     if (request.status === 'pending') {
-      base44.entities.SignatureRequest.update(request.id, { status: 'viewed', viewed_at: new Date().toISOString() });
+      appClient.entities.SignatureRequest.update(request.id, { status: 'viewed', viewed_at: new Date().toISOString() });
     }
   }, []);
 
@@ -68,7 +68,7 @@ function SignModal({ request, onClose, onComplete }) {
     if (!hasSignature || !name.trim()) return;
     setSubmitting(true);
     const signatureData = canvasRef.current.toDataURL('image/png');
-    await base44.entities.SignatureRequest.update(request.id, {
+    await appClient.entities.SignatureRequest.update(request.id, {
       status: 'signed',
       signed_at: new Date().toISOString(),
       signature_data: signatureData,
@@ -81,7 +81,7 @@ function SignModal({ request, onClose, onComplete }) {
   const handleDecline = async () => {
     if (!declineReason.trim()) return;
     setSubmitting(true);
-    await base44.entities.SignatureRequest.update(request.id, {
+    await appClient.entities.SignatureRequest.update(request.id, {
       status: 'declined',
       decline_reason: declineReason,
     });
@@ -235,7 +235,7 @@ export default function ESignaturePanel({ resident }) {
 
   const load = async () => {
     setLoading(true);
-    const data = await base44.entities.SignatureRequest.filter({ resident_id: resident.id });
+    const data = await appClient.entities.SignatureRequest.filter({ resident_id: resident.id });
     setRequests(data.sort((a, b) => new Date(b.created_date) - new Date(a.created_date)));
     setLoading(false);
   };

@@ -1,8 +1,7 @@
 import { useState, useEffect } from 'react';
-import { base44 } from '@/api/base44Client';
+import { appClient } from '@/services/appClient';
 import {
-  Plus, X, ChevronDown, ChevronRight, CheckCircle2, Circle,
-  Clock, Target, ListChecks, Pencil, Trash2, RotateCcw, Flag
+  Plus, X, ChevronDown, ChevronRight, CheckCircle2, Circle, Target, ListChecks, Pencil, Trash2, RotateCcw
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -355,8 +354,8 @@ export default function ResidentCarePlan({ resident }) {
   const load = async () => {
     setLoading(true);
     const [g, t] = await Promise.all([
-      base44.entities.CarePlanGoal.filter({ resident_id: resident.id }, 'created_date', 200),
-      base44.entities.CarePlanTask.filter({ resident_id: resident.id }, 'due_date', 200),
+      appClient.entities.CarePlanGoal.filter({ resident_id: resident.id }, 'created_date', 200),
+      appClient.entities.CarePlanTask.filter({ resident_id: resident.id }, 'due_date', 200),
     ]);
     setGoals(g);
     setTasks(t);
@@ -366,37 +365,37 @@ export default function ResidentCarePlan({ resident }) {
   useEffect(() => { load(); }, [resident.id]);
 
   const saveGoal = async (form) => {
-    if (form.id) await base44.entities.CarePlanGoal.update(form.id, form);
-    else await base44.entities.CarePlanGoal.create(form);
+    if (form.id) await appClient.entities.CarePlanGoal.update(form.id, form);
+    else await appClient.entities.CarePlanGoal.create(form);
     setGoalForm(null);
     load();
   };
 
   const deleteGoal = async (id) => {
     if (!confirm('Delete this goal and its tasks?')) return;
-    await base44.entities.CarePlanGoal.delete(id);
+    await appClient.entities.CarePlanGoal.delete(id);
     // also delete linked tasks
     const linked = tasks.filter(t => t.goal_id === id);
-    await Promise.all(linked.map(t => base44.entities.CarePlanTask.delete(t.id)));
+    await Promise.all(linked.map(t => appClient.entities.CarePlanTask.delete(t.id)));
     load();
   };
 
   const saveTask = async (form) => {
-    if (form.id) await base44.entities.CarePlanTask.update(form.id, form);
-    else await base44.entities.CarePlanTask.create(form);
+    if (form.id) await appClient.entities.CarePlanTask.update(form.id, form);
+    else await appClient.entities.CarePlanTask.create(form);
     setTaskForm(null);
     load();
   };
 
   const deleteTask = async (id) => {
     if (!confirm('Delete this task?')) return;
-    await base44.entities.CarePlanTask.delete(id);
+    await appClient.entities.CarePlanTask.delete(id);
     load();
   };
 
   const toggleTask = async (task) => {
     const newStatus = task.status === 'completed' ? 'pending' : 'completed';
-    await base44.entities.CarePlanTask.update(task.id, {
+    await appClient.entities.CarePlanTask.update(task.id, {
       status: newStatus,
       completed_date: newStatus === 'completed' ? new Date().toISOString().split('T')[0] : '',
     });

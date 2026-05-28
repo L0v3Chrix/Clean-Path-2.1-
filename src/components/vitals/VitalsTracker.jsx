@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
-import { base44 } from '@/api/base44Client';
+import { appClient } from '@/services/appClient';
 import { Plus, Activity, Trash2, ChevronDown, ChevronRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -8,7 +8,7 @@ import { Label } from '@/components/ui/label';
 import {
   LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, ReferenceLine
 } from 'recharts';
-import { format, parseISO, subDays } from 'date-fns';
+import { format, parseISO } from 'date-fns';
 
 // ─── Vital definitions ────────────────────────────────────────────────────────
 const VITALS = [
@@ -145,7 +145,7 @@ function LogForm({ resident, onSave, onClose }) {
             setSaving(true);
             const payload = { ...form };
             VITALS.forEach(v => { if (payload[v.key] === '') delete payload[v.key]; else payload[v.key] = parseFloat(payload[v.key]); });
-            await base44.entities.VitalReading.create(payload);
+            await appClient.entities.VitalReading.create(payload);
             onSave();
             setSaving(false);
           }}
@@ -271,7 +271,7 @@ export default function VitalsTracker({ resident }) {
 
   const load = async () => {
     setLoading(true);
-    const data = await base44.entities.VitalReading.filter({ resident_id: resident.id }, '-recorded_date', 200);
+    const data = await appClient.entities.VitalReading.filter({ resident_id: resident.id }, '-recorded_date', 200);
     setReadings(data);
     setLoading(false);
   };
@@ -280,7 +280,7 @@ export default function VitalsTracker({ resident }) {
 
   const deleteReading = async (id) => {
     if (!confirm('Delete this reading?')) return;
-    await base44.entities.VitalReading.delete(id);
+    await appClient.entities.VitalReading.delete(id);
     load();
   };
 

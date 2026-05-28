@@ -3,7 +3,7 @@ import {
   BarChart, Bar, LineChart, Line, PieChart, Pie, Cell,
   XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer
 } from 'recharts';
-import { AlertTriangle, TrendingUp, TrendingDown, Minus, Activity, MapPin, Tag, Zap } from 'lucide-react';
+import { AlertTriangle, TrendingUp, Activity, MapPin, Tag, Zap } from 'lucide-react';
 import { format, parseISO, subMonths, startOfMonth, isValid } from 'date-fns';
 
 const SEVERITY_COLORS = { low: '#A8B5C0', medium: '#F59E0B', high: '#F97316', critical: '#EF4444' };

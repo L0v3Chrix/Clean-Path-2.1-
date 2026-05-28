@@ -1,9 +1,8 @@
 import { useState, useEffect } from 'react';
-import { base44 } from '@/api/base44Client';
-import { Plus, Wrench, Clock, CheckCircle2, AlertTriangle, Loader2, Search, Filter } from 'lucide-react';
+import { appClient } from '@/services/appClient';
+import { Plus, Clock, CheckCircle2, AlertTriangle, Loader2, Search } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { cn } from '@/lib/utils';
 import TicketCard from './TicketCard';
@@ -37,8 +36,8 @@ export default function MaintenanceBoard({ user }) {
   const loadData = async () => {
     try {
       const [t, l] = await Promise.all([
-        base44.entities.MaintenanceTicket.list('-created_date', 200),
-        base44.entities.Location.list('name', 50),
+        appClient.entities.MaintenanceTicket.list('-created_date', 200),
+        appClient.entities.Location.list('name', 50),
       ]);
       setTickets(t);
       setLocations(l);
@@ -49,12 +48,12 @@ export default function MaintenanceBoard({ user }) {
   const handleStatusChange = async (ticket, newStatus) => {
     const update = { status: newStatus };
     if (newStatus === 'completed') update.completed_at = new Date().toISOString();
-    await base44.entities.MaintenanceTicket.update(ticket.id, update);
+    await appClient.entities.MaintenanceTicket.update(ticket.id, update);
 
     // Notify submitter when completed
     if (newStatus === 'completed' && ticket.submitted_by_email) {
       try {
-        await base44.integrations.Core.SendEmail({
+        await appClient.integrations.Core.SendEmail({
           to: ticket.submitted_by_email,
           subject: `✅ Maintenance Ticket Completed: ${ticket.title}`,
           body: `Hi ${ticket.submitted_by_name},\n\nYour maintenance request "${ticket.title}" (${ticket.room || ticket.location_name}) has been marked as completed.\n\n${ticket.resolution_notes ? `Resolution notes: ${ticket.resolution_notes}` : ''}\n\nThank you!\nClearPath Maintenance Team`,
@@ -74,7 +73,7 @@ export default function MaintenanceBoard({ user }) {
 
   const handleDelete = async (ticket) => {
     if (!window.confirm('Delete this ticket?')) return;
-    await base44.entities.MaintenanceTicket.delete(ticket.id);
+    await appClient.entities.MaintenanceTicket.delete(ticket.id);
     setTickets(prev => prev.filter(t => t.id !== ticket.id));
   };
 

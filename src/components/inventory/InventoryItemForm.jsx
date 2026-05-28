@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { base44 } from '@/api/base44Client';
+import { appClient } from '@/services/appClient';
 
 const CATEGORIES = [
   { value: 'toiletries', label: 'Toiletries' },
@@ -39,9 +39,9 @@ export default function InventoryItemForm({ item, organizationId, locationId, on
     const status = qty === 0 ? 'out_of_stock' : qty <= threshold ? 'low_stock' : 'in_stock';
     const data = { ...form, current_quantity: qty, low_stock_threshold: threshold, reorder_quantity: Number(form.reorder_quantity), status, organization_id: organizationId, location_id: locationId };
     if (isEdit) {
-      await base44.entities.HouseInventoryItem.update(item.id, data);
+      await appClient.entities.HouseInventoryItem.update(item.id, data);
     } else {
-      await base44.entities.HouseInventoryItem.create(data);
+      await appClient.entities.HouseInventoryItem.create(data);
     }
     setSaving(false);
     onSaved();

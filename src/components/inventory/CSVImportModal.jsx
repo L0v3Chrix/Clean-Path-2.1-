@@ -2,7 +2,7 @@ import { useState, useRef } from 'react';
 import { X, Upload, FileText, AlertTriangle, CheckCircle2, ChevronRight, ArrowLeft } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { base44 } from '@/api/base44Client';
+import { appClient } from '@/services/appClient';
 
 const SCHEMA_FIELDS = [
   { key: 'name',               label: 'Item Name',           required: true },
@@ -124,7 +124,7 @@ export default function CSVImportModal({ organizationId, locationId, onClose, on
       const record = buildRecord(row, mapping, organizationId, locationId);
       if (!record.name) { skipped++; continue; }
       try {
-        await base44.entities.HouseInventoryItem.create(record);
+        await appClient.entities.HouseInventoryItem.create(record);
         imported++;
       } catch (err) {
         errors.push(`"${record.name}": ${err.message}`);

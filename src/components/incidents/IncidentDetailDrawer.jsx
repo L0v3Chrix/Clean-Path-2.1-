@@ -1,6 +1,5 @@
-import { X, Pencil, Trash2, AlertTriangle, MapPin, User, Users, Clock, FileText, CheckCircle2, Circle, ArrowRight } from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import { base44 } from '@/api/base44Client';
+import { X, Pencil, Trash2, MapPin, User, Users, Clock, CheckCircle2, Circle } from 'lucide-react';
+import { appClient } from '@/services/appClient';
 
 const SEVERITY_CFG = {
   low:      { label: 'Low',      bg: '#F1F5F9', color: '#475569', bar: '#94A3B8' },
@@ -79,13 +78,13 @@ export default function IncidentDetailDrawer({ incident, residents, locations, s
   const reporter = staff.find(s => s.id === incident.reported_by_id);
 
   const updateStatus = async (status) => {
-    await base44.entities.IncidentReport.update(incident.id, { status });
+    await appClient.entities.IncidentReport.update(incident.id, { status });
     onRefresh(status);
   };
 
   const handleDelete = async () => {
     if (!confirm('Permanently delete this incident report?')) return;
-    await base44.entities.IncidentReport.delete(incident.id);
+    await appClient.entities.IncidentReport.delete(incident.id);
     onClose();
   };
 

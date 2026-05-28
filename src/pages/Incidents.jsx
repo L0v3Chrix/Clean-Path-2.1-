@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { base44 } from '@/api/base44Client';
+import { appClient } from '@/services/appClient';
 import { Link } from 'react-router-dom';
 import { Plus, Search, AlertTriangle, BarChart2, List, TrendingUp } from 'lucide-react';
 import { toast } from 'sonner';
@@ -50,10 +50,10 @@ export default function Incidents() {
   const loadData = async () => {
     setLoading(true);
     const [inc, res, loc, st] = await Promise.all([
-      base44.entities.IncidentReport.list('-incident_date', 200),
-      base44.entities.Resident.list(),
-      base44.entities.Location.list(),
-      base44.entities.StaffMember.list(),
+      appClient.entities.IncidentReport.list('-incident_date', 200),
+      appClient.entities.Resident.list(),
+      appClient.entities.Location.list(),
+      appClient.entities.StaffMember.list(),
     ]);
     setIncidents(inc);
     setResidents(res);
@@ -254,8 +254,8 @@ export default function Incidents() {
           onSave={async (data) => {
             const isNew = !data.id;
             const saved = data.id
-              ? await base44.entities.IncidentReport.update(data.id, data)
-              : await base44.entities.IncidentReport.create(data);
+              ? await appClient.entities.IncidentReport.update(data.id, data)
+              : await appClient.entities.IncidentReport.create(data);
 
             // Critical incident notifications (new reports only)
             if (isNew && data.severity === 'critical') {

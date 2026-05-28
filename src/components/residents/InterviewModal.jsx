@@ -7,7 +7,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { base44 } from '@/api/base44Client';
+import { appClient } from '@/services/appClient';
 
 // ─── Interview Questions ───────────────────────────────────────────────────
 const SCREENING = [
@@ -187,7 +187,7 @@ STAFF SUMMARY NOTES: ${summaryNotes || '(none)'}
 
 Write in a professional, trauma-informed tone. Keep it concise (under 250 words).`;
 
-    const result = await base44.integrations.Core.InvokeLLM({ prompt });
+    const result = await appClient.integrations.Core.InvokeLLM({ prompt });
     setAiSummary(result);
     setAiLoading(false);
   };
@@ -197,7 +197,7 @@ Write in a professional, trauma-informed tone. Keep it concise (under 250 words)
     setSaving(true);
     const score = parseFloat(overallScore()) || 0;
 
-    const interview = await base44.entities.ResidentInterview.create({
+    const interview = await appClient.entities.ResidentInterview.create({
       resident_id: resident.id,
       organization_id: resident.organization_id,
       conducted_by_name: conductedBy,
@@ -215,7 +215,7 @@ Write in a professional, trauma-informed tone. Keep it concise (under 250 words)
 
     // Append interview summary to resident notes
     const interviewNoteBlock = `\n\n[INTERVIEW ${new Date().toLocaleDateString()} — ${conductedBy}]\nScore: ${score}/5 | Recommendation: ${recommendation}\n${summaryNotes}`;
-    await base44.entities.Resident.update(resident.id, {
+    await appClient.entities.Resident.update(resident.id, {
       notes: (resident.notes || '') + interviewNoteBlock,
       status: recommendation === 'approve' ? 'active'
              : recommendation === 'deny' ? 'exited'

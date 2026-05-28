@@ -5,7 +5,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
-import { base44 } from '@/api/base44Client';
+import { appClient } from '@/services/appClient';
 
 const CATEGORIES = [
   { value: 'toiletries', label: 'Toiletries' },
@@ -42,7 +42,7 @@ export default function InventoryRequestForm({ organizationId, locationId, items
   const handleSave = async () => {
     if (!form.item_name) return;
     setSaving(true);
-    await base44.entities.InventoryRequest.create({
+    await appClient.entities.InventoryRequest.create({
       ...form,
       quantity_requested: Number(form.quantity_requested),
       organization_id: organizationId,

@@ -1,10 +1,9 @@
 import { useState, useEffect, useCallback } from 'react';
-import { base44 } from '@/api/base44Client';
-import { format, parseISO, differenceInDays, addDays, isFuture, isPast, isToday } from 'date-fns';
+import { appClient } from '@/services/appClient';
+import { format, parseISO, differenceInDays, isFuture } from 'date-fns';
 import {
-  BedDouble, Building2, Users, Plus, Search, ChevronDown, ChevronRight,
-  TrendingUp, AlertTriangle, CheckCircle2, Clock, ArrowRight, RefreshCw,
-  UserPlus, X, Zap, Star, Shield, Crown
+  BedDouble, Building2, Users, Plus, Search, ChevronDown, ChevronRight, CheckCircle2, Clock, ArrowRight, RefreshCw,
+  UserPlus
 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -40,16 +39,50 @@ function OccupancyRing({ pct, size = 56 }) {
   );
 }
 
+function locationBedAssignments(loc, bedAssignments) {
+  return bedAssignments
+    .filter((bed) => bed.location_id === loc.id)
+    .sort((a, b) => (a.room || '').localeCompare(b.room || '') || (a.bed_label || '').localeCompare(b.bed_label || ''));
+}
+
+function bedResident(assignment, residents) {
+  return residents.find((resident) => resident.id === assignment.resident_id) || null;
+}
+
+function locationOccupancy(loc, residents, bedAssignments) {
+  const assignments = locationBedAssignments(loc, bedAssignments);
+  const activeResidents = residents.filter((resident) => resident.location_id === loc.id && resident.status === 'active');
+  const assignedOccupied = assignments.filter((bed) => ['occupied', 'reserved'].includes(bed.status) && bed.resident_id);
+  const usesAssignments = assignments.length > 0;
+  const total = Math.max(loc.total_beds || 0, assignments.length);
+  const occupied = usesAssignments ? assignedOccupied.length : activeResidents.length;
+  const implicitAvailable = usesAssignments ? Math.max(0, total - assignments.length) : 0;
+  const available = usesAssignments
+    ? assignments.filter((bed) => bed.status === 'available').length + implicitAvailable
+    : Math.max(0, total - occupied);
+
+  return {
+    assignments,
+    activeResidents,
+    total,
+    occupied: Math.min(occupied, total || occupied),
+    available: Math.max(0, available),
+    pct: total > 0 ? Math.round((Math.min(occupied, total) / total) * 100) : 0,
+    usesAssignments,
+  };
+}
+
 // ──────────────────────────────────────────
 //  Location Card
 // ──────────────────────────────────────────
-function LocationCard({ loc, residents, applicants, onAssign, onRefresh }) {
+function LocationCard({ loc, residents, applicants, bedAssignments, onAssign }) {
   const [expanded, setExpanded] = useState(false);
-  const active = residents.filter(r => r.location_id === loc.id && r.status === 'active');
-  const totalBeds = loc.total_beds || 0;
-  const occupied = active.length;
-  const available = Math.max(0, totalBeds - occupied);
-  const pct = totalBeds > 0 ? Math.round((occupied / totalBeds) * 100) : 0;
+  const occupancy = locationOccupancy(loc, residents, bedAssignments);
+  const active = occupancy.activeResidents;
+  const totalBeds = occupancy.total;
+  const occupied = occupancy.occupied;
+  const available = occupancy.available;
+  const pct = occupancy.pct;
   const col = occupancyColor(pct);
 
   // upcoming move-outs: exiting within 30 days
@@ -62,10 +95,23 @@ function LocationCard({ loc, residents, applicants, onAssign, onRefresh }) {
 
   // Build bed grid (max display 30 beds)
   const displayBeds = Math.min(totalBeds, 30);
-  const bedSlots = Array.from({ length: displayBeds }, (_, i) => {
-    const res = active[i];
-    return { index: i, resident: res || null };
-  });
+  const bedSlots = occupancy.usesAssignments
+    ? [
+        ...occupancy.assignments.map((assignment, index) => ({
+          index,
+          assignment,
+          resident: assignment.resident_id ? bedResident(assignment, residents) : null,
+        })),
+        ...Array.from({ length: Math.max(0, displayBeds - occupancy.assignments.length) }, (_, index) => ({
+          index: occupancy.assignments.length + index,
+          assignment: null,
+          resident: null,
+        })),
+      ].slice(0, displayBeds)
+    : Array.from({ length: displayBeds }, (_, i) => {
+        const res = active[i];
+        return { index: i, resident: res || null };
+      });
 
   return (
     <div className="rounded-2xl border border-slate-200 bg-white overflow-hidden shadow-sm hover:shadow-md transition-shadow">
@@ -117,9 +163,17 @@ function LocationCard({ loc, residents, applicants, onAssign, onRefresh }) {
             {bedSlots.map(slot => (
               <div
                 key={slot.index}
-                title={slot.resident ? `${slot.resident.first_name} ${slot.resident.last_name}${slot.resident.room ? ` · Room ${slot.resident.room}` : ''}` : 'Available'}
+                title={slot.resident
+                  ? `${slot.resident.first_name} ${slot.resident.last_name}${slot.assignment?.bed_label ? ` · ${slot.assignment.bed_label}` : slot.resident.room ? ` · Room ${slot.resident.room}` : ''}`
+                  : slot.assignment?.status === 'maintenance'
+                    ? `${slot.assignment.bed_label || 'Bed'} · Maintenance`
+                    : 'Available'}
                 className={`w-7 h-7 rounded-md flex items-center justify-center text-[10px] font-bold transition-all cursor-default
-                  ${slot.resident ? 'bg-slate-700 text-white' : 'bg-emerald-100 text-emerald-600 border-2 border-dashed border-emerald-300'}`}
+                  ${slot.resident
+                    ? 'bg-slate-700 text-white'
+                    : slot.assignment?.status === 'maintenance'
+                      ? 'bg-orange-100 text-orange-600 border-2 border-orange-200'
+                      : 'bg-emerald-100 text-emerald-600 border-2 border-dashed border-emerald-300'}`}
               >
                 {slot.resident ? slot.resident.first_name?.[0] : '+'}
               </div>
@@ -242,6 +296,7 @@ function LocationCard({ loc, residents, applicants, onAssign, onRefresh }) {
 export default function BedCapacity() {
   const [locations, setLocations] = useState([]);
   const [residents, setResidents] = useState([]);
+  const [bedAssignments, setBedAssignments] = useState([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [filter, setFilter] = useState('all'); // all | available | full | critical
@@ -250,32 +305,32 @@ export default function BedCapacity() {
 
   const loadData = useCallback(async () => {
     setLoading(true);
-    const [locs, res] = await Promise.all([
-      base44.entities.Location.list(),
-      base44.entities.Resident.list(),
+    const [locs, res, beds] = await Promise.all([
+      appClient.entities.Location.list(),
+      appClient.entities.Resident.list(),
+      appClient.entities.BedAssignment.list(),
     ]);
     setLocations(locs.filter(l => l.status === 'active'));
     setResidents(res);
+    setBedAssignments(beds);
     setLoading(false);
   }, []);
 
   useEffect(() => { loadData(); }, [loadData]);
 
   // ── Aggregate stats ──
-  const totalBeds = locations.reduce((s, l) => s + (l.total_beds || 0), 0);
-  const occupiedBeds = locations.reduce((s, l) => {
-    const cnt = residents.filter(r => r.location_id === l.id && r.status === 'active').length;
-    return s + Math.min(cnt, l.total_beds || 0);
-  }, 0);
-  const availableBeds = Math.max(0, totalBeds - occupiedBeds);
+  const occupancyByLocation = new Map(locations.map((loc) => [loc.id, locationOccupancy(loc, residents, bedAssignments)]));
+  const totalBeds = locations.reduce((sum, loc) => sum + (occupancyByLocation.get(loc.id)?.total || 0), 0);
+  const occupiedBeds = locations.reduce((sum, loc) => sum + (occupancyByLocation.get(loc.id)?.occupied || 0), 0);
+  const availableBeds = locations.reduce((sum, loc) => sum + (occupancyByLocation.get(loc.id)?.available || 0), 0);
   const overallPct = totalBeds > 0 ? Math.round((occupiedBeds / totalBeds) * 100) : 0;
   const applicants = residents.filter(r => r.status === 'applicant');
 
   // ── Filter + search ──
   const filtered = locations.filter(loc => {
-    const active = residents.filter(r => r.location_id === loc.id && r.status === 'active').length;
-    const pct = loc.total_beds > 0 ? (active / loc.total_beds) * 100 : 0;
-    const avail = Math.max(0, (loc.total_beds || 0) - active);
+    const occupancy = occupancyByLocation.get(loc.id) || locationOccupancy(loc, residents, bedAssignments);
+    const pct = occupancy.pct;
+    const avail = occupancy.available;
     const matchSearch = !search || loc.name.toLowerCase().includes(search.toLowerCase()) || loc.city?.toLowerCase().includes(search.toLowerCase());
     const matchFilter =
       filter === 'all' ? true :
@@ -391,8 +446,8 @@ export default function BedCapacity() {
               loc={loc}
               residents={residents}
               applicants={residents.filter(r => r.status === 'applicant')}
+              bedAssignments={bedAssignments}
               onAssign={setAssignTarget}
-              onRefresh={loadData}
             />
           ))}
         </div>
@@ -441,10 +496,11 @@ export default function BedCapacity() {
       {assignTarget && (
         <AssignBedModal
           locations={locations.filter(l => {
-            const cnt = residents.filter(r => r.location_id === l.id && r.status === 'active').length;
-            return (l.total_beds || 0) > cnt;
+            const occupancy = occupancyByLocation.get(l.id) || locationOccupancy(l, residents, bedAssignments);
+            return occupancy.available > 0;
           })}
           applicants={residents.filter(r => r.status === 'applicant')}
+          bedAssignments={bedAssignments}
           preselectedLocation={assignTarget._preselected ? null : assignTarget}
           preselectedApplicant={assignTarget._preselected || null}
           onClose={() => setAssignTarget(null)}

@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { base44 } from '@/api/base44Client';
+import { appClient } from '@/services/appClient';
 import {
   CheckCircle, ChevronRight, ChevronLeft, Shield, PenLine,
   RotateCcw, Loader2, Upload, FileText, X, AlertCircle, Search
@@ -102,7 +102,7 @@ export default function IntakeForm() {
     const params = new URLSearchParams(window.location.search);
     const paramOrgId = params.get('org');
 
-    base44.entities.Organization.list().then(orgs => {
+    appClient.entities.Organization.list().then(orgs => {
       // Use org from URL param if provided, otherwise fall back to first org
       const org = paramOrgId ? orgs.find(o => o.id === paramOrgId) : orgs[0];
       if (org) {
@@ -112,7 +112,7 @@ export default function IntakeForm() {
       }
     }).catch(() => {});
 
-    base44.entities.Location.filter({ status: 'active' }).then(locs => {
+    appClient.entities.Location.filter({ status: 'active' }).then(locs => {
       // If org param given, filter locations to that org
       setLocations(paramOrgId ? locs.filter(l => l.organization_id === paramOrgId) : locs);
     }).catch(() => {});
@@ -122,7 +122,7 @@ export default function IntakeForm() {
   const handleFileUpload = async (docKey, file) => {
     if (!file) return;
     setUploading(p => ({ ...p, [docKey]: true }));
-    const { file_url } = await base44.integrations.Core.UploadFile({ file });
+    const { file_url } = await appClient.integrations.Core.UploadFile({ file });
     setUploadedDocs(p => ({ ...p, [docKey]: { file_url, name: file.name } }));
     setUploading(p => ({ ...p, [docKey]: false }));
   };
@@ -198,11 +198,11 @@ export default function IntakeForm() {
       ].filter(Boolean).join('\n'),
     };
 
-    const created = await base44.entities.Resident.create(residentData);
+    const created = await appClient.entities.Resident.create(residentData);
     const residentId = created?.id || created;
 
     // Save e-signature document
-    await base44.entities.ResidentDocument.create({
+    await appClient.entities.ResidentDocument.create({
       resident_id: residentId,
       document_type: 'resident_agreement',
       label: 'House Rules E-Signature',
@@ -215,7 +215,7 @@ export default function IntakeForm() {
     // Save uploaded documents
     await Promise.allSettled(
       REQUIRED_DOCS.filter(d => uploadedDocs[d.key]).map(d =>
-        base44.entities.ResidentDocument.create({
+        appClient.entities.ResidentDocument.create({
           resident_id: residentId,
           document_type: d.doc_type,
           label: d.label,
@@ -227,7 +227,7 @@ export default function IntakeForm() {
     );
 
     // Notify all active staff
-    const allStaff = await base44.entities.StaffMember.filter({ status: 'active' }).catch(() => []);
+    const allStaff = await appClient.entities.StaffMember.filter({ status: 'active' }).catch(() => []);
     const staffToNotify = allStaff.filter(s => s.email);
     const preferredLocation = locations.find(l => l.id === form.location_id);
     const locationName = preferredLocation?.name || 'No preference';
@@ -236,7 +236,7 @@ export default function IntakeForm() {
     const docList = REQUIRED_DOCS.filter(d => uploadedDocs[d.key]).map(d => `• ${d.label}`).join('<br/>');
 
     await Promise.allSettled(staffToNotify.map(staff =>
-      base44.integrations.Core.SendEmail({
+      appClient.integrations.Core.SendEmail({
         to: staff.email,
         subject: `🚨 New Application Pending — ${residentName} | Background Check Initiated`,
         body: `

@@ -1,15 +1,15 @@
 import { useState, useEffect, useMemo } from 'react';
-import { base44 } from '@/api/base44Client';
+import { appClient } from '@/services/appClient';
 import { Link } from 'react-router-dom';
 import {
   BarChart, Bar, LineChart, Line, PieChart, Pie, Cell,
-  XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, ScatterChart, Scatter, ZAxis
+  XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer
 } from 'recharts';
 import {
   AlertTriangle, Activity, MapPin, Clock, Calendar, Tag,
   Zap, TrendingUp, ArrowLeft, RefreshCw
 } from 'lucide-react';
-import { format, parseISO, subMonths, startOfMonth, isValid, getDay, getHours } from 'date-fns';
+import { format, parseISO, subMonths, isValid, getDay } from 'date-fns';
 
 const SEVERITY_COLORS = { low: '#A8B5C0', medium: '#F59E0B', high: '#F97316', critical: '#EF4444' };
 const TYPE_COLORS = ['#B45309','#86B8B1','#8B6BAE','#4A6B8A','#C9A227','#6B8A4A','#8A4A6B','#4A8A6B'];
@@ -92,8 +92,8 @@ export default function IncidentSafetyDashboard() {
   const loadData = async () => {
     setLoading(true);
     const [inc, locs] = await Promise.all([
-      base44.entities.IncidentReport.list('-incident_date', 500),
-      base44.entities.Location.list(),
+      appClient.entities.IncidentReport.list('-incident_date', 500),
+      appClient.entities.Location.list(),
     ]);
     setIncidents(inc);
     setLocations(locs);

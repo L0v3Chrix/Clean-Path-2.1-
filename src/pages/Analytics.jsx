@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
-import { base44 } from '@/api/base44Client';
+import { appClient } from '@/services/appClient';
 import { BarChart, Bar, LineChart, Line, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts';
-import { TrendingUp, Users, DollarSign, Heart, AlertTriangle, Building2, Star, Download } from 'lucide-react';
+import { TrendingUp, Users, DollarSign, Heart, AlertTriangle, Building2, Star } from 'lucide-react';
 import { format, subDays, subMonths, parseISO } from 'date-fns';
 
 const COLORS = ['#B45309', '#10B981', '#6366F1', '#F97316', '#EC4899', '#14B8A6'];
@@ -44,13 +44,13 @@ export default function Analytics() {
   useEffect(() => {
     const safe = (promise) => promise.catch(() => []);
     Promise.all([
-      safe(base44.entities.Resident.list('-created_date', 500)),
-      safe(base44.entities.Location.list()),
-      safe(base44.entities.IncidentReport.list('-incident_date', 500)),
-      safe(base44.entities.MorningReflection.list('-log_date', 500)),
-      safe(base44.entities.ResidentFee.list('-due_date', 500)),
-      safe(base44.entities.ResidentPayment.list('-payment_date', 500)),
-      safe(base44.entities.StaffMember.list()),
+      safe(appClient.entities.Resident.list('-created_date', 500)),
+      safe(appClient.entities.Location.list()),
+      safe(appClient.entities.IncidentReport.list('-incident_date', 500)),
+      safe(appClient.entities.MorningReflection.list('-log_date', 500)),
+      safe(appClient.entities.ResidentFee.list('-due_date', 500)),
+      safe(appClient.entities.ResidentPayment.list('-payment_date', 500)),
+      safe(appClient.entities.StaffMember.list()),
     ]).then(([residents, locations, incidents, reflections, fees, payments, staff]) => {
       setData({ residents, locations, incidents, reflections, fees, payments, staff });
       if (locations.length) setSelectedLocation(locations[0].id);

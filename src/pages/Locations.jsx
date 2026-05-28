@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
-import { base44 } from '@/api/base44Client';
-import { Plus, Building2, Users, ChevronRight, X } from 'lucide-react';
+import { appClient } from '@/services/appClient';
+import { Plus, Building2, Users, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -20,8 +20,8 @@ export default function Locations() {
   const loadData = async () => {
     try {
       const [l, r] = await Promise.all([
-        base44.entities.Location.list(),
-        base44.entities.Resident.list(),
+        appClient.entities.Location.list(),
+        appClient.entities.Resident.list(),
       ]);
       setLocations(l);
       setResidents(r);
@@ -96,8 +96,8 @@ export default function Locations() {
         <LocationForm
           location={editing}
           onSave={async (data) => {
-            if (data.id) await base44.entities.Location.update(data.id, data);
-            else await base44.entities.Location.create({ ...data, organization_id: 'default' });
+            if (data.id) await appClient.entities.Location.update(data.id, data);
+            else await appClient.entities.Location.create({ ...data, organization_id: 'default' });
             setShowForm(false);
             setEditing(null);
             loadData();

@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { base44 } from '@/api/base44Client';
+import { appClient } from '@/services/appClient';
 import { AlertTriangle, CheckCircle2, ChevronDown, ChevronUp, Loader2 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -25,7 +25,7 @@ function CheckinCard({ log, residents, user, onReviewed }) {
 
   const handleMarkReviewed = async () => {
     setSaving(true);
-    await base44.entities.MorningReflection.update(log.id, {
+    await appClient.entities.MorningReflection.update(log.id, {
       staff_reviewed: true,
       reviewed_by: user?.full_name || 'Staff',
       reviewed_at: new Date().toISOString(),
@@ -137,9 +137,9 @@ export default function FlaggedCheckinsPanel({ orgId }) {
 
   const load = async () => {
     const [me, allLogs, res] = await Promise.all([
-      base44.auth.me(),
-      base44.entities.MorningReflection.filter({ flagged_for_support: true }),
-      base44.entities.Resident.list(),
+      appClient.auth.me(),
+      appClient.entities.MorningReflection.filter({ flagged_for_support: true }),
+      appClient.entities.Resident.list(),
     ]);
     setUser(me);
     // Sort: unreviewed first, then by date desc

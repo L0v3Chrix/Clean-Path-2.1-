@@ -2,7 +2,7 @@ import { useState, useRef, useEffect } from 'react';
 import { X, Download, PenLine, RotateCcw, CheckCircle2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { base44 } from '@/api/base44Client';
+import { appClient } from '@/services/appClient';
 import jsPDF from 'jspdf';
 
 // ─── Form definitions ──────────────────────────────────────────────────────────
@@ -481,10 +481,10 @@ export default function ConsentFormModal({ docType, resident, onClose, onSaved }
       const pdfDoc = generatePDF();
       const pdfBlob = pdfDoc.output('blob');
       const file = new File([pdfBlob], `${docType}.pdf`, { type: 'application/pdf' });
-      const { file_url } = await base44.integrations.Core.UploadFile({ file });
+      const { file_url } = await appClient.integrations.Core.UploadFile({ file });
 
       const today = new Date().toISOString().split('T')[0];
-      const existing = await base44.entities.ResidentDocument.filter({
+      const existing = await appClient.entities.ResidentDocument.filter({
         resident_id: resident.id,
         document_type: docType,
       });
@@ -500,17 +500,17 @@ export default function ConsentFormModal({ docType, resident, onClose, onSaved }
       };
 
       if (existing?.length > 0) {
-        await base44.entities.ResidentDocument.update(existing[0].id, payload);
+        await appClient.entities.ResidentDocument.update(existing[0].id, payload);
       } else {
-        await base44.entities.ResidentDocument.create(payload);
+        await appClient.entities.ResidentDocument.create(payload);
       }
 
       // Also update legacy consent flags on resident entity
       if (docType === 'consent_form') {
-        await base44.entities.Resident.update(resident.id, { consent_signed: true });
+        await appClient.entities.Resident.update(resident.id, { consent_signed: true });
       }
       if (docType === 'resident_agreement') {
-        await base44.entities.Resident.update(resident.id, { resident_agreement_signed: true });
+        await appClient.entities.Resident.update(resident.id, { resident_agreement_signed: true });
       }
 
       pdfDoc.save(`${resident.first_name}_${resident.last_name}_${docType}.pdf`);

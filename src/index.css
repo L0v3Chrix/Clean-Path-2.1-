@@ -86,3 +86,147 @@
     @apply bg-background text-foreground;
   }
 }
+
+@layer components {
+  .cp-page {
+    min-height: 100%;
+    background:
+      radial-gradient(circle at 12% 0%, rgba(242, 109, 43, 0.10), transparent 28rem),
+      radial-gradient(circle at 90% 10%, rgba(93, 138, 93, 0.14), transparent 34rem),
+      linear-gradient(135deg, #faf6f3 0%, #f7efe5 46%, #f4f7f4 100%);
+    color: #2a1d15;
+  }
+
+  .cp-texture-bg {
+    position: relative;
+    isolation: isolate;
+  }
+
+  .cp-texture-bg::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    z-index: -1;
+    pointer-events: none;
+    background-image:
+      linear-gradient(rgba(250, 246, 243, 0.82), rgba(250, 246, 243, 0.82)),
+      url('/images/clearpath/warm-paper-path-texture.png');
+    background-size: cover;
+    background-position: center;
+    opacity: 0.5;
+    mix-blend-mode: multiply;
+  }
+
+  .cp-shell {
+    background:
+      radial-gradient(circle at 20% 0%, rgba(242, 109, 43, 0.20), transparent 15rem),
+      linear-gradient(180deg, #2a1d15 0%, #1c1917 100%);
+    color: #fff8ea;
+  }
+
+  .cp-topbar {
+    background:
+      linear-gradient(90deg, rgba(42, 29, 21, 0.98), rgba(67, 45, 33, 0.94)),
+      radial-gradient(circle at 75% 50%, rgba(93, 138, 93, 0.28), transparent 18rem);
+    border-bottom: 1px solid rgba(212, 181, 160, 0.18);
+  }
+
+  .cp-hero-panel {
+    position: relative;
+    overflow: hidden;
+    border: 1px solid rgba(232, 213, 198, 0.76);
+    background: #fff8ea;
+    box-shadow: 0 24px 60px rgba(67, 45, 33, 0.13);
+  }
+
+  .cp-hero-panel::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    background:
+      linear-gradient(90deg, rgba(255, 248, 234, 0.94) 0%, rgba(255, 248, 234, 0.86) 44%, rgba(255, 248, 234, 0.12) 74%),
+      radial-gradient(circle at 82% 22%, rgba(255, 179, 136, 0.24), transparent 18rem);
+  }
+
+  .cp-card {
+    border: 1px solid rgba(232, 213, 198, 0.9);
+    background: rgba(255, 248, 234, 0.86);
+    box-shadow: 0 14px 36px rgba(67, 45, 33, 0.08);
+    backdrop-filter: blur(10px);
+  }
+
+  .cp-card-interactive {
+    transition:
+      transform 180ms ease,
+      box-shadow 180ms ease,
+      border-color 180ms ease;
+  }
+
+  .cp-card-interactive:hover {
+    transform: translateY(-3px);
+    border-color: rgba(93, 138, 93, 0.55);
+    box-shadow: 0 22px 48px rgba(67, 45, 33, 0.13);
+  }
+
+  .cp-attention-node {
+    position: relative;
+    overflow: hidden;
+  }
+
+  .cp-attention-node::before {
+    content: '';
+    position: absolute;
+    right: -36px;
+    top: -42px;
+    width: 128px;
+    height: 128px;
+    border-radius: 9999px;
+    border: 2px solid rgba(93, 138, 93, 0.28);
+  }
+
+  .cp-attention-active {
+    box-shadow: inset 4px 0 0 #5d8a5d;
+  }
+
+  .cp-attention-urgent {
+    box-shadow: inset 4px 0 0 #f26d2b;
+  }
+
+  .cp-attention-steady {
+    box-shadow: inset 4px 0 0 #9b7355;
+  }
+
+  .cp-path-button {
+    background: linear-gradient(135deg, #5d8a5d, #3a5638);
+    color: #fff8ea;
+    box-shadow: 0 12px 24px rgba(58, 86, 56, 0.22);
+    transition:
+      transform 180ms ease,
+      box-shadow 180ms ease,
+      filter 180ms ease;
+  }
+
+  .cp-path-button:hover {
+    transform: translateY(-2px);
+    filter: saturate(1.05);
+    box-shadow: 0 18px 34px rgba(58, 86, 56, 0.28);
+  }
+
+  .cp-focus-ring:focus-visible {
+    outline: 3px solid rgba(242, 109, 43, 0.64);
+    outline-offset: 3px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cp-card-interactive,
+  .cp-path-button {
+    transition: none;
+  }
+
+  .cp-card-interactive:hover,
+  .cp-path-button:hover {
+    transform: none;
+  }
+}

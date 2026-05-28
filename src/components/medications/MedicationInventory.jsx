@@ -1,8 +1,8 @@
 import { useState, useEffect, useMemo } from 'react';
-import { base44 } from '@/api/base44Client';
+import { appClient } from '@/services/appClient';
 import {
-  AlertTriangle, Package, ShoppingCart, CheckCircle2, Clock,
-  X, ChevronDown, ChevronRight, Pill, RotateCcw
+  AlertTriangle, Package, ShoppingCart, CheckCircle2,
+  X, Pill
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -65,7 +65,7 @@ function QuickOrderModal({ med, resident, onSave, onClose }) {
         <form onSubmit={async e => {
           e.preventDefault();
           setSaving(true);
-          await base44.entities.ProcurementRequest.create(form);
+          await appClient.entities.ProcurementRequest.create(form);
           onSave();
           setSaving(false);
         }} className="p-5 space-y-4">
@@ -139,12 +139,12 @@ function ReceiveModal({ request, onSave, onClose }) {
           setSaving(true);
           // Update request status and update medication stock
           await Promise.all([
-            base44.entities.ProcurementRequest.update(request.id, {
+            appClient.entities.ProcurementRequest.update(request.id, {
               status: 'received',
               received_date: new Date().toISOString().split('T')[0],
               quantity_received: qty,
             }),
-            base44.entities.Medication.update(request.medication_id, {
+            appClient.entities.Medication.update(request.medication_id, {
               current_quantity: qty,
             }),
           ]);
@@ -216,7 +216,7 @@ function InventoryCard({ med, residentName, onOrder, onUpdateQty }) {
                     <form className="flex items-center gap-1.5" onSubmit={async e => {
                       e.preventDefault();
                       setSaving(true);
-                      await base44.entities.Medication.update(med.id, { current_quantity: parseFloat(qty) });
+                      await appClient.entities.Medication.update(med.id, { current_quantity: parseFloat(qty) });
                       setEditQty(false);
                       setSaving(false);
                       onUpdateQty();
@@ -321,7 +321,7 @@ function ProcurementTable({ requests, residents, onReceive, onCancel, onRefresh 
                   )}
                   {req.status === 'pending' && (
                     <button onClick={async () => {
-                      await base44.entities.ProcurementRequest.update(req.id, { status: 'ordered' });
+                      await appClient.entities.ProcurementRequest.update(req.id, { status: 'ordered' });
                       onRefresh();
                     }} className="text-xs px-2.5 py-1 rounded-lg font-medium"
                       style={{ background: '#0891B2', color: '#fff' }}>
@@ -359,14 +359,14 @@ export default function MedicationInventory({ organizationId }) {
     setLoading(true);
     const [meds, reqs, res] = await Promise.all([
       organizationId
-        ? base44.entities.Medication.filter({ organization_id: organizationId }, 'name', 500)
-        : base44.entities.Medication.list('name', 500),
+        ? appClient.entities.Medication.filter({ organization_id: organizationId }, 'name', 500)
+        : appClient.entities.Medication.list('name', 500),
       organizationId
-        ? base44.entities.ProcurementRequest.filter({ organization_id: organizationId }, '-created_date', 200)
-        : base44.entities.ProcurementRequest.list('-created_date', 200),
+        ? appClient.entities.ProcurementRequest.filter({ organization_id: organizationId }, '-created_date', 200)
+        : appClient.entities.ProcurementRequest.list('-created_date', 200),
       organizationId
-        ? base44.entities.Resident.filter({ organization_id: organizationId }, 'first_name', 200)
-        : base44.entities.Resident.list('first_name', 200),
+        ? appClient.entities.Resident.filter({ organization_id: organizationId }, 'first_name', 200)
+        : appClient.entities.Resident.list('first_name', 200),
     ]);
     setMedications(meds);
     setRequests(reqs);
@@ -393,7 +393,7 @@ export default function MedicationInventory({ organizationId }) {
 
   const cancelRequest = async (id) => {
     if (!confirm('Cancel this order?')) return;
-    await base44.entities.ProcurementRequest.update(id, { status: 'cancelled' });
+    await appClient.entities.ProcurementRequest.update(id, { status: 'cancelled' });
     load();
   };
 

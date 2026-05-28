@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { base44 } from '@/api/base44Client';
+import { appClient } from '@/services/appClient';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
@@ -35,7 +35,7 @@ export default function ESignatureManager({ resident }) {
 
   const load = async () => {
     setLoading(true);
-    const data = await base44.entities.SignatureRequest.filter({ resident_id: resident.id });
+    const data = await appClient.entities.SignatureRequest.filter({ resident_id: resident.id });
     setRequests(data.sort((a, b) => new Date(b.created_date) - new Date(a.created_date)));
     setLoading(false);
   };
@@ -46,7 +46,7 @@ export default function ESignatureManager({ resident }) {
     const file = e.target.files?.[0];
     if (!file) return;
     setUploading(true);
-    const { file_url } = await base44.integrations.Core.UploadFile({ file });
+    const { file_url } = await appClient.integrations.Core.UploadFile({ file });
     setForm(f => ({ ...f, file_url, file_name: file.name }));
     setUploading(false);
   };
@@ -54,8 +54,8 @@ export default function ESignatureManager({ resident }) {
   const handleSend = async () => {
     if (!form.title || !form.file_url) return;
     setSending(true);
-    const me = await base44.auth.me();
-    await base44.entities.SignatureRequest.create({
+    const me = await appClient.auth.me();
+    await appClient.entities.SignatureRequest.create({
       organization_id: resident.organization_id,
       resident_id: resident.id,
       resident_name: `${resident.first_name} ${resident.last_name}`,
@@ -72,7 +72,7 @@ export default function ESignatureManager({ resident }) {
     });
 
     if (resident.email) {
-      await base44.integrations.Core.SendEmail({
+      await appClient.integrations.Core.SendEmail({
         to: resident.email,
         subject: `Action Required: Please sign "${form.title}"`,
         body: `Hi ${resident.first_name},\n\nA document requires your signature: "${form.title}".\n\n${form.description || ''}\n\nPlease log in to your ClearPath portal to review and sign this document${form.due_date ? ` by ${form.due_date}` : ''}.\n\nThank you.`,
@@ -87,7 +87,7 @@ export default function ESignatureManager({ resident }) {
 
   const handleDelete = async (id) => {
     if (!confirm('Delete this signature request?')) return;
-    await base44.entities.SignatureRequest.delete(id);
+    await appClient.entities.SignatureRequest.delete(id);
     load();
   };
 

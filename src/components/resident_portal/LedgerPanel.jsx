@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { base44 } from '@/api/base44Client';
+import { appClient } from '@/services/appClient';
 import { DollarSign, AlertCircle, CheckCircle2, Clock, Printer } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
 import ReceiptModal from './ReceiptModal';
@@ -29,8 +29,8 @@ export default function LedgerPanel({ resident, location, organizationName }) {
   useEffect(() => {
     if (!resident?.id) { setLoading(false); return; }
     Promise.all([
-      base44.entities.ResidentFee.filter({ resident_id: resident.id }),
-      base44.entities.ResidentPayment.filter({ resident_id: resident.id }),
+      appClient.entities.ResidentFee.filter({ resident_id: resident.id }),
+      appClient.entities.ResidentPayment.filter({ resident_id: resident.id }),
     ]).then(([f, p]) => {
       setFees(f.sort((a, b) => (a.due_date || '').localeCompare(b.due_date || '')));
       setPayments(p.sort((a, b) => b.payment_date.localeCompare(a.payment_date)));

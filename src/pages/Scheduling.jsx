@@ -1,11 +1,11 @@
 import { useState, useEffect, useMemo } from 'react';
-import { base44 } from '@/api/base44Client';
-import { Plus, ChevronLeft, ChevronRight, CalendarDays, Trash2, Clock, MapPin } from 'lucide-react';
+import { appClient } from '@/services/appClient';
+import { Plus, ChevronLeft, ChevronRight, Trash2, MapPin } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { format, addDays, startOfWeek, parseISO, isToday } from 'date-fns';
+import { format, addDays, startOfWeek, isToday } from 'date-fns';
 
 const ROLE_CFG = {
   primary:   { bg: '#D1FAE5', color: '#065F46', label: 'Primary' },
@@ -147,9 +147,9 @@ export default function Scheduling() {
   const loadAll = async () => {
     setLoading(true);
     const [sh, st, lc] = await Promise.all([
-      base44.entities.Shift.list('-shift_date', 500),
-      base44.entities.StaffMember.list(),
-      base44.entities.Location.list(),
+      appClient.entities.Shift.list('-shift_date', 500),
+      appClient.entities.StaffMember.list(),
+      appClient.entities.Location.list(),
     ]);
     setShifts(sh);
     setStaff(st);
@@ -176,15 +176,15 @@ export default function Scheduling() {
   };
 
   const handleSave = async (data) => {
-    if (data.id) await base44.entities.Shift.update(data.id, data);
-    else await base44.entities.Shift.create(data);
+    if (data.id) await appClient.entities.Shift.update(data.id, data);
+    else await appClient.entities.Shift.create(data);
     setShowForm(false);
     setEditing(null);
     loadAll();
   };
 
   const handleDelete = async (id) => {
-    await base44.entities.Shift.delete(id);
+    await appClient.entities.Shift.delete(id);
     setShifts(prev => prev.filter(s => s.id !== id));
   };
 

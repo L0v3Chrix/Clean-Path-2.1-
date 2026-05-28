@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { base44 } from '@/api/base44Client';
+import { appClient } from '@/services/appClient';
 import { Plus, User, X, ChevronRight, Wrench } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -32,8 +32,8 @@ export default function Staff() {
   const loadData = async () => {
     try {
       const [s, u] = await Promise.all([
-        base44.entities.StaffMember.list('-created_date', 100),
-        base44.auth.me(),
+        appClient.entities.StaffMember.list('-created_date', 100),
+        appClient.auth.me(),
       ]);
       setStaff(s);
       setUser(u);
@@ -113,8 +113,8 @@ export default function Staff() {
         <StaffForm
           member={editing}
           onSave={async (data) => {
-            if (data.id) await base44.entities.StaffMember.update(data.id, data);
-            else await base44.entities.StaffMember.create({ ...data, organization_id: 'default' });
+            if (data.id) await appClient.entities.StaffMember.update(data.id, data);
+            else await appClient.entities.StaffMember.create({ ...data, organization_id: 'default' });
             setShowForm(false);
             setEditing(null);
             loadData();

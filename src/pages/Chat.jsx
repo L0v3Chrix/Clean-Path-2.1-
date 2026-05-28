@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
-import { base44 } from '@/api/base44Client';
-import { Send, Plus, Lock, Globe, Hash, ChevronDown, Star, MessageSquare, Loader2 } from 'lucide-react';
+import { appClient } from '@/services/appClient';
+import { Send, Plus, Lock, Globe, Hash, ChevronDown, MessageSquare, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
@@ -112,9 +112,9 @@ export default function Chat() {
 
   const init = async () => {
     try {
-      const u = await base44.auth.me();
+      const u = await appClient.auth.me();
       setUser(u);
-      const ch = await base44.entities.ChatChannel.list('sort_order', 100);
+      const ch = await appClient.entities.ChatChannel.list('sort_order', 100);
       setChannels(ch);
       // Auto-select first non-locked public channel
       const first = ch.find(c => !c.is_locked && c.status === 'active') || ch[0];
@@ -125,14 +125,14 @@ export default function Chat() {
 
   const loadMessages = async (channelId) => {
     try {
-      const msgs = await base44.entities.ChatMessage.filter({ channel_id: channelId }, 'created_date', 100);
+      const msgs = await appClient.entities.ChatMessage.filter({ channel_id: channelId }, 'created_date', 100);
       setMessages(msgs);
     } catch (e) { console.error(e); }
   };
 
   useEffect(() => {
     if (!activeChannel) return;
-    const unsub = base44.entities.ChatMessage.subscribe((event) => {
+    const unsub = appClient.entities.ChatMessage.subscribe((event) => {
       if (event.data?.channel_id !== activeChannel?.id) return;
       if (event.type === 'create') setMessages(prev => [...prev, event.data]);
       else if (event.type === 'delete') setMessages(prev => prev.filter(m => m.id !== event.id));
@@ -146,7 +146,7 @@ export default function Chat() {
     if (activeChannel.is_locked) return;
     setSending(true);
     try {
-      await base44.entities.ChatMessage.create({
+      await appClient.entities.ChatMessage.create({
         channel_id: activeChannel.id,
         organization_id: activeChannel.organization_id,
         sender_id: user.id,
@@ -163,7 +163,7 @@ export default function Chat() {
     const name = prompt('Channel name:');
     if (!name) return;
     const access = category === 'private' ? 'staff_only' : category === 'management' ? 'management_only' : 'residents_and_staff';
-    const ch = await base44.entities.ChatChannel.create({
+    const ch = await appClient.entities.ChatChannel.create({
       name: name.trim(),
       category,
       type: 'custom',

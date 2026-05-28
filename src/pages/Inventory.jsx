@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { base44 } from '@/api/base44Client';
+import { appClient } from '@/services/appClient';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
 import { Package, ClipboardList, Syringe, Bell, BarChart2 } from 'lucide-react';
@@ -21,14 +21,14 @@ export default function Inventory() {
   useEffect(() => {
     const init = async () => {
       const [orgs, me] = await Promise.all([
-        base44.entities.Organization.list('name', 1),
-        base44.auth.me(),
+        appClient.entities.Organization.list('name', 1),
+        appClient.auth.me(),
       ]);
       const o = orgs?.[0];
       setOrg(o);
       setUser(me);
       if (o) {
-        const locs = await base44.entities.Location.filter({ organization_id: o.id });
+        const locs = await appClient.entities.Location.filter({ organization_id: o.id });
         setLocation(locs?.[0] || null);
       }
     };
@@ -37,13 +37,13 @@ export default function Inventory() {
 
   const loadRequests = async () => {
     if (!org) return;
-    const data = await base44.entities.InventoryRequest.filter({ organization_id: org.id }, '-created_date');
+    const data = await appClient.entities.InventoryRequest.filter({ organization_id: org.id }, '-created_date');
     setRequests(data);
   };
 
   const loadItems = async () => {
     if (!org) return;
-    const data = await base44.entities.HouseInventoryItem.filter({ organization_id: org.id });
+    const data = await appClient.entities.HouseInventoryItem.filter({ organization_id: org.id });
     setItems(data);
   };
 

@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { base44 } from '@/api/base44Client';
+import { appClient } from '@/services/appClient';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Save, RotateCcw, FileText } from 'lucide-react';
@@ -39,7 +39,7 @@ export default function HouseRulesEditor() {
   const [saved, setSaved] = useState(false);
 
   useEffect(() => {
-    base44.entities.Organization.list().then(orgs => {
+    appClient.entities.Organization.list().then(orgs => {
       const o = orgs[0];
       if (o) {
         setOrg(o);
@@ -53,9 +53,9 @@ export default function HouseRulesEditor() {
   const handleSave = async () => {
     setSaving(true);
     if (org) {
-      await base44.entities.Organization.update(org.id, { house_rules: rules });
+      await appClient.entities.Organization.update(org.id, { house_rules: rules });
     } else {
-      const created = await base44.entities.Organization.create({ name: 'My Organization', house_rules: rules });
+      const created = await appClient.entities.Organization.create({ name: 'My Organization', house_rules: rules });
       setOrg(created);
     }
     setSaving(false);

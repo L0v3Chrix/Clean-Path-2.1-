@@ -1,10 +1,8 @@
 import { useState, useEffect } from 'react';
-import { base44 } from '@/api/base44Client';
-import { Zap, Plus, CheckCircle2, XCircle, AlertCircle, ExternalLink, RefreshCw, Trash2 } from 'lucide-react';
+import { appClient } from '@/services/appClient';
+import { CheckCircle2, ExternalLink } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Badge } from '@/components/ui/badge';
 
 const INTEGRATION_CATALOG = [
   {
@@ -134,8 +132,8 @@ export default function Integrations() {
 
   const load = async () => {
     const [orgs, cfgs] = await Promise.all([
-      base44.entities.Organization.list(),
-      base44.entities.IntegrationConfig.list(),
+      appClient.entities.Organization.list(),
+      appClient.entities.IntegrationConfig.list(),
     ]);
     if (orgs[0]) setOrgId(orgs[0].id);
     setConfigs(cfgs);
@@ -152,9 +150,9 @@ export default function Integrations() {
   const confirmConnect = async () => {
     const existing = configs.find(c => c.integration_name === connectingTo.name && c.organization_id === orgId);
     if (existing) {
-      await base44.entities.IntegrationConfig.update(existing.id, { status: connStatus, connected_date: new Date().toISOString().split('T')[0] });
+      await appClient.entities.IntegrationConfig.update(existing.id, { status: connStatus, connected_date: new Date().toISOString().split('T')[0] });
     } else {
-      await base44.entities.IntegrationConfig.create({
+      await appClient.entities.IntegrationConfig.create({
         organization_id: orgId,
         integration_name: connectingTo.name,
         integration_type: connectingTo.type,
@@ -167,7 +165,7 @@ export default function Integrations() {
   };
 
   const handleDisconnect = async (id) => {
-    await base44.entities.IntegrationConfig.update(id, { status: 'disconnected' });
+    await appClient.entities.IntegrationConfig.update(id, { status: 'disconnected' });
     load();
   };
 

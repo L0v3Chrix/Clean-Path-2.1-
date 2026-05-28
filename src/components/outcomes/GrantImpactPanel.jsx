@@ -1,6 +1,6 @@
 import { useMemo } from 'react';
 import { differenceInDays, parseISO } from 'date-fns';
-import { Award, Users, Briefcase, Home, GraduationCap, Heart } from 'lucide-react';
+import { Award, Briefcase, Home, GraduationCap, Heart } from 'lucide-react';
 
 const STABLE_HOUSING = ['stable_owned', 'stable_rented', 'with_family', 'sober_living'];
 const EMPLOYED = ['employed_full_time', 'employed_part_time', 'self_employed'];

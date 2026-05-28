@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
-import { base44 } from '@/api/base44Client';
-import { differenceInDays, differenceInYears, differenceInMonths, format, parseISO, isToday, isFuture } from 'date-fns';
-import { Heart, CheckCircle2, Circle, CalendarDays, MapPin, Clock, Star, Flame, Trophy, AlertCircle } from 'lucide-react';
+import { appClient } from '@/services/appClient';
+import { format } from 'date-fns';
+import { MapPin } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import SobrietyMilestoneCard from '@/components/resident_portal/SobrietyMilestoneCard';
 import ChoresPanel from '@/components/resident_portal/ChoresPanel';
@@ -21,17 +21,17 @@ export default function ResidentPortal() {
 
   useEffect(() => {
     const load = async () => {
-      const me = await base44.auth.me();
+      const me = await appClient.auth.me();
       setUser(me);
 
       // Find resident profile linked to this user
-      const residents = await base44.entities.Resident.filter({ status: 'active' });
+      const residents = await appClient.entities.Resident.filter({ status: 'active' });
       const mine = residents.find(r => r.user_id === me.id || r.email === me.email);
       if (mine) {
         setResident(mine);
         const [locs, orgs] = await Promise.all([
-          mine.location_id ? base44.entities.Location.filter({ status: 'active' }) : Promise.resolve([]),
-          mine.organization_id ? base44.entities.Organization.filter({}) : Promise.resolve([]),
+          mine.location_id ? appClient.entities.Location.filter({ status: 'active' }) : Promise.resolve([]),
+          mine.organization_id ? appClient.entities.Organization.filter({}) : Promise.resolve([]),
         ]);
         if (mine.location_id) setLocation(locs.find(l => l.id === mine.location_id) || null);
         if (mine.organization_id) setOrg(orgs.find(o => o.id === mine.organization_id) || null);

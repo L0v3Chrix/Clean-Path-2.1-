@@ -1,8 +1,7 @@
 import { useState, useEffect } from 'react';
-import { base44 } from '@/api/base44Client';
+import { appClient } from '@/services/appClient';
 import { Plus, Edit2, ChevronDown, ChevronUp, Award, Users, Calendar, DollarSign, FileText } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
 import { differenceInDays, parseISO } from 'date-fns';
 import GrantForm from '@/components/grants/GrantForm';
 import GrantEnrollmentPanel from '@/components/grants/GrantEnrollmentPanel';
@@ -144,9 +143,9 @@ export default function GrantManagement() {
 
   const load = async () => {
     const [orgs, gs, locs] = await Promise.all([
-      base44.entities.Organization.list(),
-      base44.entities.Grant.list('-created_date', 200),
-      base44.entities.Location.filter({ status: 'active' }),
+      appClient.entities.Organization.list(),
+      appClient.entities.Grant.list('-created_date', 200),
+      appClient.entities.Location.filter({ status: 'active' }),
     ]);
     if (orgs[0]) setOrgId(orgs[0].id);
     setGrants(gs);

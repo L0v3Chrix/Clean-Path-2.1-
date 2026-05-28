@@ -1,5 +1,5 @@
 import { useState, useRef } from 'react';
-import { base44 } from '@/api/base44Client';
+import { appClient } from '@/services/appClient';
 import { X, Upload, File, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -46,15 +46,22 @@ export default function UploadDocumentModal({ residents, user, onClose, onUpload
     setUploading(true);
     setError('');
     try {
-      const { file_url } = await base44.integrations.Core.UploadFile({ file });
+      const upload = await appClient.integrations.Core.UploadFile({
+        file,
+        bucket: 'secure-documents',
+        pathPrefix: 'secure-documents',
+        organizationId: user?.organization_id,
+      });
       const resident = residents.find(r => r.id === residentId);
-      const doc = await base44.entities.SecureDocument.create({
+      const doc = await appClient.entities.SecureDocument.create({
         organization_id: user?.organization_id || 'default',
         title,
         description,
         folder,
         access_level: accessLevel,
-        file_url,
+        file_url: upload.file_url,
+        storage_bucket: upload.storage_bucket,
+        storage_path: upload.storage_path,
         file_name: file.name,
         file_type: file.type,
         file_size_kb: Math.round(file.size / 1024),

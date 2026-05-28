@@ -1,7 +1,6 @@
 import { useState } from 'react';
-import { ChevronDown, ChevronRight, CheckCircle2, XCircle, Clock, Minus, Upload, FileText, ExternalLink, Briefcase, Home, Heart, Users } from 'lucide-react';
+import { ChevronDown, ChevronRight, Briefcase, Home, Heart, Users } from 'lucide-react';
 import { Card } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
 import ComplianceRuleRow from './ComplianceRuleRow';
 
 const domainConfig = {

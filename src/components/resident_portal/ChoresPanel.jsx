@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
-import { base44 } from '@/api/base44Client';
-import { CheckCircle2, Circle, Clock, ClipboardList, Star, AlertCircle } from 'lucide-react';
+import { appClient } from '@/services/appClient';
+import { CheckCircle2, Circle, Clock, ClipboardList, Star } from 'lucide-react';
 import { format, isToday, isTomorrow, parseISO } from 'date-fns';
 
 const AREA_EMOJI = {
@@ -18,7 +18,7 @@ export default function ChoresPanel({ residentId }) {
   useEffect(() => {
     if (!residentId) { setLoading(false); return; }
     // Load this week + today
-    base44.entities.ChoreAssignment.filter({ resident_id: residentId })
+    appClient.entities.ChoreAssignment.filter({ resident_id: residentId })
       .then(all => {
         // Show current + upcoming (next 7 days), not old completed ones
         const cutoff = new Date();
@@ -34,7 +34,7 @@ export default function ChoresPanel({ residentId }) {
 
   const markDone = async (a) => {
     setSubmitting(a.id);
-    await base44.entities.ChoreAssignment.update(a.id, {
+    await appClient.entities.ChoreAssignment.update(a.id, {
       status: 'completed',
       completed_at: new Date().toISOString(),
     });

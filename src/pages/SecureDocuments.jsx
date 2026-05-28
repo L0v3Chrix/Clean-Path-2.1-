@@ -1,10 +1,9 @@
-import { useState, useEffect, useRef } from 'react';
-import { base44 } from '@/api/base44Client';
-import { Upload, Folder, File, Search, Trash2, Eye, Printer, Plus, X, ChevronRight, Lock, Download, Users, Building2, DollarSign, Shield, Scale, ClipboardList, MoreHorizontal } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { appClient } from '@/services/appClient';
+import { Folder, File, Search, Trash2, Eye, Printer, Plus, Lock, Download, Users, Building2, DollarSign, Shield, Scale, ClipboardList } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { cn } from '@/lib/utils';
 import UploadDocumentModal from '@/components/documents/UploadDocumentModal';
 import DocumentViewer from '@/components/documents/DocumentViewer';
@@ -56,9 +55,9 @@ export default function SecureDocuments() {
   const init = async () => {
     try {
       const [u, docs, res] = await Promise.all([
-        base44.auth.me(),
-        base44.entities.SecureDocument.list('-created_date', 200),
-        base44.entities.Resident.list('first_name', 200),
+        appClient.auth.me(),
+        appClient.entities.SecureDocument.list('-created_date', 200),
+        appClient.entities.Resident.list('first_name', 200),
       ]);
       setUser(u);
       setDocuments(docs);
@@ -69,13 +68,23 @@ export default function SecureDocuments() {
 
   const handleDelete = async (doc) => {
     if (!window.confirm(`Delete "${doc.title}"? This cannot be undone.`)) return;
-    await base44.entities.SecureDocument.delete(doc.id);
+    await appClient.entities.SecureDocument.delete(doc.id);
     setDocuments(prev => prev.filter(d => d.id !== doc.id));
   };
 
-  const handlePrint = (doc) => {
-    const w = window.open(doc.file_url, '_blank');
+  const openSignedDocument = async (doc) => {
+    const url = await appClient.integrations.Core.CreateSignedUrl(doc, 600);
+    return window.open(url, '_blank');
+  };
+
+  const handlePrint = async (doc) => {
+    const w = await openSignedDocument(doc);
     if (w) { w.focus(); setTimeout(() => w.print(), 800); }
+  };
+
+  const handleDownload = async (doc) => {
+    const w = await openSignedDocument(doc);
+    if (w) w.focus();
   };
 
   const filtered = documents.filter(d => {
@@ -105,7 +114,7 @@ export default function SecureDocuments() {
             <Lock className="w-4 h-4 text-amber-600" />
             <h2 className="font-bold text-sm text-slate-800">Secure Files</h2>
           </div>
-          <p className="text-xs text-slate-500">HIPAA-compliant document storage</p>
+          <p className="text-xs text-slate-500">Compliance-ready private document storage</p>
         </div>
 
         <nav className="flex-1 overflow-y-auto p-2 space-y-0.5">
@@ -221,11 +230,14 @@ export default function SecureDocuments() {
                       >
                         <Printer className="w-3.5 h-3.5" /> Print
                       </Button>
-                      <a href={doc.file_url} target="_blank" rel="noreferrer" download>
-                        <Button variant="ghost" size="sm" className="text-xs gap-1.5 text-slate-600">
-                          <Download className="w-3.5 h-3.5" />
-                        </Button>
-                      </a>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="text-xs gap-1.5 text-slate-600"
+                        onClick={() => handleDownload(doc)}
+                      >
+                        <Download className="w-3.5 h-3.5" />
+                      </Button>
                       {isAdmin && (
                         <Button
                           variant="ghost" size="sm"

@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { base44 } from '@/api/base44Client';
+import { appClient } from '@/services/appClient';
 import { Badge } from '@/components/ui/badge';
 import {
   Wallet, FileText, ShieldCheck, FilePen, Download, ExternalLink,
@@ -145,8 +145,8 @@ export default function ResidentWallet({ resident }) {
     const load = async () => {
       setLoading(true);
       const [resDocs, sigRequests] = await Promise.all([
-        base44.entities.ResidentDocument.filter({ resident_id: resident.id }),
-        base44.entities.SignatureRequest.filter({ resident_id: resident.id }),
+        appClient.entities.ResidentDocument.filter({ resident_id: resident.id }),
+        appClient.entities.SignatureRequest.filter({ resident_id: resident.id }),
       ]);
 
       const groups = { signed_agreements: [], insurance: [], medical_consent: [], other_docs: [] };

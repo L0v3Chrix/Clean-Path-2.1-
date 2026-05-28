@@ -1,8 +1,8 @@
 import { useState, useRef } from 'react';
 import { CheckCircle2, XCircle, Clock, Minus, Upload, FileText, ExternalLink, ChevronDown, ChevronUp, MessageSquare } from 'lucide-react';
-import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
+import { appClient } from '@/services/appClient';
 
 const STATUS_OPTIONS = [
   { value: 'compliant', label: 'Compliant', icon: CheckCircle2, color: 'text-green-600', bg: 'bg-green-100 text-green-700' },
@@ -37,6 +37,15 @@ export default function ComplianceRuleRow({ rule, domain, record, onUpdate, onFi
     setUploading(false);
   };
 
+  const handleEvidenceOpen = async () => {
+    const url = await appClient.integrations.Core.CreateSignedUrl({
+      storage_bucket: 'secure-documents',
+      storage_path: record.document_url,
+      file_url: record.document_url,
+    }, 600);
+    window.open(url, '_blank', 'noopener,noreferrer');
+  };
+
   return (
     <div className="bg-white">
       <div className="flex items-center gap-3 px-4 py-3">
@@ -49,10 +58,10 @@ export default function ComplianceRuleRow({ rule, domain, record, onUpdate, onFi
             <span className="text-xs font-mono text-slate-400">{rule.id}</span>
             <span className="text-sm font-medium text-slate-800">{rule.name}</span>
             {record?.document_url && (
-              <a href={record.document_url} target="_blank" rel="noopener noreferrer"
+              <button type="button" onClick={handleEvidenceOpen}
                 className="inline-flex items-center gap-1 text-xs text-blue-600 hover:underline">
                 <FileText className="w-3 h-3" /> Evidence
-              </a>
+              </button>
             )}
           </div>
           {record?.last_reviewed && (
@@ -125,10 +134,10 @@ export default function ComplianceRuleRow({ rule, domain, record, onUpdate, onFi
                 )}
               </button>
               {record?.document_url && (
-                <a href={record.document_url} target="_blank" rel="noopener noreferrer"
+                <button type="button" onClick={handleEvidenceOpen}
                   className="flex items-center gap-1 text-xs text-blue-600 hover:underline whitespace-nowrap">
                   <ExternalLink className="w-3 h-3" /> View
-                </a>
+                </button>
               )}
             </div>
           </div>

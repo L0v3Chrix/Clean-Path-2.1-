@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { Html5Qrcode } from 'html5-qrcode';
 import { X, ScanLine, Plus, Minus, CheckCircle2, AlertTriangle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { base44 } from '@/api/base44Client';
+import { appClient } from '@/services/appClient';
 
 export default function QRScannerModal({ items, onClose, onUpdated }) {
   const scannerRef = useRef(null);
@@ -65,7 +65,7 @@ export default function QRScannerModal({ items, onClose, onUpdated }) {
     const newQty = Math.max(0, (item.current_quantity || 0) + delta);
     const threshold = item.low_stock_threshold || 2;
     const status = newQty === 0 ? 'out_of_stock' : newQty <= threshold ? 'low_stock' : 'in_stock';
-    await base44.entities.HouseInventoryItem.update(item.id, { current_quantity: newQty, status });
+    await appClient.entities.HouseInventoryItem.update(item.id, { current_quantity: newQty, status });
     setSavedDelta(delta);
     setSaving(false);
     onUpdated({ ...item, current_quantity: newQty, status });

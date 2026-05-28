@@ -1,12 +1,12 @@
 import { useState, useEffect, useMemo } from 'react';
-import { base44 } from '@/api/base44Client';
+import { appClient } from '@/services/appClient';
 import {
   Plus, Pill, CheckCircle2, XCircle, AlertCircle, Clock,
   User, Pencil, Trash2, ChevronDown, ChevronRight, History, Bell, ShoppingCart
 } from 'lucide-react';
 import MOUDPanel from './MOUDPanel';
 import { Button } from '@/components/ui/button';
-import { format, parseISO, isValid, isToday, subDays } from 'date-fns';
+import { subDays } from 'date-fns';
 import MedicationForm from './MedicationForm';
 import DoseLogModal from './DoseLogModal';
 import { isMOUD } from './MOUDPanel';
@@ -242,8 +242,8 @@ export default function ResidentMedications({ resident }) {
     setLoading(true);
     const since = subDays(new Date(), 30).toISOString().split('T')[0];
     const [meds, ls] = await Promise.all([
-      base44.entities.Medication.filter({ resident_id: resident.id }, 'created_date', 200),
-      base44.entities.MedicationLog.filter({ resident_id: resident.id }, '-scheduled_date', 300),
+      appClient.entities.Medication.filter({ resident_id: resident.id }, 'created_date', 200),
+      appClient.entities.MedicationLog.filter({ resident_id: resident.id }, '-scheduled_date', 300),
     ]);
     setMedications(meds);
     setLogs(ls);
@@ -253,15 +253,15 @@ export default function ResidentMedications({ resident }) {
   useEffect(() => { load(); }, [resident.id]);
 
   const saveMed = async (form) => {
-    if (form.id) await base44.entities.Medication.update(form.id, form);
-    else await base44.entities.Medication.create(form);
+    if (form.id) await appClient.entities.Medication.update(form.id, form);
+    else await appClient.entities.Medication.create(form);
     setMedForm(null);
     load();
   };
 
   const deleteMed = async (id) => {
     if (!confirm('Remove this medication?')) return;
-    await base44.entities.Medication.delete(id);
+    await appClient.entities.Medication.delete(id);
     load();
   };
 

@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { base44 } from '@/api/base44Client';
+import { appClient } from '@/services/appClient';
 import { Link2, Copy, Check, ExternalLink, Code, Globe } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
@@ -8,7 +8,7 @@ export default function IntakeLinkGenerator() {
   const [copied, setCopied] = useState('');
 
   useEffect(() => {
-    base44.entities.Organization.list().then(orgs => {
+    appClient.entities.Organization.list().then(orgs => {
       if (orgs[0]) setOrg(orgs[0]);
     }).catch(() => {});
   }, []);

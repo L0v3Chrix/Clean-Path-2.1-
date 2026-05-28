@@ -1,9 +1,9 @@
 import { useState, useEffect } from 'react';
-import { base44 } from '@/api/base44Client';
+import { appClient } from '@/services/appClient';
 import {
-  Plus, RefreshCw, CheckCircle2, Circle, Clock, AlertTriangle,
-  Trash2, Edit2, X, Loader2, ChevronLeft, ChevronRight, Users,
-  Home, Leaf, Star, Zap
+  Plus, RefreshCw, CheckCircle2, Clock, AlertTriangle,
+  Trash2, Edit2, X, Loader2, ChevronLeft, ChevronRight,
+  Home, Star
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -54,9 +54,9 @@ function ChoreTemplateForm({ template, locationId, orgId, onSave, onClose }) {
     e.preventDefault();
     setSaving(true);
     if (form.id) {
-      await base44.entities.ChoreTemplate.update(form.id, form);
+      await appClient.entities.ChoreTemplate.update(form.id, form);
     } else {
-      await base44.entities.ChoreTemplate.create(form);
+      await appClient.entities.ChoreTemplate.create(form);
     }
     setSaving(false);
     onSave();
@@ -139,9 +139,9 @@ export default function Chores() {
 
   useEffect(() => {
     Promise.all([
-      base44.auth.me(),
-      base44.entities.Organization.list(),
-      base44.entities.Location.filter({ status: 'active' }),
+      appClient.auth.me(),
+      appClient.entities.Organization.list(),
+      appClient.entities.Location.filter({ status: 'active' }),
     ]).then(([u, orgs, locs]) => {
       setUser(u);
       setOrg(orgs[0]);
@@ -158,17 +158,17 @@ export default function Chores() {
   }, [selectedLocation, weekStart]);
 
   const loadTemplates = () =>
-    base44.entities.ChoreTemplate.filter({ location_id: selectedLocation }).then(setTemplates);
+    appClient.entities.ChoreTemplate.filter({ location_id: selectedLocation }).then(setTemplates);
 
   const loadAssignments = () =>
-    base44.entities.ChoreAssignment.filter({
+    appClient.entities.ChoreAssignment.filter({
       location_id: selectedLocation,
       week_label: `Week of ${weekStart.toISOString().split('T')[0]}`,
     }).then(data => setAssignments(data.sort((a, b) => a.due_date.localeCompare(b.due_date))));
 
   const handleGenerate = async () => {
     setGenerating(true);
-    await base44.functions.invoke('generateChoreRotation', {
+    await appClient.functions.invoke('generateChoreRotation', {
       location_id: selectedLocation,
       organization_id: org?.id,
       week_start_date: weekStart.toISOString().split('T')[0],
@@ -179,7 +179,7 @@ export default function Chores() {
 
   const handleVerify = async (assignment) => {
     setVerifyingId(assignment.id);
-    await base44.entities.ChoreAssignment.update(assignment.id, {
+    await appClient.entities.ChoreAssignment.update(assignment.id, {
       status: 'verified',
       verified_by_name: user?.full_name || 'Staff',
       verified_at: new Date().toISOString(),
@@ -189,18 +189,18 @@ export default function Chores() {
   };
 
   const handleMarkMissed = async (id) => {
-    await base44.entities.ChoreAssignment.update(id, { status: 'missed' });
+    await appClient.entities.ChoreAssignment.update(id, { status: 'missed' });
     await loadAssignments();
   };
 
   const handleDeleteTemplate = async (id) => {
     if (!confirm('Delete this chore template?')) return;
-    await base44.entities.ChoreTemplate.delete(id);
+    await appClient.entities.ChoreTemplate.delete(id);
     loadTemplates();
   };
 
   const toggleTemplate = async (t) => {
-    await base44.entities.ChoreTemplate.update(t.id, { active: !t.active });
+    await appClient.entities.ChoreTemplate.update(t.id, { active: !t.active });
     loadTemplates();
   };
 

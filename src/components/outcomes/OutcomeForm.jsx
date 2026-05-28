@@ -1,5 +1,5 @@
-import { useState, useEffect } from 'react';
-import { base44 } from '@/api/base44Client';
+import { useState } from 'react';
+import { appClient } from '@/services/appClient';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -48,9 +48,9 @@ export default function OutcomeForm({ outcome, residents, grants, orgId, onSave,
       current_sobriety_days: form.current_sobriety_days ? Number(form.current_sobriety_days) : undefined,
     };
     if (outcome?.id) {
-      await base44.entities.ResidentOutcome.update(outcome.id, payload);
+      await appClient.entities.ResidentOutcome.update(outcome.id, payload);
     } else {
-      await base44.entities.ResidentOutcome.create(payload);
+      await appClient.entities.ResidentOutcome.create(payload);
     }
     setSaving(false);
     onSave();

@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { base44 } from '@/api/base44Client';
+import { appClient } from '@/services/appClient';
 import { Link } from 'react-router-dom';
 import { Plus, Search, Upload, User, ChevronRight, AlertTriangle, ClipboardList } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -44,9 +44,9 @@ export default function Residents() {
   const loadData = async () => {
     try {
       const [r, l, d] = await Promise.all([
-        base44.entities.Resident.list('-created_date', 200),
-        base44.entities.Location.list(),
-        base44.entities.ResidentDocument.list(),
+        appClient.entities.Resident.list('-created_date', 200),
+        appClient.entities.Location.list(),
+        appClient.entities.ResidentDocument.list(),
       ]);
       setResidents(r);
       setLocations(l);
@@ -73,9 +73,9 @@ export default function Residents() {
 
   const handleSave = async (data) => {
     if (data.id) {
-      await base44.entities.Resident.update(data.id, data);
+      await appClient.entities.Resident.update(data.id, data);
     } else {
-      await base44.entities.Resident.create(data);
+      await appClient.entities.Resident.create(data);
     }
     setShowForm(false);
     setSelectedResident(null);

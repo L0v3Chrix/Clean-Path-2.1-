@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
-import { base44 } from '@/api/base44Client';
-import { Shield, Plus, Eye, FileText, Lock, AlertTriangle, CheckCircle2, Search, Download } from 'lucide-react';
+import { appClient } from '@/services/appClient';
+import { Shield, Plus, Eye, FileText, Lock, AlertTriangle, CheckCircle2, Search } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Button } from '@/components/ui/button';
@@ -51,9 +51,9 @@ export default function HipaaCompliance() {
 
   const load = async () => {
     const [orgs, auditLogs, res] = await Promise.all([
-      base44.entities.Organization.list(),
-      base44.entities.HipaaAuditLog.list('-created_date', 200),
-      base44.entities.Resident.filter({ status: 'active' }),
+      appClient.entities.Organization.list(),
+      appClient.entities.HipaaAuditLog.list('-created_date', 200),
+      appClient.entities.Resident.filter({ status: 'active' }),
     ]);
     if (orgs[0]) setOrgId(orgs[0].id);
     setLogs(auditLogs);
@@ -70,8 +70,8 @@ export default function HipaaCompliance() {
   });
 
   const handleLogAccess = async () => {
-    const me = await base44.auth.me();
-    await base44.entities.HipaaAuditLog.create({
+    const me = await appClient.auth.me();
+    await appClient.entities.HipaaAuditLog.create({
       ...newLog,
       organization_id: orgId,
       performed_by_name: me.full_name || me.email,

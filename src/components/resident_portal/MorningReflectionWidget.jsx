@@ -1,8 +1,7 @@
 import { useState, useEffect } from 'react';
-import { base44 } from '@/api/base44Client';
+import { appClient } from '@/services/appClient';
 import { Sun, CheckCircle2, RotateCcw } from 'lucide-react';
 import { format } from 'date-fns';
-import { Button } from '@/components/ui/button';
 import MorningReflectionForm from './MorningReflectionForm';
 
 export default function MorningReflectionWidget({ resident }) {
@@ -14,7 +13,7 @@ export default function MorningReflectionWidget({ resident }) {
 
   useEffect(() => {
     if (!resident?.id) { setLoading(false); return; }
-    base44.entities.MorningReflection.filter({ resident_id: resident.id, log_date: today })
+    appClient.entities.MorningReflection.filter({ resident_id: resident.id, log_date: today })
       .then(logs => setTodayLog(logs[0] || null))
       .finally(() => setLoading(false));
   }, [resident?.id]);
@@ -104,7 +103,7 @@ export default function MorningReflectionWidget({ resident }) {
           existingLog={editing ? todayLog : null}
           onComplete={() => {
             setEditing(false);
-            base44.entities.MorningReflection.filter({ resident_id: resident.id, log_date: format(new Date(), 'yyyy-MM-dd') })
+            appClient.entities.MorningReflection.filter({ resident_id: resident.id, log_date: format(new Date(), 'yyyy-MM-dd') })
               .then(logs => setTodayLog(logs[0] || null));
           }}
         />

@@ -1,13 +1,13 @@
 import { useState, useEffect } from 'react';
 import { Link, useLocation, Outlet, useNavigate } from 'react-router-dom';
-import { base44 } from '@/api/base44Client';
+import { appClient } from '@/services/appClient';
+import { demoModeEnabled } from '@/lib/authBypass';
 import {
-  Home, Users, Building2, MessageSquare, FileText,
-  Shield, BarChart3, Settings, Menu, X, ChevronDown,
+  Home, Users, Building2, MessageSquare,
+  Shield, BarChart3, Settings, Menu,
   LogOut, Bell, User, AlertTriangle, ClipboardList, Package, TrendingUp, CalendarDays,
   DollarSign, BookOpen, Lock, Zap, PieChart, Award, Activity, ClipboardCheck, FolderLock, Play, BedDouble
 } from 'lucide-react';
-import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { clsx } from 'clsx';
 import { twMerge } from 'tailwind-merge';
@@ -73,7 +73,7 @@ export default function Layout() {
   const navigate = useNavigate();
 
   useEffect(() => {
-    base44.auth.me().then(me => {
+    appClient.auth.me().then(me => {
       setUser(me);
       // Redirect residents to their portal if they land on admin pages
       const residentRoles = ['resident', 'user'];
@@ -91,10 +91,10 @@ export default function Layout() {
   const allowedNav = roleNavMap[effectiveRole] || roleNavMap['staff'];
   const navItems = allNavItems.filter(item => allowedNav.includes(item.id));
 
-  const handleLogout = () => base44.auth.logout();
+  const handleLogout = () => appClient.auth.logout();
 
   return (
-    <div className="flex h-screen overflow-hidden" style={{ background: '#FAF6EF' }}>
+    <div className="flex h-screen overflow-hidden cp-page cp-texture-bg">
       {/* Mobile overlay */}
       {mobileOpen && (
         <div className="fixed inset-0 bg-black/50 z-40 lg:hidden" onClick={() => setMobileOpen(false)} />
@@ -102,25 +102,25 @@ export default function Layout() {
 
       {/* Sidebar */}
       <aside className={cn(
-        "fixed lg:relative z-50 h-full flex flex-col transition-all duration-300",
+        "fixed lg:relative z-50 h-full flex flex-col transition-all duration-300 cp-shell",
         sidebarOpen ? "w-64" : "w-16",
         mobileOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0"
-      )} style={{ background: '#1C1917', color: '#E7DDD0' }}>
+      )}>
         {/* Logo */}
-        <div className="flex items-center justify-between p-4" style={{ borderBottom: '1px solid #2C2825' }}>
+        <div className="flex items-center justify-between p-4" style={{ borderBottom: '1px solid rgba(212,181,160,0.18)' }}>
           {sidebarOpen && (
             <div className="flex items-center gap-2">
-              <div className="w-8 h-8 rounded-lg flex items-center justify-center" style={{ background: '#B45309' }}>
+              <div className="w-9 h-9 rounded-2xl flex items-center justify-center shadow-lg" style={{ background: 'linear-gradient(135deg, #5D8A5D, #3A5638)' }}>
                 <Shield className="w-5 h-5 text-white" />
               </div>
               <div>
-                <div className="font-bold text-sm text-white">ClearPath</div>
-                <div className="text-xs" style={{ color: '#F59E0B' }}>Production 2</div>
+                <div className="font-bold text-sm text-[#FFF8EA]">ClearPath</div>
+                <div className="text-xs" style={{ color: '#FFB388' }}>Operator cockpit</div>
               </div>
             </div>
           )}
           {!sidebarOpen && (
-            <div className="w-8 h-8 rounded-lg flex items-center justify-center mx-auto" style={{ background: '#B45309' }}>
+            <div className="w-9 h-9 rounded-2xl flex items-center justify-center mx-auto" style={{ background: 'linear-gradient(135deg, #5D8A5D, #3A5638)' }}>
               <Shield className="w-5 h-5 text-white" />
             </div>
           )}
@@ -135,9 +135,9 @@ export default function Layout() {
 
         {/* Role badge */}
         {sidebarOpen && user && (
-          <div className="px-4 py-3" style={{ borderBottom: '1px solid #2C2825' }}>
+          <div className="px-4 py-3" style={{ borderBottom: '1px solid rgba(212,181,160,0.18)' }}>
             <div className="text-xs mb-1" style={{ color: '#A09080' }}>{user.full_name || user.email}</div>
-            <Badge className="text-xs capitalize border-0" style={{ background: '#B45309', color: '#fff' }}>
+            <Badge className="text-xs capitalize border-0" style={{ background: '#432D21', color: '#FFB388' }}>
               {effectiveRole.replace('_', ' ')}
             </Badge>
           </div>
@@ -155,11 +155,11 @@ export default function Layout() {
                 onClick={() => setMobileOpen(false)}
                 className={cn("flex items-center gap-3 px-4 py-2.5 text-sm transition-colors")}
                 style={active
-                  ? { background: '#2C2420', color: '#F59E0B', borderRight: '2px solid #F59E0B' }
-                  : { color: '#A09080' }
+                  ? { background: 'rgba(67,45,33,0.88)', color: '#FFB388', borderRight: '2px solid #F26D2B' }
+                  : { color: '#D4B5A0' }
                 }
-                onMouseEnter={e => { if (!active) { e.currentTarget.style.color = '#E7DDD0'; e.currentTarget.style.background = '#252220'; } }}
-                onMouseLeave={e => { if (!active) { e.currentTarget.style.color = '#A09080'; e.currentTarget.style.background = 'transparent'; } }}
+                onMouseEnter={e => { if (!active) { e.currentTarget.style.color = '#FFF8EA'; e.currentTarget.style.background = 'rgba(255,248,234,0.06)'; } }}
+                onMouseLeave={e => { if (!active) { e.currentTarget.style.color = '#D4B5A0'; e.currentTarget.style.background = 'transparent'; } }}
               >
                 <Icon className="w-4 h-4 flex-shrink-0" />
                 {sidebarOpen && <span>{item.label}</span>}
@@ -169,7 +169,7 @@ export default function Layout() {
         </nav>
 
         {/* Logout */}
-        <div className="p-4" style={{ borderTop: '1px solid #2C2825' }}>
+        <div className="p-4" style={{ borderTop: '1px solid rgba(212,181,160,0.18)' }}>
           <button
             onClick={handleLogout}
             className={cn("flex items-center gap-3 text-sm w-full hover:text-white transition-colors", !sidebarOpen && "justify-center")}
@@ -184,7 +184,7 @@ export default function Layout() {
       {/* Main content */}
       <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
         {/* Top bar */}
-        <header className="px-4 py-3 flex items-center justify-between flex-shrink-0" style={{ background: '#1C1917', borderBottom: '1px solid #2C2825' }}>
+        <header className="px-4 py-3 flex items-center justify-between flex-shrink-0 cp-topbar">
           <button
             className="lg:hidden"
             style={{ color: '#A09080' }}
@@ -194,7 +194,7 @@ export default function Layout() {
           </button>
           <div className="hidden sm:flex items-center gap-2">
             <span className="text-sm font-bold" style={{ color: '#FFFFFF' }}>ClearPath</span>
-            <span className="text-xs px-2 py-0.5 rounded-full font-medium" style={{ background: '#B45309', color: '#FEF3C7' }}>
+            <span className="text-xs px-2 py-0.5 rounded-full font-medium" style={{ background: '#432D21', color: '#FFB388' }}>
               Recovery-Oriented Housing Platform
             </span>
           </div>
@@ -209,7 +209,12 @@ export default function Layout() {
         </header>
 
         {/* Page content */}
-        <main className="flex-1 overflow-auto" style={{ background: '#FAF6EF' }}>
+        <main className="flex-1 overflow-auto cp-page cp-texture-bg">
+          {demoModeEnabled && (
+            <div className="border-b border-amber-200 bg-amber-50 px-4 py-2 text-sm text-amber-900">
+              Demo mode: this workspace uses fake sample data only. Do not enter real resident information or PHI here.
+            </div>
+          )}
           <Outlet />
         </main>
       </div>

@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
-import { base44 } from '@/api/base44Client';
+import { appClient } from '@/services/appClient';
 
 const OUTCOMES = [
   { value: 'administered',      label: 'Administered',      icon: CheckCircle2, color: '#059669', bg: '#D1FAE5' },
@@ -32,7 +32,7 @@ export default function DoseLogModal({ medication, resident, prefill, onSave, on
   const handleSubmit = async (e) => {
     e.preventDefault();
     setSaving(true);
-    await base44.entities.MedicationLog.create(form);
+    await appClient.entities.MedicationLog.create(form);
     onSave();
     setSaving(false);
   };

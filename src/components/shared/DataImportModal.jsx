@@ -1,7 +1,7 @@
 import { useState, useRef } from 'react';
-import { X, Upload, FileText, CheckCircle, AlertCircle, Download } from 'lucide-react';
+import { X, Upload, CheckCircle, AlertCircle, Download } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { base44 } from '@/api/base44Client';
+import { appClient } from '@/services/appClient';
 
 export default function DataImportModal({ entityName, onClose, onSuccess }) {
   const [file, setFile] = useState(null);
@@ -18,15 +18,15 @@ export default function DataImportModal({ entityName, onClose, onSuccess }) {
     if (!file) return;
     setStatus('uploading');
     try {
-      const { file_url } = await base44.integrations.Core.UploadFile({ file });
+      const { file_url } = await appClient.integrations.Core.UploadFile({ file });
       // Use LLM to map columns then bulk create
-      const schema = await base44.entities[entityName].schema();
-      const extracted = await base44.integrations.Core.ExtractDataFromUploadedFile({
+      const schema = await appClient.entities[entityName].schema();
+      const extracted = await appClient.integrations.Core.ExtractDataFromUploadedFile({
         file_url,
         json_schema: { type: 'object', properties: { records: { type: 'array', items: { type: 'object', properties: schema.properties } } } }
       });
       if (extracted.status === 'success' && extracted.output?.records?.length > 0) {
-        await base44.entities[entityName].bulkCreate(extracted.output.records);
+        await appClient.entities[entityName].bulkCreate(extracted.output.records);
         setResult({ success: extracted.output.records.length, failed: 0 });
         setStatus('success');
       } else {

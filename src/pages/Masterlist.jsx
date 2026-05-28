@@ -1,9 +1,8 @@
 import { useState, useEffect } from 'react';
-import { base44 } from '@/api/base44Client';
+import { appClient } from '@/services/appClient';
 import {
-  Search, Users, UserCheck, UserX, User, ChevronRight,
-  DollarSign, AlertTriangle, FileText, X, Loader2, Filter,
-  Building2, Calendar, Phone, Mail, ClipboardList
+  Search, Users, UserCheck, UserX, User,
+  DollarSign, FileText, X, Loader2
 } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
@@ -12,7 +11,6 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import ResidentDetail from '@/components/residents/ResidentDetail';
-import { format } from 'date-fns';
 
 // ── Status config ─────────────────────────────────────────────────────────────
 const RESIDENT_STATUS = {
@@ -64,7 +62,7 @@ function DepartureModal({ person, type, onSave, onClose }) {
 
   const handleSave = async () => {
     setSaving(true);
-    const entity = isResident ? base44.entities.Resident : base44.entities.StaffMember;
+    const entity = isResident ? appClient.entities.Resident : appClient.entities.StaffMember;
     await entity.update(person.id, { _departure: form, status: isResident ? 'exited' : 'inactive' });
     setSaving(false);
     onSave();
@@ -262,9 +260,9 @@ export default function Masterlist() {
 
   useEffect(() => {
     Promise.all([
-      base44.entities.Resident.list('-created_date', 500),
-      base44.entities.StaffMember.list('-created_date', 200),
-      base44.entities.Location.list(),
+      appClient.entities.Resident.list('-created_date', 500),
+      appClient.entities.StaffMember.list('-created_date', 200),
+      appClient.entities.Location.list(),
     ]).then(([r, s, l]) => {
       setResidents(r);
       setStaff(s);
@@ -274,8 +272,8 @@ export default function Masterlist() {
 
   const reload = async () => {
     const [r, s] = await Promise.all([
-      base44.entities.Resident.list('-created_date', 500),
-      base44.entities.StaffMember.list('-created_date', 200),
+      appClient.entities.Resident.list('-created_date', 500),
+      appClient.entities.StaffMember.list('-created_date', 200),
     ]);
     setResidents(r);
     setStaff(s);

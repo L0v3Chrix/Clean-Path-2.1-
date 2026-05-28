@@ -1,9 +1,6 @@
 import { useState, useEffect } from 'react';
-import { base44 } from '@/api/base44Client';
-import { Shield, ChevronDown, ChevronRight, Upload, FileText, CheckCircle2, XCircle, Clock, Minus, Building2 } from 'lucide-react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
+import { appClient } from '@/services/appClient';
+import { Shield, Building2 } from 'lucide-react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import ComplianceReadinessScore from '@/components/compliance/ComplianceReadinessScore';
 import ComplianceDomainAccordion from '@/components/compliance/ComplianceDomainAccordion';
@@ -23,8 +20,8 @@ export default function Compliance() {
   const loadInitial = async () => {
     setLoading(true);
     const [locs, recs] = await Promise.all([
-      base44.entities.Location.list(),
-      base44.entities.NarrCompliance.list(),
+      appClient.entities.Location.list(),
+      appClient.entities.NarrCompliance.list(),
     ]);
     setLocations(locs.filter(l => l.status === 'active'));
     setRecords(recs);
@@ -51,10 +48,10 @@ export default function Compliance() {
     };
     let updated;
     if (existing) {
-      updated = await base44.entities.NarrCompliance.update(existing.id, payload);
+      updated = await appClient.entities.NarrCompliance.update(existing.id, payload);
       setRecords(prev => prev.map(r => r.id === existing.id ? updated : r));
     } else {
-      updated = await base44.entities.NarrCompliance.create(payload);
+      updated = await appClient.entities.NarrCompliance.create(payload);
       setRecords(prev => [...prev, updated]);
     }
     setSaving(false);
@@ -62,8 +59,15 @@ export default function Compliance() {
 
   const handleFileUpload = async (ruleId, domain, ruleName, file) => {
     setSaving(true);
-    const { file_url } = await base44.integrations.Core.UploadFile({ file });
-    await updateRecord(ruleId, domain, ruleName, { document_url: file_url, last_reviewed: new Date().toISOString().split('T')[0] });
+    const upload = await appClient.integrations.Core.UploadFile({
+      file,
+      bucket: 'secure-documents',
+      pathPrefix: 'compliance-evidence',
+    });
+    await updateRecord(ruleId, domain, ruleName, {
+      document_url: upload.storage_path,
+      last_reviewed: new Date().toISOString().split('T')[0],
+    });
     setSaving(false);
   };
 

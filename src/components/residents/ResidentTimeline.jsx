@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { base44 } from '@/api/base44Client';
+import { appClient } from '@/services/appClient';
 import {
   Plus, X, Calendar, Star, Award, Briefcase, Home, Heart, Scale, Users,
   GraduationCap, AlertCircle, Pencil, Trash2, ChevronDown, Zap,
@@ -271,7 +271,7 @@ export default function ResidentTimeline({ resident }) {
 
   const load = async () => {
     setLoading(true);
-    const data = await base44.entities.ResidentMilestone.filter({ resident_id: resident.id }, '-date', 300);
+    const data = await appClient.entities.ResidentMilestone.filter({ resident_id: resident.id }, '-date', 300);
 
     // Synthetic events from resident record
     const synthetic = [];
@@ -302,10 +302,10 @@ export default function ResidentTimeline({ resident }) {
 
   const handleSave = async (form) => {
     if (form.id && !form._synthetic) {
-      await base44.entities.ResidentMilestone.update(form.id, form);
+      await appClient.entities.ResidentMilestone.update(form.id, form);
     } else {
       const { id, _synthetic, ...rest } = form;
-      await base44.entities.ResidentMilestone.create(rest);
+      await appClient.entities.ResidentMilestone.create(rest);
     }
     setShowForm(false);
     setEditing(null);
@@ -314,13 +314,13 @@ export default function ResidentTimeline({ resident }) {
 
   const handleDelete = async (id) => {
     if (!confirm('Delete this milestone?')) return;
-    await base44.entities.ResidentMilestone.delete(id);
+    await appClient.entities.ResidentMilestone.delete(id);
     load();
   };
 
   const handleAnnotate = async (id, text) => {
-    const user = await base44.auth.me().catch(() => null);
-    await base44.entities.ResidentMilestone.update(id, {
+    const user = await appClient.auth.me().catch(() => null);
+    await appClient.entities.ResidentMilestone.update(id, {
       staff_annotation: text,
       annotated_by: user?.full_name || 'Staff',
       annotated_at: new Date().toISOString(),

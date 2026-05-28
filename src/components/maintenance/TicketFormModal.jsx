@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { base44 } from '@/api/base44Client';
+import { appClient } from '@/services/appClient';
 import { X, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -36,10 +36,10 @@ export default function TicketFormModal({ ticket, locations, user, onSaved, onCl
       };
       let saved;
       if (ticket?.id) {
-        saved = await base44.entities.MaintenanceTicket.update(ticket.id, payload);
+        saved = await appClient.entities.MaintenanceTicket.update(ticket.id, payload);
         onSaved({ ...ticket, ...payload }, false);
       } else {
-        saved = await base44.entities.MaintenanceTicket.create(payload);
+        saved = await appClient.entities.MaintenanceTicket.create(payload);
         onSaved(saved, true);
       }
     } catch (err) { console.error(err); }

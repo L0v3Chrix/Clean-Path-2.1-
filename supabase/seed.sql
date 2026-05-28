@@ -1,0 +1,9 @@
+-- ClearPath keeps removable MVP test data out of the default reset seed.
+--
+-- Use the tagged sample-data workflow instead:
+--   npm run sample:seed
+--   npm run sample:validate
+--   npm run sample:remove -- --confirm --batch latest
+--
+-- This prevents untagged demo residents, documents, or operational records from
+-- surviving the cleanup gate before compliance certification.

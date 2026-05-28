@@ -1,10 +1,9 @@
 import { useState, useEffect } from 'react';
-import { base44 } from '@/api/base44Client';
+import { appClient } from '@/services/appClient';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Input } from '@/components/ui/input';
-import { Plus, UserCheck, UserX, X } from 'lucide-react';
-import { format, parseISO } from 'date-fns';
+import { Plus, UserCheck, UserX } from 'lucide-react';
 
 const EXIT_REASONS = [
   { value: 'completed_program', label: 'Completed Program' },
@@ -25,8 +24,8 @@ export default function GrantEnrollmentPanel({ grant, orgId }) {
 
   const load = async () => {
     const [enrs, res] = await Promise.all([
-      base44.entities.GrantEnrollment.filter({ grant_id: grant.id }),
-      base44.entities.Resident.filter({ status: 'active' }),
+      appClient.entities.GrantEnrollment.filter({ grant_id: grant.id }),
+      appClient.entities.Resident.filter({ status: 'active' }),
     ]);
     setEnrollments(enrs);
     setResidents(res);
@@ -40,7 +39,7 @@ export default function GrantEnrollmentPanel({ grant, orgId }) {
 
   const handleAdd = async () => {
     if (!newEnrollment.resident_id || !newEnrollment.enrollment_date) return;
-    await base44.entities.GrantEnrollment.create({
+    await appClient.entities.GrantEnrollment.create({
       ...newEnrollment,
       grant_id: grant.id,
       organization_id: orgId,
@@ -52,7 +51,7 @@ export default function GrantEnrollmentPanel({ grant, orgId }) {
 
   const handleExit = async (enrollment) => {
     const reason = prompt('Exit reason (optional):') || 'voluntary_exit';
-    await base44.entities.GrantEnrollment.update(enrollment.id, {
+    await appClient.entities.GrantEnrollment.update(enrollment.id, {
       exit_date: new Date().toISOString().split('T')[0],
       exit_reason: reason,
     });

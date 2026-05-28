@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
-import { base44 } from '@/api/base44Client';
-import { DollarSign, Plus, Trash2, Building2, TrendingUp, Edit2, CheckCircle2 } from 'lucide-react';
+import { appClient } from '@/services/appClient';
+import { DollarSign, Plus, Trash2, Edit2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -38,9 +38,9 @@ function ExpenseForm({ locations, orgId, expense, onSave, onCancel }) {
     setSaving(true);
     const payload = { ...form, organization_id: orgId, amount: Number(form.amount), due_day_of_month: form.due_day_of_month ? Number(form.due_day_of_month) : undefined };
     if (expense?.id) {
-      await base44.entities.LocationExpense.update(expense.id, payload);
+      await appClient.entities.LocationExpense.update(expense.id, payload);
     } else {
-      await base44.entities.LocationExpense.create(payload);
+      await appClient.entities.LocationExpense.create(payload);
     }
     setSaving(false);
     onSave();
@@ -115,9 +115,9 @@ export default function FinanceManager() {
 
   const load = async () => {
     const [orgs, locs, exps] = await Promise.all([
-      base44.entities.Organization.list(),
-      base44.entities.Location.filter({ status: 'active' }),
-      base44.entities.LocationExpense.list('-created_date', 500),
+      appClient.entities.Organization.list(),
+      appClient.entities.Location.filter({ status: 'active' }),
+      appClient.entities.LocationExpense.list('-created_date', 500),
     ]);
     if (orgs[0]) setOrgId(orgs[0].id);
     setLocations(locs);
@@ -145,7 +145,7 @@ export default function FinanceManager() {
   active.forEach(e => { byCat[e.category] = (byCat[e.category] || 0) + toMonthly(e); });
 
   const handleDelete = async (id) => {
-    await base44.entities.LocationExpense.delete(id);
+    await appClient.entities.LocationExpense.delete(id);
     setExpenses(prev => prev.filter(e => e.id !== id));
   };
 

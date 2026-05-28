@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { AlertTriangle, AlertCircle, Clock, ChevronDown, ChevronUp, FileText, CheckCircle } from 'lucide-react';
+import { AlertTriangle, AlertCircle, ChevronDown, ChevronUp, CheckCircle } from 'lucide-react';
 import { getResidentAlerts, REQUIRED_DOCUMENTS } from '@/lib/residentAlerts';
 
 const severityStyle = {

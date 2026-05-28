@@ -1,10 +1,9 @@
 import { useState } from 'react';
-import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Input } from '@/components/ui/input';
 import { CheckCircle2, Clock, ShoppingCart, XCircle, ChevronDown, ChevronUp } from 'lucide-react';
-import { base44 } from '@/api/base44Client';
+import { appClient } from '@/services/appClient';
 import { format } from 'date-fns';
 
 const STATUS_CONFIG = {
@@ -26,13 +25,13 @@ export default function InventoryRequestsPanel({ requests, isAdmin, onRefresh })
 
   const updateStatus = async (req, status) => {
     setUpdatingId(req.id);
-    await base44.entities.InventoryRequest.update(req.id, { status });
+    await appClient.entities.InventoryRequest.update(req.id, { status });
     setUpdatingId(null);
     onRefresh();
   };
 
   const updateStaffNotes = async (req, staffNotes) => {
-    await base44.entities.InventoryRequest.update(req.id, { staff_notes: staffNotes });
+    await appClient.entities.InventoryRequest.update(req.id, { staff_notes: staffNotes });
     onRefresh();
   };
 

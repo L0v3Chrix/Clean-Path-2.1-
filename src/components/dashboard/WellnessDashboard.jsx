@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
-import { base44 } from '@/api/base44Client';
-import { Sun, AlertTriangle, TrendingDown, Users, ChevronDown, ChevronUp } from 'lucide-react';
-import { format, subDays, parseISO } from 'date-fns';
+import { appClient } from '@/services/appClient';
+import { Sun, AlertTriangle, ChevronDown, ChevronUp } from 'lucide-react';
+import { format, subDays } from 'date-fns';
 
 const MOOD_EMOJI  = { 1: '😞', 2: '😕', 3: '😐', 4: '🙂', 5: '😄' };
 const MOOD_LABEL  = { 1: 'Very Low', 2: 'Low', 3: 'Okay', 4: 'Good', 5: 'Great' };
@@ -145,8 +145,8 @@ export default function WellnessDashboard() {
   useEffect(() => {
     const since = subDays(new Date(), 7).toISOString().split('T')[0];
     Promise.all([
-      base44.entities.Resident.filter({ status: 'active' }),
-      base44.entities.MorningReflection.list('-log_date', 500),
+      appClient.entities.Resident.filter({ status: 'active' }),
+      appClient.entities.MorningReflection.list('-log_date', 500),
     ]).then(([r, logs]) => {
       setResidents(r);
       setReflections(logs.filter(l => l.log_date >= since));

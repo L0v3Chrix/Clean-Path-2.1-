@@ -1,28 +1,52 @@
 import { useState } from 'react';
-import { base44 } from '@/api/base44Client';
+import { appClient } from '@/services/appClient';
 import { X, UserPlus, Building2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
-export default function AssignBedModal({ locations, applicants, preselectedLocation, preselectedApplicant, onClose, onSaved }) {
+export default function AssignBedModal({ locations, applicants, bedAssignments = [], preselectedLocation, preselectedApplicant, onClose, onSaved }) {
   const [selectedApplicant, setSelectedApplicant] = useState(preselectedApplicant?.id || '');
   const [selectedLocation, setSelectedLocation] = useState(preselectedLocation?.id || '');
+  const [selectedBed, setSelectedBed] = useState('');
   const [room, setRoom] = useState('');
   const [intakeDate, setIntakeDate] = useState(new Date().toISOString().split('T')[0]);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
+  const location = locations.find((item) => item.id === selectedLocation);
+  const availableBeds = bedAssignments
+    .filter((bed) => bed.location_id === selectedLocation && bed.status === 'available')
+    .sort((a, b) => (a.room || '').localeCompare(b.room || '') || (a.bed_label || '').localeCompare(b.bed_label || ''));
 
   const handleSave = async () => {
     if (!selectedApplicant || !selectedLocation) { setError('Please select both an applicant and a location.'); return; }
     setSaving(true);
-    await base44.entities.Resident.update(selectedApplicant, {
+    const selectedBedRecord = availableBeds.find((bed) => bed.id === selectedBed);
+    await appClient.entities.Resident.update(selectedApplicant, {
       location_id: selectedLocation,
       status: 'active',
       intake_date: intakeDate,
-      room: room || undefined,
+      room: room || selectedBedRecord?.room || selectedBedRecord?.bed_label || undefined,
     });
+    if (selectedBedRecord) {
+      await appClient.entities.BedAssignment.update(selectedBedRecord.id, {
+        status: 'occupied',
+        resident_id: selectedApplicant,
+        room: room || selectedBedRecord.room,
+        assigned_at: new Date().toISOString(),
+      });
+    } else {
+      await appClient.entities.BedAssignment.create({
+        organization_id: location?.organization_id || 'default',
+        location_id: selectedLocation,
+        resident_id: selectedApplicant,
+        bed_label: room || 'Assigned bed',
+        room: room || undefined,
+        status: 'occupied',
+        assigned_at: new Date().toISOString(),
+      });
+    }
     onSaved();
   };
 
@@ -59,7 +83,7 @@ export default function AssignBedModal({ locations, applicants, preselectedLocat
 
           <div className="space-y-1.5">
             <Label>Location / House *</Label>
-            <Select value={selectedLocation} onValueChange={setSelectedLocation}>
+            <Select value={selectedLocation} onValueChange={(value) => { setSelectedLocation(value); setSelectedBed(''); }}>
               <SelectTrigger>
                 <SelectValue placeholder="Choose location…" />
               </SelectTrigger>
@@ -76,9 +100,27 @@ export default function AssignBedModal({ locations, applicants, preselectedLocat
             </Select>
           </div>
 
+          {availableBeds.length > 0 && (
+            <div className="space-y-1.5">
+              <Label>Available Bed</Label>
+              <Select value={selectedBed} onValueChange={setSelectedBed}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Choose an open bed…" />
+                </SelectTrigger>
+                <SelectContent>
+                  {availableBeds.map((bed) => (
+                    <SelectItem key={bed.id} value={bed.id}>
+                      {bed.bed_label}{bed.room ? ` · Room ${bed.room}` : ''}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
+
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-1.5">
-              <Label>Room / Bed # (optional)</Label>
+              <Label>Room / Bed Override</Label>
               <Input placeholder="e.g. 2A, Rm 3" value={room} onChange={e => setRoom(e.target.value)} />
             </div>
             <div className="space-y-1.5">
