@@ -58,6 +58,14 @@ const AuthenticatedApp = () => {
     );
   }
 
+  if (location.pathname === '/presentation') {
+    return (
+      <Routes>
+        <Route path="/presentation" element={<Presentation />} />
+      </Routes>
+    );
+  }
+
   if (!isAuthenticated) {
     return <Login />;
   }
