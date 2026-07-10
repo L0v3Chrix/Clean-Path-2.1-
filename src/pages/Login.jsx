@@ -13,6 +13,7 @@ import {
 } from 'lucide-react';
 import { supabase } from '@/lib/supabaseClient';
 import { appClient } from '@/services/appClient';
+import { authBypassEnabled } from '@/lib/authBypass';
 import { authSetupMessage, isMissingSupabaseSetupError } from '@/lib/authErrors';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -63,6 +64,11 @@ export default function Login() {
     setStatus('');
     setIsSubmitting(true);
 
+    if (authBypassEnabled) {
+      window.location.assign('/');
+      return;
+    }
+
     try {
       const authResult = isSignUp
         ? await supabase.auth.signUp({
@@ -108,6 +114,11 @@ export default function Login() {
   const handlePasswordReset = async () => {
     setError('');
     setStatus('');
+
+    if (authBypassEnabled) {
+      setStatus('Demo mode: any email and password will sign you in.');
+      return;
+    }
 
     if (!email) {
       setError('Enter your email address first, then request a password reset.');
