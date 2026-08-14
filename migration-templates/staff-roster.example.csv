@@ -1,0 +1,2 @@
+email,first_name,last_name,role,house_source_ids,status,invitation_owner
+[FILL: EMAIL],[FILL],[FILL],[FILL: APPROVED ROLE],[FILL: SEMICOLON-SEPARATED HOUSE SOURCE IDS],active,[FILL]

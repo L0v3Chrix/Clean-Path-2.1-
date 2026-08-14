@@ -10,7 +10,13 @@
       "columnMap": {
         "Oath Track House ID": "source_id",
         "House Name": "name",
-        "Total Beds": "total_beds"
+        "Address": "address",
+        "City": "city",
+        "State": "state",
+        "ZIP": "zip",
+        "Total Beds": "total_beds",
+        "Status": "status",
+        "Local Settings Notes": "notes"
       }
     },
     {

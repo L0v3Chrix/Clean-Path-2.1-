@@ -1,0 +1,8 @@
+house_source_id,representative_name,representative_role,approved,approved_at,notes
+organization,[FILL: SLADE],[FILL: PRODUCT OR DATA OWNER],false,[FILL: ISO_8601],[FILL]
+[FILL: HOUSE_1_SOURCE_ID],[FILL],[FILL],false,[FILL: ISO_8601],[FILL]
+[FILL: HOUSE_2_SOURCE_ID],[FILL],[FILL],false,[FILL: ISO_8601],[FILL]
+[FILL: HOUSE_3_SOURCE_ID],[FILL],[FILL],false,[FILL: ISO_8601],[FILL]
+[FILL: HOUSE_4_SOURCE_ID],[FILL],[FILL],false,[FILL: ISO_8601],[FILL]
+[FILL: HOUSE_5_SOURCE_ID],[FILL],[FILL],false,[FILL: ISO_8601],[FILL]
+[FILL: HOUSE_6_SOURCE_ID],[FILL],[FILL],false,[FILL: ISO_8601],[FILL]

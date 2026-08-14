@@ -19,6 +19,16 @@ Do not begin a confirmed import until these items are complete:
 
 Copy `migration-templates/manifest.example.json` into `.migration-input/manifest.json`. Each entity file must be CSV or JSON and must have a stable `source_id`. Relationships use `source_<entity>_id` columns; the importer converts them to deterministic target UUIDs.
 
+Use the handoff templates before creating the final manifest:
+
+- `locations.example.csv`: exactly six approved houses with source IDs, addresses, bed/room structure, program, status, and local settings.
+- `source-counts.example.csv`: source totals and SHA-256 for every house/entity export. Add rows for every required historical domain.
+- `staff-roster.example.csv`: email, approved role, and house assignments. Never include passwords.
+- `attachments.csv`: attachment lineage. Copy it beside the source files and add one row per file.
+- `cutover-approvals.example.csv`: Slade plus one representative for each house. Set approval only after acceptance and retain timestamps.
+
+Copy the examples into ignored `.migration-input/`; do not fill or commit them in `migration-templates/`.
+
 Supported entities are locations, staff profiles, residents, resident contacts, bed assignments, resident documents, care-plan goals/tasks, medications/logs, incidents, shifts, resident fees, and resident payments. Add an explicit transformer and tests before importing any additional Oath Track domain.
 
 The optional attachment manifest is CSV or JSON with:
