@@ -1,0 +1,42 @@
+{
+  "schemaVersion": 1,
+  "release": {
+    "canonicalCommit": "[FILL: accepted Git commit]",
+    "previewCommit": "[FILL: verified preview Git commit]",
+    "productionCommit": "[FILL: promoted production Git commit]",
+    "demoMode": "[FILL: false after production verification]",
+    "authBypass": "[FILL: false after production verification]"
+  },
+  "inputs": {
+    "houses": [
+      { "name": "[FILL: HOUSE_1_NAME]", "address": "[FILL]", "sourceCountsVerified": false },
+      { "name": "[FILL: HOUSE_2_NAME]", "address": "[FILL]", "sourceCountsVerified": false },
+      { "name": "[FILL: HOUSE_3_NAME]", "address": "[FILL]", "sourceCountsVerified": false },
+      { "name": "[FILL: HOUSE_4_NAME]", "address": "[FILL]", "sourceCountsVerified": false },
+      { "name": "[FILL: HOUSE_5_NAME]", "address": "[FILL]", "sourceCountsVerified": false },
+      { "name": "[FILL: HOUSE_6_NAME]", "address": "[FILL]", "sourceCountsVerified": false }
+    ],
+    "oathTrackExportsChecksummed": false,
+    "dataDictionaryReceived": false,
+    "staffRosterReceived": false,
+    "attachmentManifestReceived": false,
+    "historyCutoffApproved": false,
+    "financialTotalsApproved": false
+  },
+  "technical": {
+    "businessSupabaseVerified": false,
+    "rlsVerified": false,
+    "storageVerified": false,
+    "publicIntakeVerified": false,
+    "staffAccessVerified": false,
+    "migrationRehearsalPassed": false,
+    "reconciliationPassed": false,
+    "restoreDrillPassed": false,
+    "automatedChecksPassed": false,
+    "productionSmokePassed": false
+  },
+  "approvals": {
+    "slade": { "approved": false, "approvedAt": null },
+    "houseRepresentatives": []
+  }
+}

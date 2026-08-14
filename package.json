@@ -26,6 +26,10 @@
     "migration:import": "node scripts/migration/cli.mjs import",
     "migration:reconcile": "node scripts/migration/cli.mjs reconcile",
     "migration:rollback": "node scripts/migration/cli.mjs rollback",
+    "readiness:check": "node scripts/readiness/readiness.mjs",
+    "operations:health": "node scripts/operations/health-check.mjs",
+    "operations:restore-drill": "node scripts/operations/restore-drill.mjs",
+    "verify": "npm test && npm run lint && npm run typecheck && npm run build && npm audit --omit=dev --audit-level=high",
     "test:ui:sample": "node scripts/sample-data/ui-smoke.mjs",
     "preview": "vite preview"
   },

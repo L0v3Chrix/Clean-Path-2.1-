@@ -15,6 +15,7 @@ This project is a compliance-ready foundation, not a HIPAA-compliant finished sy
 - Controlled Oath Track migration tooling: `scripts/migration/*` and `docs/migration.md`.
 - Public intake: opaque token, Supabase Edge Function validation, and private attachment storage.
 - Authorization: route checks plus database-enforced house assignments for operational staff.
+- Operations: audited CSV exports, privacy-minimized error events, a database-backed health endpoint, and restore/readiness verification commands.
 - External integrations such as SMS, QuickBooks, email marketing, and Amazon ordering are placeholders only.
 
 ## Architecture
@@ -145,12 +146,16 @@ npm test
 npm run lint
 npm run typecheck
 npm run build
+npm run test:db
+npm run verify
 npm run migration:validate -- .migration-input/manifest.json
 # Requires .env.sample-data.local and a seeded sample batch:
 npm run sample:validate
 ```
 
 Run a final dependency scan for any legacy backend provider names before release. Expected result: no matches.
+
+`npm run verify` is also enforced on pull requests by `.github/workflows/verify.yml`. The database job starts a clean Supabase stack, applies every migration, and runs the role/house/core-workflow acceptance matrix.
 
 ## Dependency Map
 
@@ -185,7 +190,7 @@ What Slade still needs before production:
 - A privacy/security review before storing sensitive health or resident information.
 - Production hosting, usually Vercel or similar.
 - A real domain name.
-- Backup/export procedures.
+- A completed backup/restore drill against the business-owned Supabase database.
 - Written operating policies for staff use.
 - Actual vendor decisions only after the core app is stable.
 

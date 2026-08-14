@@ -34,6 +34,8 @@ import BedCapacity from './pages/BedCapacity';
 import SecureDocuments from './pages/SecureDocuments';
 import Presentation from './pages/Presentation';
 import Login from './pages/Login';
+import Reports from './pages/Reports';
+import OperationalTelemetryReporter from './components/OperationalTelemetryReporter';
 
 const AuthenticatedApp = () => {
   const { isAuthenticated, isLoadingAuth, isLoadingPublicSettings, authError, navigateToLogin } = useAuth();
@@ -98,7 +100,7 @@ const AuthenticatedApp = () => {
         <Route path="/incident-safety" element={<IncidentSafetyDashboard />} />
         <Route path="/scheduling" element={<Scheduling />} />
         <Route path="/intake" element={<IntakeForm />} />
-        <Route path="/reports" element={<ComingSoon title="Reports & Analytics" description="Outcome data, occupancy reports, incident trends, and quality improvement metrics." />} />
+        <Route path="/reports" element={<Reports />} />
         <Route path="/settings" element={<OrgSettings />} />
         <Route path="/my-profile" element={<ResidentPortal />} />
         <Route path="/analytics" element={<Analytics />} />
@@ -140,6 +142,7 @@ function ComingSoon({ title, description }) {
 function App() {
   return (
     <AuthProvider>
+      <OperationalTelemetryReporter />
       <QueryClientProvider client={queryClientInstance}>
         <Router>
           <AuthenticatedApp />

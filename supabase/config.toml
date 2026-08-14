@@ -29,3 +29,6 @@ file_size_limit = "50MiB"
 
 [functions.public-intake]
 verify_jwt = false
+
+[functions.health]
+verify_jwt = false

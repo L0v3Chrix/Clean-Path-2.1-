@@ -3,6 +3,7 @@ import { authBypassEnabled, bypassUser, demoOrganizationId } from '@/lib/authByp
 import { isMissingSupabaseSetupError } from '@/lib/authErrors';
 import { createEntityService } from './entityService';
 import { entityConfigs, getEntityConfig } from './entityConfig';
+import { buildOperationalEvent } from '@/lib/operationalTelemetry';
 
 const entities = Object.fromEntries(
   Object.keys(entityConfigs).map((entityName) => {
@@ -276,6 +277,28 @@ export const appClient = {
     async sendPasswordReset(email) {
       const { error } = await supabase.auth.resetPasswordForEmail(email, {
         redirectTo: `${window.location.origin}/login`,
+      });
+      if (error) throw new Error(error.message);
+    },
+  },
+  operations: {
+    async reportError(input) {
+      if (authBypassEnabled) return;
+      const event = buildOperationalEvent(input);
+      const { error } = await supabase.rpc('record_application_error', {
+        p_category: event.category,
+        p_component: event.component,
+        p_route: event.route,
+        p_release: event.release,
+      });
+      if (error && !isMissingSupabaseSetupError(error)) throw new Error(error.message);
+    },
+    async recordExport(organizationId, resourceType, recordCount) {
+      if (authBypassEnabled) return;
+      const { error } = await supabase.rpc('record_data_export', {
+        p_organization_id: organizationId,
+        p_resource_type: resourceType,
+        p_record_count: recordCount,
       });
       if (error) throw new Error(error.message);
     },

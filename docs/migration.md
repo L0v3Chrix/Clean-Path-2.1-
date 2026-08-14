@@ -71,6 +71,44 @@ An unchanged rerun skips previously imported source records. A changed row with 
 
 Before cutover, create a provider backup and a logical database dump, then restore into an isolated project. Record the backup identifier, dump checksum, restore target, start/end time, operator, and reconciliation report under `.migration-output/`. A backup is not accepted until its restore has succeeded.
 
+The restore target is destructive and must be an isolated database. The command refuses to run when the source and restore host/database identity match:
+
+```bash
+export SOURCE_DATABASE_URL='[FILL: source Postgres URL]'
+export RESTORE_DATABASE_URL='[FILL: isolated restore Postgres URL]'
+npm run operations:restore-drill -- \
+  --dump .migration-output/clearpath-backup.dump \
+  --reconciliation-report .migration-output/reconciliation.json \
+  --report .migration-output/restore-drill.json
+```
+
+The report contains sanitized database identities, the dump SHA-256, timestamps, restored migration-run count, and reconciliation status. It never records database credentials.
+
+## Release Health And Readiness
+
+Deploy the `health` Supabase Edge Function, then verify both the Vercel application shell and database connectivity:
+
+```bash
+export CLEARPATH_APP_URL='[FILL: accepted Vercel deployment URL]'
+export CLEARPATH_HEALTH_URL='[FILL: Supabase health function URL]'
+export CLEARPATH_HEALTH_ANON_KEY='[FILL: publishable key, when required]'
+npm run operations:health -- --report .migration-output/health.json
+```
+
+Copy `migration-templates/readiness-evidence.example.json` to `.migration-output/readiness-evidence.json` and replace every placeholder with observed evidence. The cutover command fails until all six houses, external inputs, technical gates, matching Git commits, restore proof, smoke check, and seven approvals are complete:
+
+```bash
+npm run readiness:check -- \
+  .migration-output/readiness-evidence.json \
+  --report .migration-output/readiness-result.json
+```
+
+Do not manually change a failed readiness result. Correct the underlying evidence and rerun the command.
+
+## Dependency Decision
+
+Production dependencies currently have no known high or critical audit finding. Two moderate React Router 6 advisories remain accepted for the beta branch because the available fix requires a React Router 7 major-version migration. Complete that upgrade in a separately tested pull request; rerun `npm audit --omit=dev` before cutover and reject any new high or critical runtime finding.
+
 ## External Gates
 
 Email, background checks, payments, QuickBooks, Twilio, and AI extraction remain disabled unless an approved provider and credentials are supplied. Public intake records background-check consent only; it does not claim or initiate a screening.
