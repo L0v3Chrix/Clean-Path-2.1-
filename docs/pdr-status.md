@@ -4,6 +4,13 @@ Status date: 2026-08-14
 
 This file separates repository completion from cutover completion. A green build or deployment is not proof that source data, a production backend, reconciliation, restoration, or human approval exists.
 
+## Observed Handoff State
+
+- Draft PR: `L0v3Chrix/Clean-Path-2.1-#1` from `codex/six-house-migration-readiness`.
+- Pull-request checks: application verification, clean-database verification, and Vercel preview build are configured.
+- Vercel previews use explicit fake demo-only values; they do not connect to or authorize real resident data.
+- The sibling public website labels six listings `RCL One` through `RCL Six`, but its two house-data files disagree on gender mix, capacity, occupancy, and pricing and provide no approved addresses or Oath Track counts. These are candidate display labels only, not an accepted migration roster.
+
 ## Repository-Owned Work
 
 - [x] Canonical baseline preserved on a feature branch and divergent upstream left unmerged.
