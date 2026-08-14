@@ -12,6 +12,9 @@ This project is a compliance-ready foundation, not a HIPAA-compliant finished sy
 - Domain services: `src/services/*`.
 - Database schema: `supabase/migrations/20260516015100_initial_clearpath_schema.sql`.
 - Removable MVP sample data: `scripts/sample-data/*` and `docs/sample-data.md`.
+- Controlled Oath Track migration tooling: `scripts/migration/*` and `docs/migration.md`.
+- Public intake: opaque token, Supabase Edge Function validation, and private attachment storage.
+- Authorization: route checks plus database-enforced house assignments for operational staff.
 - External integrations such as SMS, QuickBooks, email marketing, and Amazon ordering are placeholders only.
 
 ## Architecture
@@ -125,7 +128,7 @@ Open the printed Vite URL in a browser, usually:
 open http://localhost:5173
 ```
 
-Create the first user from the ClearPath login screen. The first authenticated user can claim the seeded demo organization as `owner` through the included `bootstrap_organization_owner` RPC. After the first owner exists, add later users through `organization_members` or a future invite/admin screen.
+Create the first user from the ClearPath login screen. The first authenticated user can claim the seeded organization as `owner` through the included `bootstrap_organization_owner` RPC. After the first owner exists, use the Staff screen to invite later users, assign their operational role and houses, or request password recovery.
 
 Check that Vite is responding:
 
@@ -142,6 +145,7 @@ npm test
 npm run lint
 npm run typecheck
 npm run build
+npm run migration:validate -- .migration-input/manifest.json
 # Requires .env.sample-data.local and a seeded sample batch:
 npm run sample:validate
 ```
@@ -177,7 +181,7 @@ What Slade still needs before production:
 
 - A real Supabase project owned by the business.
 - Real user accounts and organization membership rows.
-- A policy decision for who can see, edit, export, and delete each kind of record.
+- The complete six-house roster, source exports, data dictionary, source counts, attachments, user roster, and cutoff decision described in `docs/migration.md`.
 - A privacy/security review before storing sensitive health or resident information.
 - Production hosting, usually Vercel or similar.
 - A real domain name.
@@ -193,14 +197,6 @@ What Slade should not buy yet:
 - Amazon ordering automation before inventory approval workflows are working.
 - Extra AI tools before the data model and permissions are stable.
 
-## New Repo Workflow
+## Repository Workflow
 
-This clone can be modified locally without changing the original source repository. When ready, create a new GitHub repository and push this working copy there:
-
-```bash
-git remote -v
-git remote set-url origin https://github.com/[FILL: owner]/[FILL: new-repo].git
-git push -u origin main
-```
-
-Use a new repository URL for the final push so the original repo remains untouched.
+`L0v3Chrix/Clean-Path-2.1-` is the canonical repository. Use protected feature branches and pull requests; Vercel previews must build from the exact commit under review. Do not merge the preserved divergent upstream architecture into the beta baseline wholesale.

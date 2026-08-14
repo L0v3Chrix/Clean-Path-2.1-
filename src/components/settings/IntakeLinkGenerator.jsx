@@ -1,11 +1,14 @@
 import { useState, useEffect } from 'react';
 import { appClient } from '@/services/appClient';
-import { Link2, Copy, Check, ExternalLink, Code, Globe } from 'lucide-react';
+import { Link2, Copy, Check, ExternalLink, Code, Globe, RefreshCw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
 export default function IntakeLinkGenerator() {
   const [org, setOrg] = useState(null);
   const [copied, setCopied] = useState('');
+  const [token, setToken] = useState('');
+  const [generating, setGenerating] = useState(false);
+  const [error, setError] = useState('');
 
   useEffect(() => {
     appClient.entities.Organization.list().then(orgs => {
@@ -16,7 +19,7 @@ export default function IntakeLinkGenerator() {
   if (!org) return null;
 
   const baseUrl = window.location.origin;
-  const appLink = `${baseUrl}/intake?org=${org.id}`;
+  const appLink = token ? `${baseUrl}/intake?token=${token}` : '';
   const embedSnippet = `<!-- ClearPath Application Form -->
 <a href="${appLink}" target="_blank" 
    style="display:inline-block;background:#B45309;color:#fff;
@@ -29,6 +32,18 @@ export default function IntakeLinkGenerator() {
     navigator.clipboard.writeText(text);
     setCopied(key);
     setTimeout(() => setCopied(''), 2000);
+  };
+
+  const rotateToken = async () => {
+    setGenerating(true);
+    setError('');
+    try {
+      setToken(await appClient.publicIntake.rotateToken(org.id));
+    } catch (tokenError) {
+      setError(tokenError.message);
+    } finally {
+      setGenerating(false);
+    }
   };
 
   const CopyBtn = ({ text, id, label }) => (
@@ -45,7 +60,7 @@ export default function IntakeLinkGenerator() {
   );
 
   return (
-    <div className="space-y-6">
+      <div className="space-y-6">
       {/* Header */}
       <div className="flex items-center gap-3">
         <div className="w-9 h-9 rounded-xl bg-teal-100 flex items-center justify-center">
@@ -57,8 +72,19 @@ export default function IntakeLinkGenerator() {
         </div>
       </div>
 
+      {!token && (
+        <div className="rounded-xl border border-slate-200 p-4 bg-slate-50 space-y-3">
+          <p className="text-sm text-slate-600">Create an opaque intake link when you are ready to publish the form. Creating a new link disables the previous one.</p>
+          <Button onClick={rotateToken} disabled={generating} className="gap-2">
+            <RefreshCw className={`w-4 h-4 ${generating ? 'animate-spin' : ''}`} />
+            {generating ? 'Creating link...' : 'Create intake link'}
+          </Button>
+          {error && <p className="text-sm text-red-700" role="alert">{error}</p>}
+        </div>
+      )}
+
       {/* Direct Link */}
-      <div className="rounded-xl border border-slate-200 p-4 space-y-3 bg-slate-50">
+      {token && <div className="rounded-xl border border-slate-200 p-4 space-y-3 bg-slate-50">
         <div className="flex items-center gap-2 text-sm font-semibold text-slate-700">
           <Globe className="w-4 h-4 text-slate-500" />
           Direct Application Link
@@ -78,10 +104,14 @@ export default function IntakeLinkGenerator() {
             </Button>
           </a>
         </div>
-      </div>
+        <p className="text-xs text-amber-700">Store this link now. For security, the token is not displayed again after leaving this page.</p>
+        <Button onClick={rotateToken} disabled={generating} size="sm" variant="outline" className="gap-1.5">
+          <RefreshCw className={`w-3.5 h-3.5 ${generating ? 'animate-spin' : ''}`} /> Rotate link
+        </Button>
+      </div>}
 
       {/* Embed Button Snippet */}
-      <div className="rounded-xl border border-slate-200 p-4 space-y-3 bg-slate-50">
+      {token && <div className="rounded-xl border border-slate-200 p-4 space-y-3 bg-slate-50">
         <div className="flex items-center gap-2 text-sm font-semibold text-slate-700">
           <Code className="w-4 h-4 text-slate-500" />
           HTML Button Snippet
@@ -93,7 +123,7 @@ export default function IntakeLinkGenerator() {
           {embedSnippet}
         </pre>
         <CopyBtn text={embedSnippet} id="embed" label="Copy HTML Snippet" />
-      </div>
+      </div>}
 
       {/* Instructions */}
       <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-xs text-amber-800 space-y-1.5">
@@ -105,7 +135,7 @@ export default function IntakeLinkGenerator() {
           <li>• Print it as a <strong>QR code</strong> and post it at your facility</li>
           <li>• Embed the HTML button directly in your website's homepage</li>
         </ul>
-        <p className="mt-2 text-amber-700">All submissions are automatically routed to <strong>{org.name}</strong> and staff are notified immediately.</p>
+        <p className="mt-2 text-amber-700">Submissions are routed to <strong>{org.name}</strong> for staff review inside ClearPath.</p>
       </div>
     </div>
   );

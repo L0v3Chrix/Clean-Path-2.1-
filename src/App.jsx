@@ -38,6 +38,11 @@ import Login from './pages/Login';
 const AuthenticatedApp = () => {
   const { isAuthenticated, isLoadingAuth, isLoadingPublicSettings, authError, navigateToLogin } = useAuth();
   const location = useLocation();
+  const isPublicIntake = location.pathname === '/intake' && new URLSearchParams(location.search).has('token');
+
+  if (isPublicIntake) {
+    return <Routes><Route path="/intake" element={<IntakeForm />} /></Routes>;
+  }
 
   if (isLoadingPublicSettings || isLoadingAuth) {
     return (

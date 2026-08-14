@@ -64,11 +64,25 @@ async function createSignedStorageUrl(input, expiresIn = 300) {
 
   const { data, error } = await supabase.storage.from(bucket).createSignedUrl(path, expiresIn);
   if (error) throw new Error(error.message);
+  const { error: auditError } = await supabase.rpc('record_document_access', {
+    p_bucket: bucket,
+    p_path: path,
+  });
+  if (auditError) throw new Error(auditError.message);
   return data.signedUrl;
 }
 
 async function uploadFile({ file, bucket = 'secure-documents', pathPrefix = 'uploads', organizationId }) {
   if (!file) throw new Error('UploadFile requires a file.');
+  if (authBypassEnabled) {
+    const fileUrl = await new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result);
+      reader.onerror = () => reject(new Error(`Unable to read ${file.name}.`));
+      reader.readAsDataURL(file);
+    });
+    return { file_url: fileUrl, storage_bucket: bucket, storage_path: null };
+  }
   const resolvedOrganizationId = await resolveCurrentOrganizationId(organizationId);
   const safeName = file.name?.replace(/[^a-zA-Z0-9._-]/g, '-') || 'upload';
   const path = `${resolvedOrganizationId}/${pathPrefix}/${crypto.randomUUID()}-${safeName}`;
@@ -142,19 +156,35 @@ export const appClient = {
       const { data: membership, error: membershipError } = await supabase
         .from('organization_members')
         .select('organization_id, role, display_name, email')
-        .eq('organization_id', demoOrganizationId)
         .eq('user_id', data.user.id)
+        .eq('status', 'active')
+        .limit(1)
         .maybeSingle();
 
       if (membershipError && !isMissingSupabaseSetupError(membershipError)) {
         throw new Error(membershipError.message || 'Unable to read organization membership.');
       }
 
+      let operationalRole = null;
+      if (membership?.organization_id && ['staff'].includes(membership.role)) {
+        const { data: profile, error: profileError } = await supabase
+          .from('staff_profiles')
+          .select('role')
+          .eq('organization_id', membership.organization_id)
+          .eq('user_id', data.user.id)
+          .eq('status', 'active')
+          .maybeSingle();
+        if (profileError && !isMissingSupabaseSetupError(profileError)) {
+          throw new Error(profileError.message || 'Unable to read staff role.');
+        }
+        operationalRole = profile?.role;
+      }
+
       return {
         ...data.user,
-        organization_id: membership?.organization_id || demoOrganizationId,
+        organization_id: membership?.organization_id,
         full_name: membership?.display_name || data.user.user_metadata?.full_name || data.user.email,
-        role: membership?.role || data.user.user_metadata?.role || 'staff',
+        role: operationalRole || membership?.role || data.user.user_metadata?.role,
       };
     },
     async bootstrapOrganizationOwner(displayName) {
@@ -201,5 +231,53 @@ export const appClient = {
   },
   functions: {
     invoke: invokeFunction,
+  },
+  publicIntake: {
+    async rotateToken(organizationId) {
+      const { data, error } = await supabase.rpc('rotate_public_intake_token', {
+        p_organization_id: organizationId,
+        p_label: 'Website intake',
+      });
+      if (error) throw new Error(error.message);
+      return data;
+    },
+  },
+  staffAccess: {
+    async invite(payload) {
+      const { data, error } = await supabase.functions.invoke('invite-staff', { body: payload });
+      if (error) throw new Error(error.message);
+      if (!data?.ok) throw new Error(data?.error || 'Unable to invite staff member.');
+      return data;
+    },
+    async updateAssignments(profile) {
+      if (!profile.user_id) return;
+      const { data: membership, error: membershipError } = await supabase
+        .from('organization_members').select('id').eq('organization_id', profile.organization_id)
+        .eq('user_id', profile.user_id).single();
+      if (membershipError) throw new Error(membershipError.message);
+      const membershipRole = profile.role === 'owner' ? 'owner' : profile.role === 'platform_admin' ? 'admin' : 'staff';
+      const { error: roleError } = await supabase.from('organization_members')
+        .update({ role: membershipRole }).eq('id', membership.id);
+      if (roleError) throw new Error(roleError.message);
+      const { error: deleteError } = await supabase.from('organization_member_locations')
+        .delete().eq('organization_member_id', membership.id);
+      if (deleteError) throw new Error(deleteError.message);
+      if (profile.location_ids?.length) {
+        const { error: insertError } = await supabase.from('organization_member_locations').insert(
+          profile.location_ids.map((locationId) => ({
+            organization_id: profile.organization_id,
+            organization_member_id: membership.id,
+            location_id: locationId,
+          })),
+        );
+        if (insertError) throw new Error(insertError.message);
+      }
+    },
+    async sendPasswordReset(email) {
+      const { error } = await supabase.auth.resetPasswordForEmail(email, {
+        redirectTo: `${window.location.origin}/login`,
+      });
+      if (error) throw new Error(error.message);
+    },
   },
 };

@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react';
-import { Link, useLocation, Outlet, useNavigate } from 'react-router-dom';
+import { Link, Navigate, useLocation, Outlet } from 'react-router-dom';
 import { appClient } from '@/services/appClient';
 import { demoModeEnabled } from '@/lib/authBypass';
+import { canAccessRoute, defaultRouteForRole, navForRole } from '@/lib/routeAccess';
 import {
   Home, Users, Building2, MessageSquare,
   Shield, BarChart3, Settings, Menu,
@@ -12,28 +13,6 @@ import { Badge } from '@/components/ui/badge';
 import { clsx } from 'clsx';
 import { twMerge } from 'tailwind-merge';
 const cn = (...inputs) => twMerge(clsx(inputs));
-
-const FULL_NAV = ['dashboard', 'bed_capacity', 'masterlist', 'applications', 'residents', 'locations', 'staff', 'scheduling', 'chores', 'incidents', 'incident_safety', 'chat', 'compliance', 'inventory', 'analytics', 'grants', 'outcomes', 'finance', 'training', 'hipaa', 'integrations', 'reports', 'secure_docs', 'settings', 'presentation'];
-
-const roleNavMap = {
-  // Full platform access — ownership/leadership only
-  admin:                  FULL_NAV,
-  platform_admin:         FULL_NAV,
-  owner:                  FULL_NAV,
-  director:               ['dashboard', 'bed_capacity', 'applications', 'residents', 'locations', 'staff', 'scheduling', 'incidents', 'incident_safety', 'chat', 'compliance', 'inventory', 'analytics', 'grants', 'outcomes', 'finance', 'training', 'hipaa', 'reports', 'secure_docs'],
-
-  // Operational staff
-  house_manager:          ['dashboard', 'masterlist', 'applications', 'residents', 'scheduling', 'chores', 'incidents', 'incident_safety', 'chat', 'inventory', 'compliance', 'training', 'secure_docs'],
-  assistant_manager:      ['dashboard', 'masterlist', 'applications', 'residents', 'scheduling', 'chores', 'incidents', 'incident_safety', 'chat', 'inventory', 'training', 'secure_docs'],
-  house_manager_trainee:  ['dashboard', 'masterlist', 'residents', 'scheduling', 'chores', 'chat', 'inventory', 'training'],
-  case_manager:           ['dashboard', 'masterlist', 'applications', 'residents', 'incidents', 'incident_safety', 'chat', 'inventory', 'training', 'secure_docs'],
-  peer_support:           ['dashboard', 'residents', 'chat', 'training'],
-  staff:                  ['dashboard', 'residents', 'chat', 'training', 'secure_docs'],
-
-  // Residents — portal only, no staff/admin views
-  resident:               ['my_profile', 'chat', 'resources'],
-  user:                   ['my_profile', 'chat', 'resources'],
-};
 
 const allNavItems = [
   { id: 'dashboard', label: 'Dashboard', icon: Home, path: '/' },
@@ -70,26 +49,29 @@ export default function Layout() {
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [mobileOpen, setMobileOpen] = useState(false);
   const location = useLocation();
-  const navigate = useNavigate();
 
   useEffect(() => {
     appClient.auth.me().then(me => {
       setUser(me);
-      // Redirect residents to their portal if they land on admin pages
-      const residentRoles = ['resident', 'user'];
-      const isResidentRole = residentRoles.includes(me?.role);
-      const adminPaths = ['/residents', '/locations', '/staff', '/incidents', '/compliance', '/inventory', '/incident-safety', '/scheduling', '/intake'];
-      if (isResidentRole && (location.pathname === '/' || adminPaths.includes(location.pathname))) {
-        navigate('/my-profile', { replace: true });
-      }
     }).catch(() => {});
   }, []);
 
-  const userRole = user?.role || 'staff';
-  const isResident = userRole === 'resident' || userRole === 'user';
+  if (!user) {
+    return <div className="fixed inset-0 flex items-center justify-center bg-slate-50 text-sm text-slate-600">Loading workspace...</div>;
+  }
+
+  const userRole = user.role;
   const effectiveRole = userRole;
-  const allowedNav = roleNavMap[effectiveRole] || roleNavMap['staff'];
+  const allowedNav = navForRole(effectiveRole);
   const navItems = allNavItems.filter(item => allowedNav.includes(item.id));
+
+  if (allowedNav.length === 0) {
+    return <div className="fixed inset-0 flex items-center justify-center bg-slate-50 text-sm text-slate-700">This account does not have an assigned ClearPath role.</div>;
+  }
+
+  if (!canAccessRoute(effectiveRole, location.pathname)) {
+    return <Navigate to={defaultRouteForRole(effectiveRole)} replace />;
+  }
 
   const handleLogout = () => appClient.auth.logout();
 

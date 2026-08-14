@@ -1,0 +1,28 @@
+{
+  "sourceSystem": "oathtrack",
+  "organizationId": "[FILL: CLEARPATH_ORGANIZATION_UUID]",
+  "cutoffAt": "[FILL: ISO_8601_CUTOFF_TIMESTAMP]",
+  "attachmentManifest": "attachments.csv",
+  "files": [
+    {
+      "entity": "locations",
+      "path": "locations.csv",
+      "columnMap": {
+        "Oath Track House ID": "source_id",
+        "House Name": "name",
+        "Total Beds": "total_beds"
+      }
+    },
+    {
+      "entity": "residents",
+      "path": "residents.csv",
+      "columnMap": {
+        "Oath Track Resident ID": "source_id",
+        "Oath Track House ID": "source_location_id",
+        "First Name": "first_name",
+        "Last Name": "last_name",
+        "Status": "status"
+      }
+    }
+  ]
+}

@@ -22,6 +22,7 @@ const roleColors = {
 
 export default function Staff() {
   const [staff, setStaff] = useState([]);
+  const [locations, setLocations] = useState([]);
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
@@ -31,12 +32,14 @@ export default function Staff() {
   useEffect(() => { loadData(); }, []);
   const loadData = async () => {
     try {
-      const [s, u] = await Promise.all([
+      const [s, u, l] = await Promise.all([
         appClient.entities.StaffMember.list('-created_date', 100),
         appClient.auth.me(),
+        appClient.entities.Location.filter({ status: 'active' }),
       ]);
       setStaff(s);
       setUser(u);
+      setLocations(l);
     } catch (e) { console.error(e); }
     finally { setLoading(false); }
   };
@@ -112,9 +115,14 @@ export default function Staff() {
       {showForm && (
         <StaffForm
           member={editing}
+          locations={locations}
           onSave={async (data) => {
-            if (data.id) await appClient.entities.StaffMember.update(data.id, data);
-            else await appClient.entities.StaffMember.create({ ...data, organization_id: 'default' });
+            if (data.id) {
+              const updated = await appClient.entities.StaffMember.update(data.id, data);
+              await appClient.staffAccess.updateAssignments(updated);
+            } else {
+              await appClient.staffAccess.invite({ ...data, organization_id: user.organization_id });
+            }
             setShowForm(false);
             setEditing(null);
             loadData();
@@ -126,12 +134,14 @@ export default function Staff() {
   );
 }
 
-function StaffForm({ member, onSave, onClose }) {
+function StaffForm({ member, locations, onSave, onClose }) {
   const [form, setForm] = useState(member || {
     first_name: '', last_name: '', email: '', phone: '',
-    role: 'staff', title: '', hire_date: '', status: 'active', lived_experience: false,
+    role: 'staff', title: '', hire_date: '', status: 'active', lived_experience: false, location_ids: [],
   });
   const [saving, setSaving] = useState(false);
+  const [error, setError] = useState('');
+  const [resetSent, setResetSent] = useState(false);
   const set = (k, v) => setForm(p => ({ ...p, [k]: v }));
 
   return (
@@ -141,10 +151,29 @@ function StaffForm({ member, onSave, onClose }) {
           <h2 className="font-bold">{member ? 'Edit Staff Member' : 'Add Staff Member'}</h2>
           <button onClick={onClose}><X className="w-5 h-5 text-slate-400" /></button>
         </div>
-        <form onSubmit={async e => { e.preventDefault(); setSaving(true); await onSave(form); setSaving(false); }} className="p-5 space-y-4">
+        <form onSubmit={async e => {
+          e.preventDefault(); setSaving(true); setError('');
+          try { await onSave(form); } catch (saveError) { setError(saveError.message); }
+          finally { setSaving(false); }
+        }} className="p-5 space-y-4">
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-1.5"><Label>First Name *</Label><Input value={form.first_name} onChange={e => set('first_name', e.target.value)} required /></div>
             <div className="space-y-1.5"><Label>Last Name *</Label><Input value={form.last_name} onChange={e => set('last_name', e.target.value)} required /></div>
+          </div>
+          <div className="space-y-2">
+            <Label>House Access</Label>
+            <div className="grid grid-cols-2 gap-2 rounded-lg border border-slate-200 p-3">
+              {locations.map(location => (
+                <label key={location.id} className="flex items-center gap-2 text-sm">
+                  <input type="checkbox" checked={(form.location_ids || []).includes(location.id)} onChange={event => {
+                    const selected = new Set(form.location_ids || []);
+                    if (event.target.checked) selected.add(location.id); else selected.delete(location.id);
+                    set('location_ids', [...selected]);
+                  }} />
+                  {location.name}
+                </label>
+              ))}
+            </div>
           </div>
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-1.5"><Label>Email</Label><Input type="email" value={form.email} onChange={e => set('email', e.target.value)} /></div>
@@ -181,10 +210,20 @@ function StaffForm({ member, onSave, onClose }) {
             <input type="checkbox" checked={form.lived_experience} onChange={e => set('lived_experience', e.target.checked)} className="rounded" />
             Has lived experience in recovery
           </label>
+          {member?.email && (
+            <Button type="button" variant="outline" onClick={async () => {
+              setError('');
+              try { await appClient.staffAccess.sendPasswordReset(member.email); setResetSent(true); }
+              catch (resetError) { setError(resetError.message); }
+            }}>
+              {resetSent ? 'Recovery email requested' : 'Send password recovery'}
+            </Button>
+          )}
+          {error && <p className="text-sm text-red-700" role="alert">{error}</p>}
           <div className="flex justify-end gap-3 pt-2">
             <Button type="button" variant="outline" onClick={onClose}>Cancel</Button>
             <Button type="submit" disabled={saving} className="bg-teal-600 hover:bg-teal-700">
-              {saving ? 'Saving...' : member ? 'Save Changes' : 'Add Staff Member'}
+              {saving ? 'Saving...' : member ? 'Save Changes' : 'Invite Staff Member'}
             </Button>
           </div>
         </form>

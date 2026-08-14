@@ -18,6 +18,10 @@ dist
 dist-ssr
 *.local
 .vercel
+.migration-input/
+.migration-output/
+.playwright-cli/
+supabase/.branches/
 
 # Editor directories and files
 .vscode/*

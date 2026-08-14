@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { appClient } from '@/services/appClient';
 import { Link } from 'react-router-dom';
-import { Plus, Search, Upload, User, ChevronRight, AlertTriangle, ClipboardList } from 'lucide-react';
+import { Plus, Search, User, ChevronRight, AlertTriangle, ClipboardList } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent } from '@/components/ui/card';
@@ -9,7 +9,6 @@ import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import ResidentForm from '@/components/residents/ResidentForm';
 import ResidentDetail from '@/components/residents/ResidentDetail';
-import DataImportModal from '@/components/shared/DataImportModal';
 import ResidentAlertBadge from '@/components/residents/ResidentAlertBadge';
 import DocumentAlertPanel from '@/components/residents/DocumentAlertPanel';
 import { getResidentAlerts } from '@/lib/residentAlerts';
@@ -33,7 +32,6 @@ export default function Residents() {
   const [alertFilter, setAlertFilter] = useState(false);
   const [showForm, setShowForm] = useState(false);
   const [selectedResident, setSelectedResident] = useState(null);
-  const [showImport, setShowImport] = useState(false);
 
   useEffect(() => {
     loadData();
@@ -94,9 +92,6 @@ export default function Residents() {
           </p>
         </div>
         <div className="flex gap-2">
-          <Button variant="outline" onClick={() => setShowImport(true)} className="gap-2">
-            <Upload className="w-4 h-4" /> Import Data
-          </Button>
           <Link to="/intake">
             <Button variant="outline" className="gap-2" style={{ borderColor: '#B45309', color: '#B45309' }}>
               <ClipboardList className="w-4 h-4" /> Digital Intake Form
@@ -216,13 +211,6 @@ export default function Residents() {
           onEdit={() => setShowForm(true)}
           onClose={() => setSelectedResident(null)}
           onRefresh={loadData}
-        />
-      )}
-      {showImport && (
-        <DataImportModal
-          entityName="Resident"
-          onClose={() => setShowImport(false)}
-          onSuccess={() => { setShowImport(false); loadData(); }}
         />
       )}
     </div>
