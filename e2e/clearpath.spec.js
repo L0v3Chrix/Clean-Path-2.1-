@@ -53,6 +53,84 @@ test.describe.serial('production-backed operator acceptance', () => {
     expect(download.suggestedFilename()).toMatch(/^clearpath-resident-\d{4}-\d{2}-\d{2}\.csv$/);
   });
 
+  test('creates and edits a tenant-owned house', async ({ page }) => {
+    const suffix = Date.now().toString().slice(-6);
+    const originalName = `Browser House ${suffix}`;
+    const updatedName = `${originalName} Updated`;
+    await page.getByRole('link', { name: 'Locations', exact: true }).click();
+    await page.getByRole('button', { name: 'Add Location' }).click();
+    await page.getByText('Property Name *').locator('..').getByRole('textbox').fill(originalName);
+    await page.getByText('Address').locator('..').getByRole('textbox').fill('100 Acceptance Test Way');
+    await page.getByText('City').locator('..').getByRole('textbox').fill('Sample City');
+    await page.getByText('State').locator('..').getByRole('textbox').fill('MO');
+    await page.getByText('ZIP').locator('..').getByRole('textbox').fill('64001');
+    await page.getByText('Total Beds').locator('..').getByRole('spinbutton').fill('4');
+    await page.getByRole('button', { name: 'Add Location', exact: true }).last().click();
+    await expect(page.getByRole('button', { name: `Edit location ${originalName}` })).toBeVisible();
+    await page.getByRole('button', { name: `Edit location ${originalName}` }).click();
+    await page.getByText('Property Name *').locator('..').getByRole('textbox').fill(updatedName);
+    await page.getByRole('button', { name: 'Save Changes' }).click();
+    await expect(page.getByRole('button', { name: `Edit location ${updatedName}` })).toBeVisible();
+  });
+
+  test('creates and edits a staff shift', async ({ page }) => {
+    const seed = Number(Date.now().toString().slice(-4));
+    const hour = String(5 + (seed % 8)).padStart(2, '0');
+    const minute = String(seed % 60).padStart(2, '0');
+    const start = `${hour}:${minute}`;
+    const end = `${String(Number(hour) + 1).padStart(2, '0')}:${minute}`;
+    const updatedEnd = `${String(Number(hour) + 2).padStart(2, '0')}:${minute}`;
+    const date = new Date().toISOString().slice(0, 10);
+    await page.getByRole('link', { name: 'Scheduling', exact: true }).click();
+    await page.getByRole('button', { name: 'Assign Shift' }).click();
+    await page.getByText('Location *').locator('..').getByRole('combobox').click();
+    await page.getByRole('option', { name: 'SAMPLE - North House' }).click();
+    await page.getByText('Staff Member *').locator('..').getByRole('combobox').click();
+    await page.getByRole('option', { name: /Sample Staff/ }).click();
+    await page.getByText('Start Time *').locator('..').getByRole('textbox').fill(start);
+    await page.getByText('End Time *').locator('..').getByRole('textbox').fill(end);
+    await page.getByRole('button', { name: 'Assign Shift', exact: true }).last().click();
+    const createdShift = page.getByRole('button', {
+      name: `Edit shift for Sample Staff on ${date} from ${start} to ${end}`,
+    });
+    await expect(createdShift).toBeVisible();
+    await createdShift.click();
+    await page.getByText('End Time *').locator('..').getByRole('textbox').fill(updatedEnd);
+    await page.getByRole('button', { name: 'Update Shift' }).click();
+    await expect(page.getByRole('button', {
+      name: `Edit shift for Sample Staff on ${date} from ${start} to ${updatedEnd}`,
+    })).toBeVisible();
+  });
+
+  test('creates and updates a resident care plan goal and task', async ({ page }) => {
+    const suffix = Date.now().toString().slice(-6);
+    const goalTitle = `Browser recovery goal ${suffix}`;
+    const updatedGoalTitle = `${goalTitle} updated`;
+    const taskTitle = `Browser follow-up ${suffix}`;
+    await page.getByRole('link', { name: 'Residents', exact: true }).click();
+    await page.getByRole('button', { name: /Demo Jordan/ }).click();
+    await page.getByRole('button', { name: 'Care Plan' }).click();
+    await page.getByRole('button', { name: 'Add Goal' }).click();
+    await page.getByPlaceholder('e.g. Maintain 90 days sobriety').fill(goalTitle);
+    await page.getByRole('button', { name: 'Save Goal' }).click();
+    let goal = page.getByRole('article', { name: `Care plan goal: ${goalTitle}` });
+    await expect(goal).toBeVisible();
+    await goal.getByTitle('Edit goal').click();
+    await page.getByPlaceholder('e.g. Maintain 90 days sobriety').fill(updatedGoalTitle);
+    await page.getByText('Status').locator('..').getByRole('combobox').click();
+    await page.getByRole('option', { name: 'In Progress' }).click();
+    await page.getByRole('button', { name: 'Save Goal' }).click();
+    goal = page.getByRole('article', { name: `Care plan goal: ${updatedGoalTitle}` });
+    await expect(goal).toBeVisible();
+    await goal.getByRole('button', { name: 'Add task to this goal' }).click();
+    await page.getByPlaceholder('e.g. Weekly check-in call').fill(taskTitle);
+    await page.getByRole('button', { name: 'Save Task' }).click();
+    const taskRow = goal.getByRole('article', { name: `Care plan task: ${taskTitle}` });
+    await expect(taskRow).toBeVisible();
+    await taskRow.getByRole('button', { name: `Complete task ${taskTitle}` }).click();
+    await expect(goal.getByText(taskTitle)).toHaveClass(/line-through/);
+  });
+
   test('assigns an applicant to an available bed', async ({ page }) => {
     const applicantName = await createApplicant(page, 'Bed');
     await page.getByRole('link', { name: 'Bed Capacity', exact: true }).click();

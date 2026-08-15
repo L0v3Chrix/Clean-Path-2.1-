@@ -156,7 +156,7 @@ npm run sample:validate
 
 Run a final dependency scan for any legacy backend provider names before release. Expected result: no matches.
 
-`npm run verify` is also enforced on pull requests by `.github/workflows/verify.yml`. The database-and-browser job starts a clean Supabase stack, applies every migration, runs the role/house/core-workflow acceptance matrix, seeds deterministic sample users, and runs Playwright with demo and auth bypasses disabled. Browser acceptance covers resident/contact creation, bed assignment, medication logging, incident handling, private document access, anonymous public-intake submission with a private attachment and signature, audited exports, staff invitation, and logout, and rejects console or page errors. A standalone local `npm run test:e2e` expects that same seeded Supabase stack and its Edge Functions to be running.
+`npm run verify` is also enforced on pull requests by `.github/workflows/verify.yml`. The database-and-browser job starts a clean Supabase stack, applies every migration, runs the role/house/core-workflow acceptance matrix, seeds deterministic sample users, and runs Playwright with demo and auth bypasses disabled. Browser acceptance covers resident/contact creation, tenant-owned house creation and editing, shift creation and editing, care-plan goal/task creation and updates, bed assignment, medication logging, incident handling, private document access, anonymous public-intake submission with a private attachment and signature, audited exports, staff invitation, and logout, and rejects console or page errors. A standalone local `npm run test:e2e` expects that same seeded Supabase stack and its Edge Functions to be running.
 
 ## Dependency Map
 

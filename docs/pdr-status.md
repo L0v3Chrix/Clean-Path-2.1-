@@ -26,7 +26,7 @@ This file separates repository completion from cutover completion. A green build
 - [x] Pull-request CI runs tests, lint, type checking, production build, dependency threshold, clean database migrations, the RLS acceptance matrix, and real-browser operator workflows with both bypass flags disabled.
 - [x] Synthetic migration import, unchanged rerun, reconciliation, rollback, and reimport have been exercised locally.
 - [x] Local database tests cover owner, assigned staff, resident, anonymous, cross-house, core-workflow, audit, export, and cascading-delete behavior.
-- [x] Playwright covers authenticated resident/contact creation, bed assignment, medication dose logging, incident creation/status handling, private document access, authorized export, anonymous public-intake submission with a private attachment, consent, and signature, assigned-staff invitation, and sign-out against local Supabase with no console or page errors.
+- [x] Playwright covers authenticated resident/contact creation, tenant-owned house creation/editing, shift creation/editing, care-plan goal/task creation and updates, bed assignment, medication dose logging, incident creation/status handling, private document access, authorized export, anonymous public-intake submission with a private attachment, consent, and signature, assigned-staff invitation, and sign-out against local Supabase with no console or page errors.
 
 ## External Cutover Gates
 

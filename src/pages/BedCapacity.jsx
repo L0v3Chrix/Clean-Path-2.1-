@@ -297,6 +297,7 @@ export default function BedCapacity() {
   const [locations, setLocations] = useState([]);
   const [residents, setResidents] = useState([]);
   const [bedAssignments, setBedAssignments] = useState([]);
+  const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [filter, setFilter] = useState('all'); // all | available | full | critical
@@ -305,14 +306,16 @@ export default function BedCapacity() {
 
   const loadData = useCallback(async () => {
     setLoading(true);
-    const [locs, res, beds] = await Promise.all([
+    const [locs, res, beds, currentUser] = await Promise.all([
       appClient.entities.Location.list(),
       appClient.entities.Resident.list(),
       appClient.entities.BedAssignment.list(),
+      appClient.auth.me(),
     ]);
     setLocations(locs.filter(l => l.status === 'active'));
     setResidents(res);
     setBedAssignments(beds);
+    setUser(currentUser);
     setLoading(false);
   }, []);
 
@@ -489,6 +492,7 @@ export default function BedCapacity() {
       {showExpand && (
         <ExpandCapacityModal
           locations={locations}
+          organizationId={user?.organization_id}
           onClose={() => setShowExpand(false)}
           onSaved={() => { setShowExpand(false); loadData(); }}
         />

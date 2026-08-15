@@ -37,15 +37,42 @@ function normalizePayload(payload) {
   return Object.fromEntries(
     Object.entries(payload).flatMap(([key, value]) => {
       if (value === undefined) return [];
-      if (key === 'organization_id' && value === 'default') {
-        return [[key, import.meta.env.VITE_DEMO_ORGANIZATION_ID || value]];
-      }
       return [[key, value === '' ? null : value]];
     }),
   );
 }
 
-export function createEntityService(supabaseClient, { table, schema }) {
+async function resolveActiveOrganizationId(supabaseClient) {
+  const { data: userResult, error: userError } = await supabaseClient.auth.getUser();
+  if (userError || !userResult?.user) {
+    throw new Error(userError?.message || 'Sign in before creating records.');
+  }
+
+  const { data: membership, error: membershipError } = await supabaseClient
+    .from('organization_members')
+    .select('organization_id')
+    .eq('user_id', userResult.user.id)
+    .eq('status', 'active')
+    .limit(1)
+    .maybeSingle();
+  if (membershipError) throw normalizeError(membershipError);
+  if (!membership?.organization_id) {
+    throw new Error('Your account does not have an active organization membership.');
+  }
+  return membership.organization_id;
+}
+
+async function normalizeCreatePayload(supabaseClient, payload, tenantScoped) {
+  const normalized = normalizePayload(payload);
+  if (!tenantScoped || !normalized || typeof normalized !== 'object') return normalized;
+  if (normalized.organization_id && normalized.organization_id !== 'default') return normalized;
+  return {
+    ...normalized,
+    organization_id: await resolveActiveOrganizationId(supabaseClient),
+  };
+}
+
+export function createEntityService(supabaseClient, { table, schema, tenantScoped = true }) {
   return {
     async list(sort = '-created_at', limit = 500) {
       if (authBypassEnabled) {
@@ -79,7 +106,8 @@ export function createEntityService(supabaseClient, { table, schema }) {
         return localBypassStore.create(table, payload);
       }
 
-      return readSingle(supabaseClient.from(table).insert(normalizePayload(payload)).select('*'));
+      const normalized = await normalizeCreatePayload(supabaseClient, payload, tenantScoped);
+      return readSingle(supabaseClient.from(table).insert(normalized).select('*'));
     },
 
     async bulkCreate(records) {
@@ -87,9 +115,23 @@ export function createEntityService(supabaseClient, { table, schema }) {
         return localBypassStore.bulkCreate(table, records);
       }
 
-      const { data, error } = await supabaseClient.from(table).insert(records.map(normalizePayload)).select('*');
-      const normalized = normalizeError(error);
-      if (normalized) throw normalized;
+      let normalized = records.map(normalizePayload);
+      const needsOrganization = tenantScoped && normalized.some((record) =>
+        record && typeof record === 'object' &&
+        (!record.organization_id || record.organization_id === 'default'),
+      );
+      if (needsOrganization) {
+        const organizationId = await resolveActiveOrganizationId(supabaseClient);
+        normalized = normalized.map((record) => (
+          record && typeof record === 'object' &&
+          (!record.organization_id || record.organization_id === 'default')
+            ? { ...record, organization_id: organizationId }
+            : record
+        ));
+      }
+      const { data, error } = await supabaseClient.from(table).insert(normalized).select('*');
+      const normalizedError = normalizeError(error);
+      if (normalizedError) throw normalizedError;
       return data || [];
     },
 

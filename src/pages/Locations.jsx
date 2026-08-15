@@ -11,6 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 export default function Locations() {
   const [locations, setLocations] = useState([]);
   const [residents, setResidents] = useState([]);
+  const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [editing, setEditing] = useState(null);
@@ -19,12 +20,14 @@ export default function Locations() {
 
   const loadData = async () => {
     try {
-      const [l, r] = await Promise.all([
+      const [l, r, currentUser] = await Promise.all([
         appClient.entities.Location.list(),
         appClient.entities.Resident.list(),
+        appClient.auth.me(),
       ]);
       setLocations(l);
       setResidents(r);
+      setUser(currentUser);
     } catch (e) { console.error(e); }
     finally { setLoading(false); }
   };
@@ -59,7 +62,21 @@ export default function Locations() {
             const count = residentCount(loc.id);
             const occupancy = loc.total_beds > 0 ? Math.round((count / loc.total_beds) * 100) : 0;
             return (
-              <Card key={loc.id} className="cursor-pointer hover:shadow-md transition-shadow" onClick={() => { setEditing(loc); setShowForm(true); }}>
+              <Card
+                key={loc.id}
+                role="button"
+                tabIndex={0}
+                aria-label={`Edit location ${loc.name}`}
+                className="cursor-pointer hover:shadow-md transition-shadow"
+                onClick={() => { setEditing(loc); setShowForm(true); }}
+                onKeyDown={event => {
+                  if (event.key === 'Enter' || event.key === ' ') {
+                    event.preventDefault();
+                    setEditing(loc);
+                    setShowForm(true);
+                  }
+                }}
+              >
                 <CardContent className="p-5">
                   <div className="flex items-start justify-between mb-3">
                     <div className="w-10 h-10 bg-teal-100 rounded-xl flex items-center justify-center">
@@ -97,7 +114,7 @@ export default function Locations() {
           location={editing}
           onSave={async (data) => {
             if (data.id) await appClient.entities.Location.update(data.id, data);
-            else await appClient.entities.Location.create({ ...data, organization_id: 'default' });
+            else await appClient.entities.Location.create({ ...data, organization_id: user?.organization_id });
             setShowForm(false);
             setEditing(null);
             loadData();
@@ -110,11 +127,22 @@ export default function Locations() {
 }
 
 function LocationForm({ location, onSave, onClose }) {
-  const [form, setForm] = useState(location || {
-    name: '', address: '', city: '', state: '', zip: '',
-    housing_type: '', narr_level: 'II', total_beds: '', phone: '', status: 'active', notes: '',
-  });
+  const [form, setForm] = useState(() => ({
+    ...location,
+    name: location?.name || '',
+    address: location?.address || '',
+    city: location?.city || '',
+    state: location?.state || '',
+    zip: location?.zip || '',
+    housing_type: location?.housing_type || '',
+    narr_level: location?.narr_level || 'II',
+    total_beds: location?.total_beds ?? '',
+    phone: location?.phone || '',
+    status: location?.status || 'active',
+    notes: location?.notes || '',
+  }));
   const [saving, setSaving] = useState(false);
+  const [error, setError] = useState('');
   const set = (k, v) => setForm(p => ({ ...p, [k]: v }));
 
   return (
@@ -124,7 +152,13 @@ function LocationForm({ location, onSave, onClose }) {
           <h2 className="font-bold">{location ? 'Edit Location' : 'Add Location'}</h2>
           <button onClick={onClose}><X className="w-5 h-5 text-slate-400" /></button>
         </div>
-        <form onSubmit={async e => { e.preventDefault(); setSaving(true); await onSave(form); setSaving(false); }} className="p-5 space-y-4">
+        <form onSubmit={async e => {
+          e.preventDefault();
+          setSaving(true);
+          setError('');
+          try { await onSave(form); } catch (saveError) { setError(saveError.message); }
+          finally { setSaving(false); }
+        }} className="p-5 space-y-4">
           <div className="space-y-1.5">
             <Label>Property Name *</Label>
             <Input value={form.name} onChange={e => set('name', e.target.value)} required />
@@ -182,6 +216,7 @@ function LocationForm({ location, onSave, onClose }) {
               {saving ? 'Saving...' : location ? 'Save Changes' : 'Add Location'}
             </Button>
           </div>
+          {error && <p role="alert" className="text-sm text-red-700">{error}</p>}
         </form>
       </div>
     </div>

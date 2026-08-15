@@ -251,7 +251,7 @@ function PricingStep({ recommendedTierId, onSelect, selected }) {
 }
 
 // ── Main modal ───────────────────────────────────────────────
-export default function ExpandCapacityModal({ locations, onClose, onSaved }) {
+export default function ExpandCapacityModal({ locations, organizationId, onClose, onSaved }) {
   const [step, setStep] = useState(1); // 1=action, 2=configure, 3=pricing
   const [action, setAction] = useState(null);
   const [formData, setFormData] = useState({});
@@ -291,7 +291,7 @@ export default function ExpandCapacityModal({ locations, onClose, onSaved }) {
         total_beds: Number(formData.total_beds || 0),
         narr_level: formData.narr_level,
         status: 'active',
-        organization_id: 'default',
+        organization_id: organizationId,
       });
     }
     setSaving(false);
