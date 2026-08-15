@@ -102,7 +102,7 @@ test.describe.serial('production-backed operator acceptance', () => {
     await expect(downloadLink).toHaveAttribute('href', /storage\/v1\/object\/sign\/secure-documents\//);
   });
 
-  test('rotates and opens a protected public-intake token', async ({ page, context }) => {
+  test('submits an anonymous intake through the protected public token', async ({ page, context }) => {
     await page.getByRole('link', { name: 'Settings', exact: true }).click();
     await page.getByRole('button', { name: 'Create intake link' }).click();
     const preview = page.getByRole('link', { name: 'Preview' });
@@ -111,6 +111,33 @@ test.describe.serial('production-backed operator acceptance', () => {
     const intakePage = await context.newPage();
     await intakePage.goto(intakeUrl);
     await expect(intakePage.getByRole('heading', { name: /Resident Application/ })).toBeVisible();
+    const suffix = Date.now().toString().slice(-6);
+    await intakePage.getByText('First Name *').locator('..').getByRole('textbox').fill('Public');
+    await intakePage.getByText('Last Name *').locator('..').getByRole('textbox').fill(`Applicant ${suffix}`);
+    await intakePage.getByText('Date of Birth *').locator('..').getByRole('textbox').fill('1990-01-15');
+    for (let step = 0; step < 5; step += 1) {
+      await intakePage.getByRole('button', { name: 'Continue' }).click();
+    }
+    await intakePage.locator('input[type="file"]').first().setInputFiles({
+      name: 'browser-photo-id.png',
+      mimeType: 'image/png',
+      buffer: Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=', 'base64'),
+    });
+    await expect(intakePage.getByText(/browser-photo-id\.png/)).toBeVisible();
+    await intakePage.getByRole('button', { name: 'Continue' }).click();
+    await intakePage.getByRole('checkbox').check();
+    await intakePage.getByRole('button', { name: 'Continue' }).click();
+    const canvas = intakePage.locator('canvas');
+    const box = await canvas.boundingBox();
+    await intakePage.mouse.move(box.x + 60, box.y + 70);
+    await intakePage.mouse.down();
+    await intakePage.mouse.move(box.x + 180, box.y + 35, { steps: 8 });
+    await intakePage.mouse.move(box.x + 300, box.y + 80, { steps: 8 });
+    await intakePage.mouse.up();
+    await intakePage.getByRole('checkbox').check();
+    await intakePage.getByRole('button', { name: 'Submit Application' }).click();
+    await expect(intakePage.getByRole('heading', { name: 'Application Submitted!' })).toBeVisible({ timeout: 15_000 });
+    await expect(intakePage.getByText(`Public Applicant ${suffix}`)).toBeVisible();
     await intakePage.close();
   });
 
