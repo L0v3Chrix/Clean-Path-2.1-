@@ -4,7 +4,75 @@ insert into auth.users (id, instance_id, aud, role, email, encrypted_password, c
 values
   ('10000000-0000-4000-8000-000000000001', '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated', 'owner@example.test', '', now(), now()),
   ('10000000-0000-4000-8000-000000000002', '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated', 'staff@example.test', '', now(), now()),
-  ('10000000-0000-4000-8000-000000000003', '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated', 'resident@example.test', '', now(), now());
+  ('10000000-0000-4000-8000-000000000003', '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated', 'resident@example.test', '', now(), now()),
+  ('10000000-0000-4000-8000-000000000004', '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated', 'bootstrap-owner@example.test', '', now(), now()),
+  ('10000000-0000-4000-8000-000000000005', '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated', 'second-bootstrap@example.test', '', now(), now());
+
+do $$
+begin
+  if not exists (
+    select 1 from public.organizations
+    where id = '00000000-0000-4000-8000-000000000001'
+      and name = 'Recovery Centered Living'
+      and status = 'active'
+  ) then
+    raise exception 'Production tenant must exist before first-owner bootstrap';
+  end if;
+end;
+$$;
+
+do $$
+begin
+  if has_function_privilege('anon', 'public.auto_log_resident_milestone()', 'EXECUTE')
+     or has_function_privilege('authenticated', 'public.auto_log_resident_milestone()', 'EXECUTE') then
+    raise exception 'Trigger-only milestone function must not be directly executable';
+  end if;
+end;
+$$;
+
+set local role authenticated;
+select set_config('request.jwt.claim.role', 'authenticated', true);
+select set_config('request.jwt.claim.sub', '10000000-0000-4000-8000-000000000004', true);
+select public.bootstrap_organization_owner(
+  '00000000-0000-4000-8000-000000000001',
+  'Bootstrap Owner',
+  'bootstrap-owner@example.test'
+);
+reset role;
+
+do $$
+begin
+  if not exists (
+    select 1 from public.organization_members
+    where organization_id = '00000000-0000-4000-8000-000000000001'
+      and user_id = '10000000-0000-4000-8000-000000000004'
+      and role = 'owner'
+      and status = 'active'
+  ) then
+    raise exception 'First authenticated user must become the production tenant owner';
+  end if;
+end;
+$$;
+
+set local role authenticated;
+select set_config('request.jwt.claim.role', 'authenticated', true);
+select set_config('request.jwt.claim.sub', '10000000-0000-4000-8000-000000000005', true);
+do $$
+begin
+  perform public.bootstrap_organization_owner(
+    '00000000-0000-4000-8000-000000000001',
+    'Second Bootstrap',
+    'second-bootstrap@example.test'
+  );
+  raise exception 'Second bootstrap unexpectedly succeeded';
+exception
+  when others then
+    if sqlerrm <> 'Organization already has active members' then
+      raise;
+    end if;
+end;
+$$;
+reset role;
 
 insert into public.organizations (id, name, status)
 values ('20000000-0000-4000-8000-000000000001', 'RLS Test Organization', 'active');

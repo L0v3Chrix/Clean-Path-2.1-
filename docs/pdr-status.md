@@ -10,8 +10,11 @@ This file separates repository completion from cutover completion. A green build
 - Pull-request checks: application verification, clean-database verification, and Vercel preview build are configured.
 - The verified application baseline is `6464099`; GitHub application, database/browser, and Vercel checks pass for that commit.
 - Vercel Supabase resource `clearpath-production` is attached to `clearpath-rcl-mvp` Preview and Production. The accepted preview compiles the new Supabase project reference with both `VITE_AUTH_BYPASS=false` and `VITE_CLEARPATH_DEMO_MODE=false`.
-- Live verification on 2026-08-15: all five migrations are applied; 49 public tables, 173 RLS policies, four private buckets, owner bootstrap, migration lineage, error audit, and export audit are present. The `health`, `public-intake`, and `invite-staff` Edge Functions are deployed with the intended anonymous/authenticated gateway boundaries.
+- Live verification on 2026-08-15: all seven migrations are applied and recorded in the Supabase migration ledger; 49 public tables, 173 RLS policies, four private buckets, owner bootstrap, migration lineage, error audit, and export audit are present. The `health`, `public-intake`, and `invite-staff` Edge Functions are deployed with the intended anonymous/authenticated gateway boundaries.
 - The health endpoint returns HTTP 200 with `database: ok`; anonymous public intake reaches application token validation; unauthenticated staff invitation is rejected at the gateway.
+- The production tenant row exists, first-owner bootstrap is one-time, and the trigger-only milestone function is not executable by anonymous or authenticated API roles. The refreshed Supabase Security Advisor reports zero errors and 11 expected warnings for authenticated RLS/audit helper functions.
+- Supabase Auth uses the stable production URL and an explicit three-entry redirect allow list for production, the migration branch preview, and local development. Email confirmation remains required and anonymous sign-in is disabled.
+- A daily physical database backup dated 2026-08-15 is available. Supabase database backups exclude Storage objects, and an isolated restore plus separate object-backup proof is still required before cutover.
 - Vercel production is still the older deployment. Production environment flags have been set to false, but no production promotion is allowed until the remaining cutover gates pass.
 - The sibling public website labels six listings `RCL One` through `RCL Six`, but its two house-data files disagree on gender mix, capacity, occupancy, and pricing and provide no approved addresses or Oath Track counts. These are candidate display labels only, not an accepted migration roster.
 
@@ -39,6 +42,7 @@ This file separates repository completion from cutover completion. A green build
 - [ ] Complete Oath Track exports, data dictionary, attachment archive/manifest, history cutoff, and financial totals are supplied.
 - [ ] Staff roster with roles and house assignments is approved.
 - [x] Business-owned Vercel-managed Supabase project is provisioned; migrations, Auth, private Storage, and Edge Functions are deployed and structurally verified.
+- [x] Production tenant, migration ledger, authentication URL allow list, and first-owner bootstrap contract are verified.
 - [x] Accepted preview compiles `VITE_AUTH_BYPASS=false` and `VITE_CLEARPATH_DEMO_MODE=false` against the new Supabase project.
 - [ ] Production is promoted from the accepted Git commit and both bypass flags are re-observed on that deployment.
 - [ ] The first approved owner account is created and the organization-owner bootstrap succeeds.

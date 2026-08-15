@@ -13,7 +13,7 @@ Do not begin a confirmed import until these items are complete:
 - `[FILL: DOCUMENT_AND_ATTACHMENT_ARCHIVE_WITH_SOURCE_IDS]`.
 - `[FILL: RECORD_HISTORY_CUTOFF_AND_REQUIRED_HISTORICAL_DOMAINS]`.
 - `[FILL: REQUIRED_FINANCIAL_BALANCES_AND_PAYMENT_HISTORY]`.
-- `[FILL: BUSINESS_OWNED_SUPABASE_PROJECT]` with backups and restore access verified.
+- Vercel-managed Supabase project `clearpath-production` (`dcfldvtdrpukaojkpvzp`); daily database backup is observed, while isolated restore and Storage-object backup proof remain required.
 
 ## Input Contract
 
@@ -80,7 +80,7 @@ An unchanged rerun skips previously imported source records. A changed row with 
 
 ## Backup And Recovery
 
-Before cutover, create a provider backup and a logical database dump, then restore into an isolated project. Record the backup identifier, dump checksum, restore target, start/end time, operator, and reconciliation report under `.migration-output/`. A backup is not accepted until its restore has succeeded.
+Before cutover, create a provider backup and a logical database dump, then restore into an isolated project. Back up Storage objects separately because Supabase database backups contain Storage metadata but not the objects themselves. Record the database backup identifier, object-manifest checksum, dump checksum, restore target, start/end time, operator, and reconciliation report under `.migration-output/`. A backup is not accepted until its database and required objects have both been restored successfully.
 
 The restore target is destructive and must be an isolated database. The command refuses to run when the source and restore host/database identity match:
 
