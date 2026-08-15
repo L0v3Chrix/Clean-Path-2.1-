@@ -11,6 +11,18 @@ function captureBrowserErrors(page, errors) {
   page.on('pageerror', (error) => errors.push(`page: ${error.message}`));
 }
 
+async function createApplicant(page, firstName) {
+  const lastName = `Test ${Date.now().toString().slice(-6)}`;
+  await page.getByRole('link', { name: 'Residents', exact: true }).click();
+  await page.getByRole('button', { name: 'New Intake' }).click();
+  await page.getByText('First Name *').locator('..').getByRole('textbox').fill(firstName);
+  await page.getByText('Last Name *').locator('..').getByRole('textbox').fill(lastName);
+  await page.getByRole('button', { name: 'Complete Intake' }).click();
+  const fullName = `${firstName} ${lastName}`;
+  await expect(page.getByText(fullName)).toBeVisible();
+  return fullName;
+}
+
 test.describe.serial('production-backed operator acceptance', () => {
   test.beforeEach(async ({ context, page }) => {
     const errors = [];
@@ -29,13 +41,7 @@ test.describe.serial('production-backed operator acceptance', () => {
   });
 
   test('creates and reads a resident through authenticated RLS', async ({ page }) => {
-    const suffix = Date.now().toString().slice(-6);
-    await page.getByRole('link', { name: 'Residents', exact: true }).click();
-    await page.getByRole('button', { name: 'New Intake' }).click();
-    await page.getByText('First Name *').locator('..').getByRole('textbox').fill('Browser');
-    await page.getByText('Last Name *').locator('..').getByRole('textbox').fill(`Test ${suffix}`);
-    await page.getByRole('button', { name: 'Complete Intake' }).click();
-    await expect(page.getByText(`Browser Test ${suffix}`)).toBeVisible();
+    await createApplicant(page, 'Browser');
   });
 
   test('downloads an authorized report', async ({ page }) => {
@@ -48,17 +54,17 @@ test.describe.serial('production-backed operator acceptance', () => {
   });
 
   test('assigns an applicant to an available bed', async ({ page }) => {
+    const applicantName = await createApplicant(page, 'Bed');
     await page.getByRole('link', { name: 'Bed Capacity', exact: true }).click();
     await expect(page.getByRole('heading', { name: 'Bed Capacity Dashboard' })).toBeVisible();
     await page.getByRole('button', { name: 'Assign Applicant' }).first().click();
     await page.getByText('Applicant *').locator('..').getByRole('combobox').click();
-    await page.getByRole('option', { name: 'Demo Applicant' }).click();
-    await page.getByText('Available Bed').locator('..').getByRole('combobox').click();
-    await page.getByRole('option').first().click();
+    await page.getByRole('option', { name: applicantName }).click();
+    await page.getByPlaceholder('e.g. 2A, Rm 3').fill(`QA-${Date.now().toString().slice(-6)}`);
     await page.getByRole('button', { name: 'Confirm Assignment' }).click();
     await expect(page.getByRole('heading', { name: 'Assign Applicant to Bed' })).not.toBeVisible();
     await page.getByRole('button', { name: 'View Details' }).first().click();
-    await expect(page.getByText('Demo Applicant')).toBeVisible();
+    await expect(page.getByText(applicantName)).toBeVisible();
   });
 
   test('logs a resident medication dose', async ({ page }) => {
@@ -84,7 +90,9 @@ test.describe.serial('production-backed operator acceptance', () => {
     await page.getByRole('button', { name: 'Submit Report' }).click();
     await expect(page.getByText(description)).toBeVisible();
     await page.getByText(description).click();
-    await page.getByTitle('Mark as In Review').click();
+    const inReview = page.getByTitle('Mark as In Review');
+    await inReview.click();
+    await expect(inReview).toHaveAttribute('aria-pressed', 'true');
     await page.reload();
     const incidentRow = page.getByRole('button', { name: new RegExp(description) });
     await expect(incidentRow.getByText('in review')).toBeVisible();

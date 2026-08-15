@@ -30,6 +30,7 @@ function StatusPipeline({ current, onChange }) {
             key={s}
             onClick={() => onChange(s)}
             title={`Mark as ${STATUS_LABELS[s]}`}
+            aria-pressed={isCurrent}
             className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-semibold transition-all border"
             style={{
               background: isCurrent ? cfg.bg : isPast ? '#F0E9DC' : '#F9F6F0',
