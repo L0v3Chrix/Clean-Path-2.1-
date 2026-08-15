@@ -1,6 +1,6 @@
 # Six-House Migration PDR Status
 
-Status date: 2026-08-14
+Status date: 2026-08-15
 
 This file separates repository completion from cutover completion. A green build or deployment is not proof that source data, a production backend, reconciliation, restoration, or human approval exists.
 
@@ -8,9 +8,11 @@ This file separates repository completion from cutover completion. A green build
 
 - Draft PR: `L0v3Chrix/Clean-Path-2.1-#1` from `codex/six-house-migration-readiness`.
 - Pull-request checks: application verification, clean-database verification, and Vercel preview build are configured.
-- Vercel previews use explicit fake demo-only values; they do not connect to or authorize real resident data.
-- Live audit on 2026-08-14: the accepted preview is built from `56c7ff1`, while Vercel production is still the 2026-07-17 deployment. The production shell returns HTTP 200, but its configured Supabase host does not resolve, so production is not a functioning backend release.
-- Production `VITE_AUTH_BYPASS=false` is observed. Vercel masks the production demo-mode value as sensitive, so `VITE_CLEARPATH_DEMO_MODE=false` is not yet independently proven.
+- The verified application baseline is `6464099`; GitHub application, database/browser, and Vercel checks pass for that commit.
+- Vercel Supabase resource `clearpath-production` is attached to `clearpath-rcl-mvp` Preview and Production. The accepted preview compiles the new Supabase project reference with both `VITE_AUTH_BYPASS=false` and `VITE_CLEARPATH_DEMO_MODE=false`.
+- Live verification on 2026-08-15: all five migrations are applied; 49 public tables, 173 RLS policies, four private buckets, owner bootstrap, migration lineage, error audit, and export audit are present. The `health`, `public-intake`, and `invite-staff` Edge Functions are deployed with the intended anonymous/authenticated gateway boundaries.
+- The health endpoint returns HTTP 200 with `database: ok`; anonymous public intake reaches application token validation; unauthenticated staff invitation is rejected at the gateway.
+- Vercel production is still the older deployment. Production environment flags have been set to false, but no production promotion is allowed until the remaining cutover gates pass.
 - The sibling public website labels six listings `RCL One` through `RCL Six`, but its two house-data files disagree on gender mix, capacity, occupancy, and pricing and provide no approved addresses or Oath Track counts. These are candidate display labels only, not an accepted migration roster.
 
 ## Repository-Owned Work
@@ -36,8 +38,10 @@ This file separates repository completion from cutover completion. A green build
 - [ ] Six named houses, addresses, beds/rooms, settings, and approved source counts are supplied.
 - [ ] Complete Oath Track exports, data dictionary, attachment archive/manifest, history cutoff, and financial totals are supplied.
 - [ ] Staff roster with roles and house assignments is approved.
-- [ ] Business-owned Supabase project is provisioned; migrations, Auth, private Storage, backups, and Edge Functions are deployed and verified.
-- [ ] Production `VITE_AUTH_BYPASS=false` and `VITE_CLEARPATH_DEMO_MODE=false` are observed on the accepted deployment.
+- [x] Business-owned Vercel-managed Supabase project is provisioned; migrations, Auth, private Storage, and Edge Functions are deployed and structurally verified.
+- [x] Accepted preview compiles `VITE_AUTH_BYPASS=false` and `VITE_CLEARPATH_DEMO_MODE=false` against the new Supabase project.
+- [ ] Production is promoted from the accepted Git commit and both bypass flags are re-observed on that deployment.
+- [ ] The first approved owner account is created and the organization-owner bootstrap succeeds.
 - [ ] Scrubbed rehearsal using the final Oath Track package passes reconciliation and operator acceptance.
 - [ ] Provider backup plus logical dump is restored into an isolated database and reconciled.
 - [ ] Final freeze, all-six-house import, file reconciliation, user provisioning, and production smoke check pass.
