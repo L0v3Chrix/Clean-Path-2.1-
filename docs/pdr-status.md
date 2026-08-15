@@ -9,6 +9,8 @@ This file separates repository completion from cutover completion. A green build
 - Draft PR: `L0v3Chrix/Clean-Path-2.1-#1` from `codex/six-house-migration-readiness`.
 - Pull-request checks: application verification, clean-database verification, and Vercel preview build are configured.
 - Vercel previews use explicit fake demo-only values; they do not connect to or authorize real resident data.
+- Live audit on 2026-08-14: the accepted preview is built from `56c7ff1`, while Vercel production is still the 2026-07-17 deployment. The production shell returns HTTP 200, but its configured Supabase host does not resolve, so production is not a functioning backend release.
+- Production `VITE_AUTH_BYPASS=false` is observed. Vercel masks the production demo-mode value as sensitive, so `VITE_CLEARPATH_DEMO_MODE=false` is not yet independently proven.
 - The sibling public website labels six listings `RCL One` through `RCL Six`, but its two house-data files disagree on gender mix, capacity, occupancy, and pricing and provide no approved addresses or Oath Track counts. These are candidate display labels only, not an accepted migration roster.
 
 ## Repository-Owned Work
