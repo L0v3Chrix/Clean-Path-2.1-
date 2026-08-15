@@ -54,7 +54,7 @@ export default function Residents() {
       setLocations(l);
       setDocuments(d);
       setContacts(c);
-      setOrganizationId(me.organization_id);
+      setOrganizationId(me.organization_id || r[0]?.organization_id || l[0]?.organization_id || null);
     } catch (e) {
       console.error(e);
     } finally {
@@ -87,6 +87,9 @@ export default function Residents() {
   };
 
   const handleSave = async (data) => {
+    if (!data.id && !organizationId) {
+      throw new Error('Unable to determine the active organization. Reload and try again.');
+    }
     const {
       emergency_contact_name,
       emergency_contact_phone,

@@ -22,32 +22,39 @@ export default function AssignBedModal({ locations, applicants, bedAssignments =
   const handleSave = async () => {
     if (!selectedApplicant || !selectedLocation) { setError('Please select both an applicant and a location.'); return; }
     setSaving(true);
-    const selectedBedRecord = availableBeds.find((bed) => bed.id === selectedBed);
-    await appClient.entities.Resident.update(selectedApplicant, {
-      location_id: selectedLocation,
-      status: 'active',
-      intake_date: intakeDate,
-      room: room || selectedBedRecord?.room || selectedBedRecord?.bed_label || undefined,
-    });
-    if (selectedBedRecord) {
-      await appClient.entities.BedAssignment.update(selectedBedRecord.id, {
-        status: 'occupied',
-        resident_id: selectedApplicant,
-        room: room || selectedBedRecord.room,
-        assigned_at: new Date().toISOString(),
-      });
-    } else {
-      await appClient.entities.BedAssignment.create({
-        organization_id: location?.organization_id || 'default',
+    setError('');
+    try {
+      const selectedBedRecord = availableBeds.find((bed) => bed.id === selectedBed);
+      await appClient.entities.Resident.update(selectedApplicant, {
         location_id: selectedLocation,
-        resident_id: selectedApplicant,
-        bed_label: room || 'Assigned bed',
-        room: room || undefined,
-        status: 'occupied',
-        assigned_at: new Date().toISOString(),
+        status: 'active',
+        intake_date: intakeDate,
+        room: room || selectedBedRecord?.room || selectedBedRecord?.bed_label || undefined,
       });
+      if (selectedBedRecord) {
+        await appClient.entities.BedAssignment.update(selectedBedRecord.id, {
+          status: 'occupied',
+          resident_id: selectedApplicant,
+          room: room || selectedBedRecord.room,
+          assigned_at: new Date().toISOString(),
+        });
+      } else {
+        await appClient.entities.BedAssignment.create({
+          organization_id: location?.organization_id || 'default',
+          location_id: selectedLocation,
+          resident_id: selectedApplicant,
+          bed_label: room || 'Assigned bed',
+          room: room || undefined,
+          status: 'occupied',
+          assigned_at: new Date().toISOString(),
+        });
+      }
+      await onSaved();
+    } catch (failure) {
+      setError(failure.message || 'Unable to assign this bed.');
+    } finally {
+      setSaving(false);
     }
-    onSaved();
   };
 
   return (

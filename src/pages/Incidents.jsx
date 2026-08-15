@@ -32,6 +32,7 @@ export default function Incidents() {
   const [residents, setResidents] = useState([]);
   const [locations, setLocations] = useState([]);
   const [staff, setStaff]         = useState([]);
+  const [organizationId, setOrganizationId] = useState(null);
   const [loading, setLoading]     = useState(true);
   const [search, setSearch]       = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
@@ -49,16 +50,18 @@ export default function Incidents() {
 
   const loadData = async () => {
     setLoading(true);
-    const [inc, res, loc, st] = await Promise.all([
+    const [inc, res, loc, st, me] = await Promise.all([
       appClient.entities.IncidentReport.list('-incident_date', 200),
       appClient.entities.Resident.list(),
       appClient.entities.Location.list(),
       appClient.entities.StaffMember.list(),
+      appClient.auth.me(),
     ]);
     setIncidents(inc);
     setResidents(res);
     setLocations(loc);
     setStaff(st);
+    setOrganizationId(me.organization_id || inc[0]?.organization_id || loc[0]?.organization_id || null);
     setLoading(false);
   };
 
@@ -253,9 +256,12 @@ export default function Incidents() {
           staff={staff}
           onSave={async (data) => {
             const isNew = !data.id;
+            if (isNew && !organizationId) {
+              throw new Error('Unable to determine the active organization. Reload and try again.');
+            }
             const saved = data.id
               ? await appClient.entities.IncidentReport.update(data.id, data)
-              : await appClient.entities.IncidentReport.create(data);
+              : await appClient.entities.IncidentReport.create({ ...data, organization_id: organizationId });
 
             // Critical incident notifications (new reports only)
             if (isNew && data.severity === 'critical') {
