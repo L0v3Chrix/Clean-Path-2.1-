@@ -34,13 +34,15 @@ async function readSingle(query) {
 
 function normalizePayload(payload) {
   if (!payload || typeof payload !== 'object') return payload;
-  return {
-    ...payload,
-    organization_id:
-      payload.organization_id === 'default'
-        ? import.meta.env.VITE_DEMO_ORGANIZATION_ID || payload.organization_id
-        : payload.organization_id,
-  };
+  return Object.fromEntries(
+    Object.entries(payload).flatMap(([key, value]) => {
+      if (value === undefined) return [];
+      if (key === 'organization_id' && value === 'default') {
+        return [[key, import.meta.env.VITE_DEMO_ORGANIZATION_ID || value]];
+      }
+      return [[key, value === '' ? null : value]];
+    }),
+  );
 }
 
 export function createEntityService(supabaseClient, { table, schema }) {

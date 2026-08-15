@@ -68,14 +68,15 @@ An unchanged rerun skips previously imported source records. A changed row with 
 
 1. Reset an isolated Supabase database and apply all migrations.
 2. Verify owner, manager, staff, resident, anonymous, and cross-house allow/deny cases.
-3. Restore a backup into an isolated database and run reconciliation there.
-4. Complete a scrubbed rehearsal using the final file layout and attachment manifest.
-5. Freeze Oath Track edits at `[FILL: cutoff timestamp]` and record source totals.
-6. Run one confirmed import for all six houses.
-7. Require reconciliation with no missing rows, duplicate source IDs, orphaned references, failed files, or unexplained financial differences.
-8. Provision users through staff invitations; do not migrate passwords.
-9. Promote only the Git-backed Vercel preview built from the accepted commit.
-10. Record approval from Slade and `[FILL: one representative per house]`.
+3. Run the Playwright operator suite against that database with demo and authentication bypasses disabled.
+4. Restore a backup into an isolated database and run reconciliation there.
+5. Complete a scrubbed rehearsal using the final file layout and attachment manifest.
+6. Freeze Oath Track edits at `[FILL: cutoff timestamp]` and record source totals.
+7. Run one confirmed import for all six houses.
+8. Require reconciliation with no missing rows, duplicate source IDs, orphaned references, failed files, or unexplained financial differences.
+9. Provision users through staff invitations; do not migrate passwords.
+10. Promote only the Git-backed Vercel preview built from the accepted commit.
+11. Record approval from Slade and `[FILL: one representative per house]`.
 
 ## Backup And Recovery
 

@@ -147,6 +147,7 @@ npm run lint
 npm run typecheck
 npm run build
 npm run test:db
+npm run test:e2e
 npm run verify
 npm run migration:validate -- .migration-input/manifest.json
 # Requires .env.sample-data.local and a seeded sample batch:
@@ -155,7 +156,7 @@ npm run sample:validate
 
 Run a final dependency scan for any legacy backend provider names before release. Expected result: no matches.
 
-`npm run verify` is also enforced on pull requests by `.github/workflows/verify.yml`. The database job starts a clean Supabase stack, applies every migration, and runs the role/house/core-workflow acceptance matrix.
+`npm run verify` is also enforced on pull requests by `.github/workflows/verify.yml`. The database-and-browser job starts a clean Supabase stack, applies every migration, runs the role/house/core-workflow acceptance matrix, seeds deterministic sample users, and runs Playwright with demo and auth bypasses disabled. A standalone local `npm run test:e2e` expects that same seeded Supabase stack and its Edge Functions to be running.
 
 ## Dependency Map
 

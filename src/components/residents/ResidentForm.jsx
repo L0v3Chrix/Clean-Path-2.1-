@@ -59,14 +59,21 @@ export default function ResidentForm({ resident, locations, onSave, onClose }) {
     trauma_informed_notes: '',
   });
   const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState('');
 
   const set = (k, v) => setForm(p => ({ ...p, [k]: v }));
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setSaving(true);
-    await onSave(form);
-    setSaving(false);
+    setSaveError('');
+    try {
+      await onSave(form);
+    } catch (error) {
+      setSaveError(error.message || 'Unable to save this resident.');
+    } finally {
+      setSaving(false);
+    }
   };
 
   return (
@@ -430,6 +437,7 @@ export default function ResidentForm({ resident, locations, onSave, onClose }) {
             <Textarea value={form.trauma_informed_notes} onChange={e => set('trauma_informed_notes', e.target.value)} rows={3} placeholder="e.g. Needs gender-affirming housing placement; prefers female staff…" />
           </Field>
 
+          {saveError && <p role="alert" className="text-sm text-red-700">{saveError}</p>}
           <div className="flex justify-end gap-3 pt-2">
             <Button type="button" variant="outline" onClick={onClose}>Cancel</Button>
             <Button type="submit" disabled={saving} className="bg-teal-600 hover:bg-teal-700">

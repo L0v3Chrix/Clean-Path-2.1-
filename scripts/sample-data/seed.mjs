@@ -1,5 +1,4 @@
 import { Buffer } from 'node:buffer';
-import { randomUUID } from 'node:crypto';
 import {
   buildSampleDataset,
   createStorageObjectPlan,
@@ -11,6 +10,7 @@ import {
   logStep,
   upsertTableRows,
 } from './runtime.mjs';
+import { sampleAuthPassword } from './authPassword.mjs';
 
 async function listAllUsers(supabase) {
   const users = [];
@@ -35,13 +35,19 @@ async function upsertSampleAuthUsers(supabase, authUsers) {
   for (const sampleUser of authUsers) {
     const existing = existingUsers.find((user) => user.email?.toLowerCase() === sampleUser.email.toLowerCase());
     if (existing) {
+      if (process.env.SAMPLE_AUTH_PASSWORD) {
+        const { error } = await supabase.auth.admin.updateUserById(existing.id, {
+          password: sampleAuthPassword(),
+        });
+        if (error) throw new Error(`Unable to set test password for ${sampleUser.email}: ${error.message}`);
+      }
       idsByKey[sampleUser.key] = existing.id;
       continue;
     }
 
     const { data, error } = await supabase.auth.admin.createUser({
       email: sampleUser.email,
-      password: randomUUID(),
+      password: sampleAuthPassword(),
       email_confirm: true,
       user_metadata: {
         full_name: sampleUser.fullName,

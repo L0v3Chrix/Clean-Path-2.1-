@@ -21,6 +21,8 @@ dist-ssr
 .migration-input/
 .migration-output/
 .playwright-cli/
+playwright-report/
+test-results/
 supabase/.branches/
 
 # Editor directories and files

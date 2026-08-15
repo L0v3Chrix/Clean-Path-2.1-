@@ -25,6 +25,8 @@ export default function Residents() {
   const [residents, setResidents] = useState([]);
   const [locations, setLocations] = useState([]);
   const [documents, setDocuments] = useState([]);
+  const [contacts, setContacts] = useState([]);
+  const [organizationId, setOrganizationId] = useState(null);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
@@ -41,14 +43,18 @@ export default function Residents() {
 
   const loadData = async () => {
     try {
-      const [r, l, d] = await Promise.all([
+      const [r, l, d, c, me] = await Promise.all([
         appClient.entities.Resident.list('-created_date', 200),
         appClient.entities.Location.list(),
         appClient.entities.ResidentDocument.list(),
+        appClient.entities.ResidentContact.list(),
+        appClient.auth.me(),
       ]);
       setResidents(r);
       setLocations(l);
       setDocuments(d);
+      setContacts(c);
+      setOrganizationId(me.organization_id);
     } catch (e) {
       console.error(e);
     } finally {
@@ -69,15 +75,45 @@ export default function Residents() {
 
   const totalAlerts = residents.filter(r => getAlerts(r).length > 0).length;
 
+  const withEmergencyContact = (resident) => {
+    const contact = contacts.find(c => c.resident_id === resident.id && c.is_emergency_contact);
+    if (!contact) return resident;
+    return {
+      ...resident,
+      emergency_contact_name: contact.name || '',
+      emergency_contact_phone: contact.phone || '',
+      emergency_contact_relationship: contact.relationship || '',
+    };
+  };
+
   const handleSave = async (data) => {
-    if (data.id) {
-      await appClient.entities.Resident.update(data.id, data);
-    } else {
-      await appClient.entities.Resident.create(data);
+    const {
+      emergency_contact_name,
+      emergency_contact_phone,
+      emergency_contact_relationship,
+      ...residentFields
+    } = data;
+    const resident = data.id
+      ? await appClient.entities.Resident.update(data.id, residentFields)
+      : await appClient.entities.Resident.create({ ...residentFields, organization_id: organizationId });
+    const existingContact = contacts.find(c => c.resident_id === resident.id && c.is_emergency_contact);
+    const contactData = {
+      organization_id: resident.organization_id || organizationId,
+      resident_id: resident.id,
+      name: emergency_contact_name,
+      phone: emergency_contact_phone,
+      relationship: emergency_contact_relationship,
+      is_emergency_contact: true,
+    };
+    if (emergency_contact_name) {
+      if (existingContact) await appClient.entities.ResidentContact.update(existingContact.id, contactData);
+      else await appClient.entities.ResidentContact.create(contactData);
+    } else if (existingContact) {
+      await appClient.entities.ResidentContact.delete(existingContact.id);
     }
     setShowForm(false);
     setSelectedResident(null);
-    loadData();
+    await loadData();
   };
 
   const locationName = (id) => locations.find(l => l.id === id)?.name || '—';
@@ -107,7 +143,7 @@ export default function Residents() {
       <DocumentAlertPanel
         residents={residents}
         documents={documents}
-        onSelectResident={(r) => { setSelectedResident(r); setShowForm(false); }}
+        onSelectResident={(r) => { setSelectedResident(withEmergencyContact(r)); setShowForm(false); }}
       />
 
       {/* Filters */}
@@ -165,7 +201,7 @@ export default function Residents() {
                 <button
                   key={r.id}
                   className="w-full flex items-center justify-between px-5 py-4 hover:bg-slate-50 transition-colors text-left"
-                  onClick={() => setSelectedResident(r)}
+                  onClick={() => setSelectedResident(withEmergencyContact(r))}
                 >
                   <div className="flex items-center gap-4">
                     <div className="w-10 h-10 rounded-full bg-teal-100 flex items-center justify-center text-teal-700 font-bold text-sm flex-shrink-0">

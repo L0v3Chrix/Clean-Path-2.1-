@@ -23,9 +23,10 @@ This file separates repository completion from cutover completion. A green build
 - [x] Operational exports exist for houses/beds, staff, residents/contacts, documents, medications/logs, incidents, schedules, and care plans.
 - [x] Privacy-minimized application error events and a database-backed health endpoint are implemented.
 - [x] Backup/restore and fail-closed cutover-readiness commands are implemented.
-- [x] Pull-request CI runs tests, lint, type checking, production build, dependency threshold, clean database migrations, and the RLS acceptance matrix.
+- [x] Pull-request CI runs tests, lint, type checking, production build, dependency threshold, clean database migrations, the RLS acceptance matrix, and real-browser operator workflows with both bypass flags disabled.
 - [x] Synthetic migration import, unchanged rerun, reconciliation, rollback, and reimport have been exercised locally.
 - [x] Local database tests cover owner, assigned staff, resident, anonymous, cross-house, core-workflow, audit, export, and cascading-delete behavior.
+- [x] Playwright covers authenticated resident/contact creation, authorized export, public-intake token access, assigned-staff invitation, and sign-out against local Supabase.
 
 ## External Cutover Gates
 

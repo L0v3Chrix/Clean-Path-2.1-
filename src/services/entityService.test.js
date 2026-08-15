@@ -80,4 +80,20 @@ describe('createEntityService', () => {
     expect(query.eq).toHaveBeenCalledWith('id', 'med-1');
     expect(query.single).toHaveBeenCalledTimes(2);
   });
+
+  it('normalizes empty and undefined form values before persistence', async () => {
+    const { client, query } = createSupabaseMock();
+    const service = createEntityService(client, {
+      table: 'residents',
+      schema: { name: 'Resident' },
+    });
+
+    await service.create({ first_name: 'Test', sober_date: '', room: '', omitted: undefined });
+
+    expect(query.insert).toHaveBeenCalledWith({
+      first_name: 'Test',
+      sober_date: null,
+      room: null,
+    });
+  });
 });
