@@ -2,7 +2,7 @@
 
 ## Scope
 
-This report documents the temporary login bypass, the authentication findings, and the current dependency blockers discovered while evaluating ClearPath locally.
+This report documents the temporary login bypass, the authentication findings, and the backend blockers discovered during the original local evaluation. The resolution status was refreshed on 2026-08-16.
 
 ## Authentication Findings
 
@@ -34,14 +34,13 @@ Keep this off in deployed environments:
 VITE_AUTH_BYPASS=false
 ```
 
-## Dependency Blockers Found
+## Backend Blocker Resolution
 
-- The hosted Supabase project does not currently expose the ClearPath application tables in the public REST schema.
-- REST probes returned `PGRST205 Could not find the table ... in the schema cache` for the app tables.
-- Until the migration is applied, real Supabase-backed data operations cannot work.
-- The `bootstrap_organization_owner` RPC also depends on the migration being applied.
-- Storage buckets for resident documents, secure documents, medication photos, and intake attachments also depend on the migration.
-- Supabase CLI was not available locally during setup, so the migration was documented but not applied from this machine.
+- The original hosted project did not expose the ClearPath schema and returned `PGRST205` for application tables. That project is no longer the production target.
+- Vercel-managed Supabase project `clearpath-production` now records all eight migrations and exposes the application schema, owner bootstrap, house-scoped RLS, and audit functions.
+- The four required Storage buckets are deployed as private buckets.
+- The `health`, `public-intake`, `invite-staff`, and `critical-incident-notify` Edge Functions are deployed. The incident function requires JWT authentication and cannot claim delivery without an approved provider.
+- Vercel preview and production environment values do not enable either authentication bypass or demo mode; the accepted preview requires a real Supabase session.
 - External integrations remain planning/config screens only.
 
 ## Ralph Loop Working Definition
@@ -57,18 +56,15 @@ No existing project-specific Ralph loop definition was found in this repository.
 ## Ralph Loop Results
 
 - Reproduce: login screen blocked app evaluation.
-- Analyze: email/password auth endpoint is reachable, but the real schema is missing from the hosted Supabase project.
-- Localize: the blank modules were caused by pages waiting on tables that do not exist yet.
+- Analyze: email/password auth was reachable, but the original hosted target was missing the real schema.
+- Localize: the original blank modules were caused by pages waiting on tables that did not exist in that retired target.
 - Patch: added a development-only auth bypass and local in-memory data path.
-- Harden: main routes can now be inspected locally while the real Supabase migration remains pending.
+- Harden: production code now defaults to real authentication, all migrations are applied to `clearpath-production`, and both bypass flags are disabled in the accepted preview.
 
-## Next Implementation Loops
+## Remaining Acceptance Work
 
-1. Apply the Supabase migration to the hosted project.
-2. Turn `VITE_AUTH_BYPASS=false`.
-3. Create the first real user.
-4. Confirm email delivery or temporarily configure confirmation behavior in Supabase Auth settings.
-5. Use the first real user to run the owner bootstrap flow.
-6. Re-run route audit against live Supabase tables.
-7. Replace any remaining in-memory-only behavior with verified Supabase-backed behavior.
-8. Keep external integrations as placeholders until each vendor is intentionally selected.
+1. Create the first approved owner and run the one-time organization bootstrap.
+2. Validate the approved staff roster, roles, and house assignments.
+3. Complete the authoritative six-house source package, scrubbed rehearsal, restore drill, reconciliation, and approvals.
+4. Promote only the accepted Git-backed Vercel deployment after `readiness:check` returns `ready: true`.
+5. Keep external integrations disabled until each vendor is intentionally approved and verified.

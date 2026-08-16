@@ -7,15 +7,15 @@ This project is a compliance-ready foundation, not a HIPAA-compliant finished sy
 ## Current Status
 
 - Frontend: React, Vite, React Router, React Query, Tailwind, Radix/shadcn-style components.
-- Backend: Supabase Postgres, Supabase Auth, Supabase Storage.
+- Backend: business-owned Vercel-managed Supabase Postgres, Auth, private Storage, and Edge Functions.
 - Data access: browser-safe Supabase client in `src/lib/supabaseClient.js`.
 - Domain services: `src/services/*`.
-- Database schema: `supabase/migrations/20260516015100_initial_clearpath_schema.sql`.
+- Database schema: eight tracked migrations under `supabase/migrations/`, applied through `20260816120000_private_esignature_document_access.sql`.
 - Removable MVP sample data: `scripts/sample-data/*` and `docs/sample-data.md`.
 - Controlled Oath Track migration tooling: `scripts/migration/*` and `docs/migration.md`.
 - Public intake: opaque token, Supabase Edge Function validation, and private attachment storage.
 - Authorization: route checks plus database-enforced house assignments for operational staff.
-- Operations: audited CSV exports, privacy-minimized error events, a database-backed health endpoint, and restore/readiness verification commands.
+- Operations: audited CSV exports, privacy-minimized error events, a database-backed health endpoint, protected critical-incident notification, and restore/readiness verification commands.
 - External integrations such as SMS, QuickBooks, email marketing, and Amazon ordering are placeholders only.
 
 ## Architecture
@@ -172,24 +172,24 @@ Run a final dependency scan for any legacy backend provider names before release
 
 Slade has the shell of a serious recovery-housing operations system. It already has screens and data areas for residents, staff, houses/locations, incidents, medications, documents, compliance, training, scheduling, inventory, and owner visibility.
 
-The old app platform layer has been replaced with Supabase, which means ClearPath can now have its own database, login system, secure file storage, and permission rules instead of depending on the previous generated backend.
+The old app platform layer has been replaced with the business-owned Supabase project, so ClearPath now has its own database, login system, secure file storage, and permission rules instead of depending on the previous generated backend.
 
 What is real now:
 
 - A working React web app structure.
-- A Supabase database plan with the main tables needed for sober-living operations.
-- Security rules turned on at the database level.
-- Private file buckets planned for sensitive documents and medication photos.
+- A live Supabase database with the main tables needed for sober-living operations.
+- Security rules enforced and tested at the database level.
+- Four deployed private file buckets for sensitive documents, intake attachments, and medication photos.
 - Service files in the app that talk to Supabase instead of the old generated backend.
 - Placeholder areas for future integrations without buying or wiring them too early.
 
 What Slade still needs before production:
 
-- A real Supabase project owned by the business.
-- Real user accounts and organization membership rows.
+- The first approved owner account and organization-owner bootstrap.
+- The approved staff user roster, roles, and house assignments.
 - The complete six-house roster, source exports, data dictionary, source counts, attachments, user roster, and cutoff decision described in `docs/migration.md`.
 - A privacy/security review before storing sensitive health or resident information.
-- Production hosting, usually Vercel or similar.
+- Promotion of the accepted Git-backed Vercel preview after every cutover gate passes.
 - A real domain name.
 - A completed backup/restore drill against the business-owned Supabase database.
 - Written operating policies for staff use.

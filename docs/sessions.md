@@ -18,3 +18,22 @@
 ### Next Session
 - Decide whether to rebuild the Supabase backend or keep the demo client-side only.
 - Consider pushing the commit to `origin` (github.com/L0v3Chrix/Clean-Path-2.1-) for backup.
+
+## Session: 2026-08-16
+
+### Accomplished
+- Verified pull-request run 14 on implementation commit `7f3d481d447cace2754c4e3124cdf761a3eaa7b8`: application checks, clean database migrations, the RLS acceptance matrix, real-backend browser workflows, and the Vercel preview passed.
+- Verified the Ready preview requires authentication, uses the Vercel-managed `clearpath-production` backend, and renders the protected-workspace login without console errors.
+- Applied and recorded migration `20260816120000_private_esignature_document_access` in the production Supabase migration ledger.
+- Verified eight migrations, 49 public tables, 177 public/Storage RLS policies, four private buckets, the signature-document trigger/index/access helpers, and zero malformed existing signature paths.
+- Deployed `critical-incident-notify` as the fourth Edge Function with JWT verification enabled and verified that an unauthenticated request returns HTTP 401.
+- Rechecked the database-backed health endpoint, dependency threshold, and Supabase Security Advisor: database health is `ok`, runtime audit has no high or critical findings, and the advisor has zero errors.
+
+### Decisions Made
+- Kept incident email delivery fail-closed because no provider has been approved; deployment is not treated as delivery proof.
+- Kept the pull request in draft and did not promote the older Vercel production frontend.
+- Kept cutover readiness fail-closed until the authoritative six-house Oath Track package, rehearsal, restore/reconciliation evidence, first-owner bootstrap, and all seven human approvals exist.
+
+### Remaining Blockers
+- `.migration-input/` is absent, so there is no authoritative roster, source export package, data dictionary, attachment archive, staff assignment file, cutoff evidence, or financial reconciliation to migrate.
+- No scrubbed rehearsal, isolated restore, final import, production smoke test, or signed house acceptance has been completed.

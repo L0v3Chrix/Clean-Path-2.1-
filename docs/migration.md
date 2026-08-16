@@ -122,14 +122,21 @@ The drill fails unless the manifest identities exactly match the requested run's
 
 ## Release Health And Readiness
 
-Deploy the `health` Supabase Edge Function, then verify both the Vercel application shell and database connectivity:
+Deploy the `health` and `critical-incident-notify` Supabase Edge Functions, then verify the Vercel application shell, database connectivity, and the incident function's anonymous-access boundary:
 
 ```bash
 export CLEARPATH_APP_URL='[FILL: accepted Vercel deployment URL]'
 export CLEARPATH_HEALTH_URL='[FILL: Supabase health function URL]'
 export CLEARPATH_HEALTH_ANON_KEY='[FILL: publishable key, when required]'
 npm run operations:health -- --report .migration-output/health.json
+
+test "$(curl -sS -o /dev/null -w '%{http_code}' \
+  -X POST 'https://dcfldvtdrpukaojkpvzp.supabase.co/functions/v1/critical-incident-notify' \
+  -H 'Content-Type: application/json' \
+  --data '{"incident_id":"00000000-0000-4000-8000-000000000000"}')" = "401"
 ```
+
+Keep JWT verification enabled. Without an approved email provider, an authorized request must report `providerConfigured: false`, `deliveredCount: 0`, and no resident or incident details; deployment alone is not evidence that an alert was delivered.
 
 Copy `migration-templates/readiness-evidence.example.json` to `.migration-output/readiness-evidence.json` and replace every placeholder with observed evidence. Keep `sourcePackageManifest` pointed at the manifest inside `.migration-input`. Keep the technical verification, reconciliation, restore, and health reports beside the readiness file, record their exact SHA-256 values, and use relative paths that remain inside that directory. The cutover command recomputes each artifact hash, reopens and validates the live package, and binds all four reports to one full 40-character canonical commit, migration package hash, Supabase backend target, migration run where applicable, application/health URLs, and ordered timestamps.
 
