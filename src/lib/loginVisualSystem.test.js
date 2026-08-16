@@ -9,7 +9,8 @@ describe('clearpath login visual system', () => {
   it('keeps the approved ClearPath login copy in one place', () => {
     expect(CLEARPATH_LOGIN_COPY.headline).toBe('Welcome back to ClearPath');
     expect(CLEARPATH_LOGIN_COPY.supportingLine).toBe('Your operating picture starts here');
-    expect(CLEARPATH_LOGIN_COPY.demoNote).toContain('approved resident information');
+    expect(CLEARPATH_LOGIN_COPY.demoKicker).toBe('Protected workspace');
+    expect(CLEARPATH_LOGIN_COPY.demoNote).toContain('authorized resident information');
   });
 
   it('defines paired light and dark login experiences', () => {
