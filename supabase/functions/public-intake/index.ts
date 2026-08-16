@@ -137,13 +137,9 @@ Deno.serve(async (request) => {
       }
       const { error: documentsError } = await client.from('resident_documents').insert(documentRows);
       if (documentsError) throw documentsError;
-      const { error: auditError } = await client.from('audit_logs').insert({
-        organization_id: organizationId,
-        resident_id: resident.id,
-        action: 'public_intake_submitted',
-        resource_type: 'resident',
-        resource_id: resident.id,
-        description: 'Public intake submitted; background-check consent recorded. No screening was initiated.',
+      const { error: auditError } = await client.rpc('record_public_intake_submission_audit', {
+        requested_organization_id: organizationId,
+        requested_resident_id: resident.id,
       });
       if (auditError) throw auditError;
       await client.from('public_intake_tokens').update({ last_used_at: new Date().toISOString() }).eq('id', tokenRecord.id);

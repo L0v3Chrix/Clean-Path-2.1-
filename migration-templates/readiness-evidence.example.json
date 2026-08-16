@@ -1,11 +1,7 @@
 {
   "schemaVersion": 1,
   "release": {
-    "canonicalCommit": "[FILL: accepted Git commit]",
-    "previewCommit": "[FILL: verified preview Git commit]",
-    "productionCommit": "[FILL: promoted production Git commit]",
-    "demoMode": "[FILL: false after production verification]",
-    "authBypass": "[FILL: false after production verification]"
+    "canonicalCommit": "[FILL: exact accepted 40-character Git commit]"
   },
   "migration": {
     "runId": "[FILL: completed migration run UUID]",
@@ -13,6 +9,8 @@
   },
   "target": {
     "projectRef": "[FILL: business-owned Supabase project ref]",
+    "vercelProjectId": "[FILL: Vercel project ID]",
+    "vercelProjectName": "[FILL: Vercel project name]",
     "databaseServerIdentifier": "[FILL: databaseIdentity.target.serverIdentifier from restore drill]",
     "appUrl": "[FILL: exact production application URL from health report]",
     "healthUrl": "[FILL: exact production health URL from health report]"
@@ -29,6 +27,14 @@
     "sourcePackageManifest": "../.migration-input/manifest.json"
   },
   "artifacts": {
+    "previewRelease": {
+      "path": "preview-release.json",
+      "sha256": "[FILL: SHA-256 of exact preview-release.json bytes]"
+    },
+    "productionRelease": {
+      "path": "production-release.json",
+      "sha256": "[FILL: SHA-256 of exact production-release.json bytes]"
+    },
     "technicalVerification": {
       "path": "technical-verification.json",
       "sha256": "[FILL: SHA-256 of exact technical-verification.json bytes]"
@@ -44,10 +50,10 @@
     "health": {
       "path": "health.json",
       "sha256": "[FILL: SHA-256 of exact health.json bytes]"
+    },
+    "approvals": {
+      "path": "cutover-approvals.json",
+      "sha256": "[FILL: SHA-256 of exact signed cutover-approvals.json bytes]"
     }
-  },
-  "approvals": {
-    "slade": { "approved": false, "approvedAt": null },
-    "houseRepresentatives": []
   }
 }

@@ -327,6 +327,272 @@ function countByEntity(records, predicate = () => true) {
   return counts;
 }
 
+function recordEntity(record) {
+  return record.sourceEntity || record.source_entity;
+}
+
+function recordSourceId(record) {
+  return String(record.sourceId ?? record.source_id);
+}
+
+function roundCurrency(value) {
+  return Math.round((value + Number.EPSILON) * 100) / 100;
+}
+
+function orderedEntities(entities) {
+  const values = new Set(entities);
+  return [
+    ...IMPORT_ORDER.filter((entity) => values.delete(entity)),
+    ...[...values].sort(),
+  ];
+}
+
+function orderedCounts(counts) {
+  return Object.fromEntries(orderedEntities(counts.keys()).map((entity) => [entity, counts.get(entity)]));
+}
+
+function orderedStatuses(statuses) {
+  return Object.fromEntries(orderedEntities(statuses.keys()).map((entity) => [
+    entity,
+    Object.fromEntries([...statuses.get(entity)].sort(([left], [right]) => left.localeCompare(right))),
+  ]));
+}
+
+function addCount(counts, key, amount = 1) {
+  counts.set(key, (counts.get(key) || 0) + amount);
+}
+
+function addStatus(statuses, entity, status) {
+  const entityStatuses = statuses.get(entity) || new Map();
+  addCount(entityStatuses, String(status));
+  statuses.set(entity, entityStatuses);
+}
+
+function emptyHouseMetrics() {
+  return {
+    counts: new Map(),
+    statuses: new Map(),
+    attachments: 0,
+    fees: 0,
+    payments: 0,
+  };
+}
+
+function addHouseMetrics(metricsByHouse, record, row, houseIds, hasAttachment) {
+  const entity = recordEntity(record);
+  for (const houseId of houseIds) {
+    const metrics = metricsByHouse.get(houseId);
+    if (!metrics) continue;
+    addCount(metrics.counts, entity);
+    if (!isBlank(row?.status)) addStatus(metrics.statuses, entity, row.status);
+    if (hasAttachment) metrics.attachments += 1;
+    const amount = Number(row?.amount);
+    if (Number.isFinite(amount)) {
+      if (entity === 'resident_fees') metrics.fees += amount;
+      if (entity === 'resident_payments') metrics.payments += amount;
+    }
+  }
+}
+
+function buildHouseScopeResolver(records, rowFromRecord, houseByTargetId, houseIds) {
+  const houseRank = new Map(houseIds.map((houseId, index) => [houseId, index]));
+  const recordsByTarget = new Map();
+  const cache = new Map();
+
+  for (const record of records) {
+    const row = rowFromRecord(record);
+    const targetId = row?.id ?? record.targetId ?? record.target_id;
+    if (!isBlank(targetId)) {
+      const key = sourceKey(recordEntity(record), String(targetId));
+      if (!recordsByTarget.has(key)) recordsByTarget.set(key, record);
+    }
+  }
+
+  const canonicalHouseIds = (values) => [...new Set(values)]
+    .filter((houseId) => houseRank.has(houseId))
+    .sort((left, right) => houseRank.get(left) - houseRank.get(right));
+
+  const resolveRecord = (record, resolving = new Set()) => {
+    if (cache.has(record)) return cache.get(record);
+    if (resolving.has(record)) return [];
+    resolving.add(record);
+
+    const row = rowFromRecord(record);
+    const entity = recordEntity(record);
+    const resolved = [];
+    if (row) {
+      if (entity === 'locations') {
+        const houseId = houseByTargetId.get(String(row.id ?? record.targetId ?? record.target_id));
+        if (houseId) resolved.push(houseId);
+      } else if (entity === 'staff_profiles') {
+        for (const locationId of Array.isArray(row.location_ids) ? row.location_ids : []) {
+          const houseId = houseByTargetId.get(String(locationId));
+          if (houseId) resolved.push(houseId);
+        }
+      } else {
+        if (!isBlank(row.location_id)) {
+          const houseId = houseByTargetId.get(String(row.location_id));
+          if (houseId) resolved.push(houseId);
+        }
+        for (const [field, referenceEntity] of [
+          ['resident_id', 'residents'],
+          ['fee_id', 'resident_fees'],
+          ['medication_id', 'medications'],
+          ['goal_id', 'care_plan_goals'],
+        ]) {
+          if (isBlank(row[field])) continue;
+          const related = recordsByTarget.get(sourceKey(referenceEntity, String(row[field])));
+          if (related) resolved.push(...resolveRecord(related, resolving));
+        }
+      }
+    }
+
+    resolving.delete(record);
+    const result = canonicalHouseIds(resolved);
+    cache.set(record, result);
+    return result;
+  };
+
+  return resolveRecord;
+}
+
+function compareCounts(expected, actual) {
+  const variance = new Map();
+  for (const entity of new Set([...expected.keys(), ...actual.keys()])) {
+    variance.set(entity, (actual.get(entity) || 0) - (expected.get(entity) || 0));
+  }
+  return variance;
+}
+
+function compareStatuses(expected, actual) {
+  const variance = new Map();
+  for (const entity of new Set([...expected.keys(), ...actual.keys()])) {
+    const expectedStatuses = expected.get(entity) || new Map();
+    const actualStatuses = actual.get(entity) || new Map();
+    const entityVariance = new Map();
+    for (const status of new Set([...expectedStatuses.keys(), ...actualStatuses.keys()])) {
+      entityVariance.set(status, (actualStatuses.get(status) || 0) - (expectedStatuses.get(status) || 0));
+    }
+    variance.set(entity, entityVariance);
+  }
+  return variance;
+}
+
+function financialMetrics(metrics) {
+  const fees = roundCurrency(metrics.fees);
+  const payments = roundCurrency(metrics.payments);
+  return { fees, payments, balance: roundCurrency(fees - payments) };
+}
+
+function financialVariance(expected, actual) {
+  return Object.fromEntries(Object.keys(expected).map((field) => [
+    field, roundCurrency(actual[field] - expected[field]),
+  ]));
+}
+
+function buildHouseReconciliation(plan, acceptedRecords) {
+  const locationRecords = plan.records.filter((record) => record.sourceEntity === 'locations');
+  const houseIds = locationRecords.map((record) => record.sourceId);
+  const houseByTargetId = new Map(locationRecords.flatMap((record) => ([
+    [String(record.targetId), record.sourceId],
+    [String(record.payload.id), record.sourceId],
+  ])));
+  const expectedMetrics = new Map(houseIds.map((houseId) => [houseId, emptyHouseMetrics()]));
+  const actualMetrics = new Map(houseIds.map((houseId) => [houseId, emptyHouseMetrics()]));
+  const actualEntityRank = new Map(orderedEntities(acceptedRecords.map(recordEntity)).map(
+    (entity, index) => [entity, index],
+  ));
+  const orderedActualRecords = [...acceptedRecords].sort((left, right) => {
+    return actualEntityRank.get(recordEntity(left)) - actualEntityRank.get(recordEntity(right))
+      || recordSourceId(left).localeCompare(recordSourceId(right))
+      || String(left.target_id || '').localeCompare(String(right.target_id || ''));
+  });
+  const expectedScope = buildHouseScopeResolver(
+    plan.records, (record) => record.payload, houseByTargetId, houseIds,
+  );
+  const actualScope = buildHouseScopeResolver(
+    orderedActualRecords, (record) => record.target, houseByTargetId, houseIds,
+  );
+
+  for (const record of plan.records) {
+    addHouseMetrics(
+      expectedMetrics, record, record.payload, expectedScope(record), Boolean(record.attachment),
+    );
+  }
+  for (const record of orderedActualRecords) {
+    addHouseMetrics(
+      actualMetrics, record, record.target, actualScope(record), Boolean(record.attachmentEvidence?.exists),
+    );
+  }
+
+  const plannedBySource = new Map(plan.records.map((record) => [
+    sourceKey(record.sourceEntity, record.sourceId), record,
+  ]));
+  const actualBySource = new Map();
+  for (const record of orderedActualRecords) {
+    const key = sourceKey(record.source_entity, String(record.source_id));
+    const records = actualBySource.get(key) || [];
+    records.push(record);
+    actualBySource.set(key, records);
+  }
+  const mismatchesByHouse = new Map(houseIds.map((houseId) => [houseId, []]));
+  const orderedSourceKeys = [
+    ...plan.records.map((record) => sourceKey(record.sourceEntity, record.sourceId)),
+    ...[...actualBySource.keys()].filter((key) => !plannedBySource.has(key)).sort(),
+  ];
+  for (const key of orderedSourceKeys) {
+    const planned = plannedBySource.get(key);
+    const actual = actualBySource.get(key) || [];
+    const expectedHouseIds = planned ? expectedScope(planned) : [];
+    const actualHouseIds = [...new Set(actual.flatMap((record) => actualScope(record)))]
+      .sort((left, right) => houseIds.indexOf(left) - houseIds.indexOf(right));
+    if (JSON.stringify(expectedHouseIds) === JSON.stringify(actualHouseIds)) continue;
+    const [entity, ...sourceIdParts] = key.split(':');
+    const mismatch = {
+      entity,
+      sourceId: sourceIdParts.join(':'),
+      expectedHouseIds,
+      actualHouseIds,
+    };
+    for (const houseId of new Set([...expectedHouseIds, ...actualHouseIds])) {
+      mismatchesByHouse.get(houseId)?.push(mismatch);
+    }
+  }
+
+  return Object.fromEntries(houseIds.map((houseId) => {
+    const expectedMetricsForHouse = expectedMetrics.get(houseId);
+    const actualMetricsForHouse = actualMetrics.get(houseId);
+    const expectedFinancial = financialMetrics(expectedMetricsForHouse);
+    const actualFinancial = financialMetrics(actualMetricsForHouse);
+    return [houseId, {
+      expected: {
+        counts: orderedCounts(expectedMetricsForHouse.counts),
+        statuses: orderedStatuses(expectedMetricsForHouse.statuses),
+        attachments: expectedMetricsForHouse.attachments,
+        financial: expectedFinancial,
+      },
+      actual: {
+        counts: orderedCounts(actualMetricsForHouse.counts),
+        statuses: orderedStatuses(actualMetricsForHouse.statuses),
+        attachments: actualMetricsForHouse.attachments,
+        financial: actualFinancial,
+      },
+      variance: {
+        counts: orderedCounts(compareCounts(expectedMetricsForHouse.counts, actualMetricsForHouse.counts)),
+        statuses: orderedStatuses(compareStatuses(expectedMetricsForHouse.statuses, actualMetricsForHouse.statuses)),
+        attachments: actualMetricsForHouse.attachments - expectedMetricsForHouse.attachments,
+        financial: financialVariance(expectedFinancial, actualFinancial),
+      },
+      scopeMismatches: mismatchesByHouse.get(houseId),
+    }];
+  }));
+}
+
+function hasNonZeroVariance(value) {
+  if (typeof value === 'number') return value !== 0;
+  return Object.values(value).some(hasNonZeroVariance);
+}
+
 export function reconcilePlan(plan, importedRecords, migrationRun) {
   const expected = countByEntity(plan.records);
   const acceptedRecords = importedRecords.filter((record) => ['imported', 'skipped'].includes(record.status));
@@ -458,7 +724,6 @@ export function reconcilePlan(plan, importedRecords, migrationRun) {
   const financialTotal = (records, entity, valueFromRecord) => records
     .filter((record) => (record.sourceEntity || record.source_entity) === entity)
     .reduce((total, record) => total + (Number(valueFromRecord(record)) || 0), 0);
-  const roundCurrency = (value) => Math.round((value + Number.EPSILON) * 100) / 100;
   const expectedFees = roundCurrency(financialTotal(plan.records, 'resident_fees', (record) => record.payload.amount));
   const expectedPayments = roundCurrency(financialTotal(plan.records, 'resident_payments', (record) => record.payload.amount));
   const actualFees = roundCurrency(financialTotal(acceptedRecords, 'resident_fees', (record) => record.target?.amount));
@@ -476,12 +741,18 @@ export function reconcilePlan(plan, importedRecords, migrationRun) {
   const variance = Object.fromEntries(Object.keys(expectedFinancial).map((key) => [
     key, roundCurrency(actualFinancial[key] - expectedFinancial[key]),
   ]));
+  const houses = buildHouseReconciliation(plan, acceptedRecords);
+  const housesOk = Object.values(houses).every((house) => (
+    house.scopeMismatches.length === 0 && !hasNonZeroVariance(house.variance)
+  ));
 
   return {
     ok: [
       missingLineage, failed, lineageMismatches, missingTargets, mismatchedTargets,
       missingAttachments, mismatchedAttachments, runMismatches, duplicateLineage, extraLineage,
-    ].every((issues) => issues.length === 0) && Object.values(variance).every((value) => value === 0),
+    ].every((issues) => issues.length === 0)
+      && Object.values(variance).every((value) => value === 0)
+      && housesOk,
     runId: migrationRun?.id || null,
     expected,
     recorded,
@@ -497,6 +768,7 @@ export function reconcilePlan(plan, importedRecords, migrationRun) {
     targets: { missing: missingTargets, mismatched: mismatchedTargets },
     attachments: { missing: missingAttachments, mismatched: mismatchedAttachments },
     financial: { expected: expectedFinancial, actual: actualFinancial, variance },
+    houses,
   };
 }
 

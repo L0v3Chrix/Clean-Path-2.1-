@@ -34,6 +34,69 @@ function dataset(overrides = {}) {
   };
 }
 
+function sixHouseDataset() {
+  const locations = Array.from({ length: 6 }, (_, index) => ({
+    source_id: `house-${index + 1}`,
+    name: `House ${index + 1}`,
+    status: 'active',
+  }));
+
+  return {
+    manifest: {
+      sourceSystem: 'oathtrack',
+      organizationId,
+      cutoffAt: '2026-08-14T12:00:00.000Z',
+    },
+    entities: {
+      locations,
+      staff_profiles: [{
+        source_id: 'staff-1',
+        source_location_ids: 'house-1|house-2|house-1',
+        first_name: 'Multi',
+        last_name: 'House',
+        role: 'staff',
+        status: 'active',
+      }],
+      residents: [
+        {
+          source_id: 'resident-1', source_location_id: 'house-1',
+          first_name: 'North', last_name: 'Resident', status: 'active',
+        },
+        {
+          source_id: 'resident-2', source_location_id: 'house-2',
+          first_name: 'South', last_name: 'Resident', status: 'discharged',
+        },
+      ],
+      resident_documents: [{
+        source_id: 'document-1', source_resident_id: 'resident-1', document_type: 'agreement',
+      }],
+      resident_fees: [
+        {
+          source_id: 'fee-1', source_resident_id: 'resident-1',
+          label: 'August', amount: '100.25', status: 'open',
+        },
+        {
+          source_id: 'fee-2', source_resident_id: 'resident-2',
+          label: 'August', amount: '80.00', status: 'open',
+        },
+      ],
+      resident_payments: [
+        {
+          source_id: 'payment-1', source_resident_id: 'resident-1', source_fee_id: 'fee-1',
+          amount: '40.10', payment_date: '2026-08-01', status: 'posted',
+        },
+        {
+          source_id: 'payment-2', source_resident_id: 'resident-2', source_fee_id: 'fee-2',
+          amount: '30.00', payment_date: '2026-08-02', status: 'posted',
+        },
+      ],
+    },
+    attachments: [{
+      source_entity: 'resident_documents', source_id: 'document-1', sha256: 'document-hash',
+    }],
+  };
+}
+
 function planCounts(plan) {
   return plan.records.reduce((counts, record) => ({
     ...counts,
@@ -347,6 +410,164 @@ describe('ClearPath migration engine', () => {
       expected: { fees: 100.25, payments: 40.1, balance: 60.15 },
       actual: { fees: 100.25, payments: 40.1, balance: 60.15 },
       variance: { fees: 0, payments: 0, balance: 0 },
+    });
+  });
+
+  it('reports deterministic reconciliation results for all six houses', () => {
+    const plan = buildMigrationPlan(sixHouseDataset());
+    const runRecords = acceptedLineage(plan).map((record) => ({
+      ...record,
+      attachmentEvidence: record.source_id === 'document-1'
+        ? { exists: true, sha256: 'document-hash' }
+        : undefined,
+    }));
+
+    const report = reconcilePlan(plan, runRecords, completedRun(plan));
+
+    expect(report.ok).toBe(true);
+    expect(Object.keys(report.houses)).toEqual([
+      'house-1', 'house-2', 'house-3', 'house-4', 'house-5', 'house-6',
+    ]);
+    expect(report.houses['house-1']).toEqual({
+      expected: {
+        counts: {
+          locations: 1,
+          staff_profiles: 1,
+          residents: 1,
+          resident_documents: 1,
+          resident_fees: 1,
+          resident_payments: 1,
+        },
+        statuses: {
+          locations: { active: 1 },
+          staff_profiles: { active: 1 },
+          residents: { active: 1 },
+          resident_fees: { open: 1 },
+          resident_payments: { posted: 1 },
+        },
+        attachments: 1,
+        financial: { fees: 100.25, payments: 40.1, balance: 60.15 },
+      },
+      actual: {
+        counts: {
+          locations: 1,
+          staff_profiles: 1,
+          residents: 1,
+          resident_documents: 1,
+          resident_fees: 1,
+          resident_payments: 1,
+        },
+        statuses: {
+          locations: { active: 1 },
+          staff_profiles: { active: 1 },
+          residents: { active: 1 },
+          resident_fees: { open: 1 },
+          resident_payments: { posted: 1 },
+        },
+        attachments: 1,
+        financial: { fees: 100.25, payments: 40.1, balance: 60.15 },
+      },
+      variance: {
+        counts: {
+          locations: 0,
+          staff_profiles: 0,
+          residents: 0,
+          resident_documents: 0,
+          resident_fees: 0,
+          resident_payments: 0,
+        },
+        statuses: {
+          locations: { active: 0 },
+          staff_profiles: { active: 0 },
+          residents: { active: 0 },
+          resident_fees: { open: 0 },
+          resident_payments: { posted: 0 },
+        },
+        attachments: 0,
+        financial: { fees: 0, payments: 0, balance: 0 },
+      },
+      scopeMismatches: [],
+    });
+    expect(report.houses['house-2'].expected.counts.staff_profiles).toBe(1);
+    expect(report.houses['house-3']).toEqual({
+      expected: {
+        counts: { locations: 1 },
+        statuses: { locations: { active: 1 } },
+        attachments: 0,
+        financial: { fees: 0, payments: 0, balance: 0 },
+      },
+      actual: {
+        counts: { locations: 1 },
+        statuses: { locations: { active: 1 } },
+        attachments: 0,
+        financial: { fees: 0, payments: 0, balance: 0 },
+      },
+      variance: {
+        counts: { locations: 0 },
+        statuses: { locations: { active: 0 } },
+        attachments: 0,
+        financial: { fees: 0, payments: 0, balance: 0 },
+      },
+      scopeMismatches: [],
+    });
+  });
+
+  it('detects moved target relationships and per-house aggregate drift', () => {
+    const plan = buildMigrationPlan(sixHouseDataset());
+    const houseTwoId = plan.records.find(
+      (record) => record.sourceEntity === 'locations' && record.sourceId === 'house-2',
+    ).targetId;
+    const runRecords = acceptedLineage(plan).map((record) => ({
+      ...record,
+      target: record.source_id === 'resident-1'
+        ? { ...record.target, location_id: houseTwoId }
+        : record.target,
+      attachmentEvidence: record.source_id === 'document-1'
+        ? { exists: true, sha256: 'document-hash' }
+        : undefined,
+    }));
+
+    const report = reconcilePlan(plan, runRecords, completedRun(plan));
+
+    expect(report.financial.variance).toEqual({ fees: 0, payments: 0, balance: 0 });
+    expect(report.ok).toBe(false);
+    expect(report.houses['house-1'].variance.attachments).toBe(-1);
+    expect(report.houses['house-1'].variance.financial).toEqual({
+      fees: -100.25, payments: -40.1, balance: -60.15,
+    });
+    expect(report.houses['house-2'].variance.financial).toEqual({
+      fees: 100.25, payments: 40.1, balance: 60.15,
+    });
+    expect(report.houses['house-1'].scopeMismatches).toEqual([
+      { entity: 'residents', sourceId: 'resident-1', expectedHouseIds: ['house-1'], actualHouseIds: ['house-2'] },
+      { entity: 'resident_documents', sourceId: 'document-1', expectedHouseIds: ['house-1'], actualHouseIds: ['house-2'] },
+      { entity: 'resident_fees', sourceId: 'fee-1', expectedHouseIds: ['house-1'], actualHouseIds: ['house-2'] },
+      { entity: 'resident_payments', sourceId: 'payment-1', expectedHouseIds: ['house-1'], actualHouseIds: ['house-2'] },
+    ]);
+    expect(report.houses['house-2'].scopeMismatches).toEqual(
+      report.houses['house-1'].scopeMismatches,
+    );
+  });
+
+  it('fails reconciliation when per-house business status counts vary', () => {
+    const plan = buildMigrationPlan(sixHouseDataset());
+    const runRecords = acceptedLineage(plan).map((record) => ({
+      ...record,
+      target: record.source_id === 'resident-1'
+        ? { ...record.target, status: 'inactive' }
+        : record.target,
+      attachmentEvidence: record.source_id === 'document-1'
+        ? { exists: true, sha256: 'document-hash' }
+        : undefined,
+    }));
+
+    const report = reconcilePlan(plan, runRecords, completedRun(plan));
+
+    expect(report.ok).toBe(false);
+    expect(report.houses['house-1'].variance.counts.residents).toBe(0);
+    expect(report.houses['house-1'].variance.statuses.residents).toEqual({
+      active: -1,
+      inactive: 1,
     });
   });
 

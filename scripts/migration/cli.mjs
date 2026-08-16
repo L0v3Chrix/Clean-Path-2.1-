@@ -1,12 +1,14 @@
 import { writeFile } from 'node:fs/promises';
-import { createHmac } from 'node:crypto';
 import { resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { loadMigrationDataset } from './io.mjs';
 import { buildMigrationPlan, reconcilePlan, validateMigrationDataset } from './migration.mjs';
 import { createSupabaseMigrationRepository } from './repository.mjs';
 import { executeImport, executeRollback } from './runner.mjs';
+import { signMigrationReport } from './report-integrity.mjs';
 import { validateSourcePackage } from './source-package.mjs';
+
+export { signMigrationReport } from './report-integrity.mjs';
 
 export function parseMigrationArgs(argv) {
   const [command, ...options] = argv;
@@ -27,12 +29,6 @@ function repositoryFromEnvironment() {
     url: process.env.SUPABASE_URL,
     serviceRoleKey: process.env.SUPABASE_SERVICE_ROLE_KEY,
   });
-}
-
-export function signMigrationReport(report, signingKey) {
-  if (!signingKey) return report;
-  const signature = createHmac('sha256', signingKey).update(JSON.stringify(report)).digest('hex');
-  return { ...report, integrity: { algorithm: 'hmac-sha256', signature } };
 }
 
 export async function loadValidatedSourcePackage(manifestPath, validator = validateSourcePackage) {
@@ -56,6 +52,12 @@ async function emitReport(report, path) {
   process.stdout.write(content);
 }
 
+function requireReportSigningKey() {
+  if (!process.env.MIGRATION_REPORT_SIGNING_KEY) {
+    throw new Error('MIGRATION_REPORT_SIGNING_KEY is required for confirmed migration operations.');
+  }
+}
+
 async function main(argv = process.argv.slice(2)) {
   const args = parseMigrationArgs(argv);
   if (!['inspect', 'validate', 'import', 'reconcile', 'rollback'].includes(args.command)) {
@@ -64,10 +66,15 @@ async function main(argv = process.argv.slice(2)) {
 
   if (args.command === 'rollback') {
     if (!args.runId || !args.confirm) throw new Error('Rollback requires --run <id> and --confirm.');
+    requireReportSigningKey();
     await emitReport(await executeRollback(args.runId, repositoryFromEnvironment()), args.reportPath);
     return;
   }
   if (!args.manifestPath) throw new Error(`${args.command} requires a manifest path.`);
+
+  if ((args.command === 'import' && args.confirm) || args.command === 'reconcile') {
+    requireReportSigningKey();
+  }
 
   if (['inspect', 'validate'].includes(args.command)) {
     const dataset = await loadMigrationDataset(args.manifestPath);

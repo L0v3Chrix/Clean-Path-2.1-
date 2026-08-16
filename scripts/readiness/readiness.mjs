@@ -2,6 +2,7 @@ import { createHash } from 'node:crypto';
 import { readFile, realpath, writeFile } from 'node:fs/promises';
 import { basename, dirname, relative, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { verifyMigrationReport } from '../migration/report-integrity.mjs';
 import { validateSourcePackage } from '../migration/source-package.mjs';
 
 const REQUIRED_TECHNICAL_CHECKS = [
@@ -15,6 +16,9 @@ const REQUIRED_TECHNICAL_CHECKS = [
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const SHA256_PATTERN = /^[a-f0-9]{64}$/i;
 const GIT_COMMIT_PATTERN = /^[a-f0-9]{40}$/i;
+const HOUSE_METRIC_FIELDS = ['counts', 'statuses', 'attachments', 'financial'];
+const FINANCIAL_FIELDS = ['fees', 'payments', 'balance'];
+const NUMBER_EPSILON = 1e-9;
 
 function completedText(value) {
   return typeof value === 'string'
@@ -46,6 +50,72 @@ function emptyIssues(value) {
   return Array.isArray(value) && value.length === 0;
 }
 
+function isRecord(value) {
+  return Boolean(value) && typeof value === 'object' && !Array.isArray(value);
+}
+
+function validCountMap(value) {
+  return isRecord(value)
+    && Object.values(value).every((count) => Number.isInteger(count) && count >= 0);
+}
+
+function validStatusMap(value) {
+  return isRecord(value) && Object.values(value).every(validCountMap);
+}
+
+function validFinancial(value) {
+  return isRecord(value)
+    && hasExactKeys(value, FINANCIAL_FIELDS)
+    && FINANCIAL_FIELDS.every((field) => Number.isFinite(value[field]));
+}
+
+function validHouseMetrics(value) {
+  return isRecord(value)
+    && hasExactKeys(value, HOUSE_METRIC_FIELDS)
+    && validCountMap(value.counts)
+    && validStatusMap(value.statuses)
+    && Number.isInteger(value.attachments)
+    && value.attachments >= 0
+    && validFinancial(value.financial);
+}
+
+function hasExactKeys(value, expectedKeys) {
+  if (!isRecord(value)) return false;
+  const actualKeys = Object.keys(value);
+  return actualKeys.length === expectedKeys.length
+    && actualKeys.every((key) => expectedKeys.includes(key));
+}
+
+function validZeroVariance(expected, actual, variance) {
+  if (typeof expected === 'number' || typeof actual === 'number' || typeof variance === 'number') {
+    if (![expected, actual, variance].every(Number.isFinite)) return false;
+    const recomputedVariance = actual - expected;
+    return Math.abs(recomputedVariance - variance) <= NUMBER_EPSILON
+      && Math.abs(recomputedVariance) <= NUMBER_EPSILON;
+  }
+  if (![expected, actual, variance].every(isRecord)) return false;
+  const expectedKeys = Object.keys(expected);
+  return hasExactKeys(actual, expectedKeys)
+    && hasExactKeys(variance, expectedKeys)
+    && expectedKeys.every((key) => validZeroVariance(expected[key], actual[key], variance[key]));
+}
+
+function validSixHouseReconciliation(reconciliation, expectedHouseIds) {
+  const houses = reconciliation?.houses;
+  if (!isRecord(houses) || expectedHouseIds.length !== 6 || new Set(expectedHouseIds).size !== 6) return false;
+  const observedHouseIds = Object.keys(houses);
+  if (observedHouseIds.length !== 6 || observedHouseIds.some((houseId) => !expectedHouseIds.includes(houseId))) return false;
+  return expectedHouseIds.every((houseId) => {
+    const house = houses[houseId];
+    return isRecord(house)
+      && validHouseMetrics(house.expected)
+      && validHouseMetrics(house.actual)
+      && isRecord(house.variance)
+      && validZeroVariance(house.expected, house.actual, house.variance)
+      && emptyIssues(house.scopeMismatches);
+  });
+}
+
 function artifactMatches(name, declared, observed, blockers) {
   if (!completedText(declared?.path) || !SHA256_PATTERN.test(declared?.sha256 || '')) {
     blockers.push(`${name} artifact path and SHA-256 are required.`);
@@ -58,12 +128,33 @@ function artifactMatches(name, declared, observed, blockers) {
   return observed.report;
 }
 
-function validateTechnicalVerification(evidence, observedArtifacts, blockers) {
-  const report = artifactMatches(
+function signedArtifact(name, declared, observed, blockers, signingKey) {
+  const report = artifactMatches(name, declared, observed, blockers);
+  if (report && !verifyMigrationReport(report, signingKey)) {
+    blockers.push(`${name} artifact integrity verification failed.`);
+    return null;
+  }
+  return report;
+}
+
+function normalizeSigningKeys(value) {
+  if (typeof value === 'string') {
+    return { migration: value, evidence: value, approvals: value };
+  }
+  return {
+    migration: value?.migration || '',
+    evidence: value?.evidence || '',
+    approvals: value?.approvals || '',
+  };
+}
+
+function validateTechnicalVerification(evidence, observedArtifacts, blockers, signingKey) {
+  const report = signedArtifact(
     'technical verification',
     evidence.artifacts?.technicalVerification,
     observedArtifacts.technicalVerification,
     blockers,
+    signingKey,
   );
   if (!report) return { passed: 0, completedAt: Number.NaN };
 
@@ -114,11 +205,61 @@ function validateTechnicalVerification(evidence, observedArtifacts, blockers) {
   return { passed: exactIdentities ? passed : 0, completedAt };
 }
 
-function validateArtifacts(evidence, observed, blockers) {
+function validateReleaseEvidence(name, environment, evidence, observedArtifacts, blockers, signingKey) {
+  const artifactName = environment === 'preview' ? 'previewRelease' : 'productionRelease';
+  const report = signedArtifact(
+    `${name} release`, evidence.artifacts?.[artifactName], observedArtifacts[artifactName], blockers,
+    signingKey,
+  );
+  if (!report) return { checkedAt: Number.NaN, deploymentId: null };
+
+  const deployment = report.deployment || {};
+  const compiledRelease = report.release || {};
+  const canonicalCommit = evidence.release?.canonicalCommit;
+  const target = evidence.target || {};
+  if (report.schemaVersion !== 1 || report.artifactType !== 'clearpath-release-evidence') {
+    blockers.push(`${name} release evidence schemaVersion 1 and artifact type are required.`);
+  }
+  if (report.ok !== true || !emptyIssues(report.blockers)) {
+    blockers.push(`${name} release evidence did not pass its deployment checks.`);
+  }
+  if (report.environment !== environment) {
+    blockers.push(`${name} release evidence has the wrong deployment environment.`);
+  }
+  if (!validTimestamp(report.checkedAt)) {
+    blockers.push(`${name} release evidence requires a valid checkedAt timestamp.`);
+  }
+  if (!completedText(deployment.id) || !completedText(deployment.url)
+    || deployment.status !== 'READY' || deployment.source !== 'git') {
+    blockers.push(`${name} release evidence must identify a READY Git deployment.`);
+  }
+  if (!GIT_COMMIT_PATTERN.test(canonicalCommit || '')
+    || report.canonicalCommit !== canonicalCommit
+    || deployment.gitSha !== canonicalCommit
+    || compiledRelease.commit !== canonicalCommit) {
+    blockers.push(`${name} release commit does not match the canonical Git commit.`);
+  }
+  if (deployment.projectId !== target.vercelProjectId
+    || deployment.projectName !== target.vercelProjectName) {
+    blockers.push(`${name} release Vercel project does not match the production target.`);
+  }
+  if (compiledRelease.schemaVersion !== 1 || compiledRelease.projectRef !== target.projectRef) {
+    blockers.push(`${name} release backend does not match the production Supabase target.`);
+  }
+  if (compiledRelease.demoMode !== false) {
+    blockers.push(`${name} release demo mode must be disabled.`);
+  }
+  if (compiledRelease.authBypass !== false) {
+    blockers.push(`${name} release authentication bypass must be disabled.`);
+  }
+  return { checkedAt: Date.parse(report.checkedAt), deploymentId: deployment.id || null };
+}
+
+function validateArtifacts(evidence, observed, blockers, signingKeys) {
   const migration = evidence.migration || {};
   const target = evidence.target || {};
   const artifacts = evidence.artifacts || {};
-  const observedArtifacts = observed.artifacts || {};
+  const observedArtifacts = observed?.artifacts || {};
   if (!UUID_PATTERN.test(migration.runId || '')) blockers.push('Migration run ID must be a UUID.');
   if (!SHA256_PATTERN.test(migration.packageSha256 || '')) blockers.push('Migration package SHA-256 is required.');
   if (!completedText(target.projectRef) || !completedText(target.databaseServerIdentifier)
@@ -126,10 +267,29 @@ function validateArtifacts(evidence, observed, blockers) {
     blockers.push('Production target project, database server, application URL, and health URL are required.');
   }
 
-  const technical = validateTechnicalVerification(evidence, observedArtifacts, blockers);
-  const reconciliation = artifactMatches('reconciliation', artifacts.reconciliation, observedArtifacts.reconciliation, blockers);
-  const restore = artifactMatches('restore drill', artifacts.restore, observedArtifacts.restore, blockers);
-  const health = artifactMatches('health', artifacts.health, observedArtifacts.health, blockers);
+  const previewRelease = validateReleaseEvidence(
+    'Preview', 'preview', evidence, observedArtifacts, blockers, signingKeys.evidence,
+  );
+  const productionRelease = validateReleaseEvidence(
+    'Production', 'production', evidence, observedArtifacts, blockers, signingKeys.evidence,
+  );
+  const technical = validateTechnicalVerification(
+    evidence, observedArtifacts, blockers, signingKeys.evidence,
+  );
+  const reconciliationArtifact = artifactMatches(
+    'reconciliation', artifacts.reconciliation, observedArtifacts.reconciliation, blockers,
+  );
+  const reconciliationIntegrityValid = verifyMigrationReport(reconciliationArtifact, signingKeys.migration);
+  if (reconciliationArtifact && !reconciliationIntegrityValid) {
+    blockers.push('Reconciliation artifact integrity verification failed.');
+  }
+  const reconciliation = reconciliationIntegrityValid ? reconciliationArtifact : null;
+  const restore = signedArtifact(
+    'restore drill', artifacts.restore, observedArtifacts.restore, blockers, signingKeys.evidence,
+  );
+  const health = signedArtifact(
+    'health', artifacts.health, observedArtifacts.health, blockers, signingKeys.evidence,
+  );
 
   if (reconciliation) {
     if (reconciliation.ok !== true || reconciliation.runId !== migration.runId) blockers.push('Reconciliation artifact run does not match readiness evidence.');
@@ -142,8 +302,15 @@ function validateArtifacts(evidence, observed, blockers) {
       || !Object.values(reconciliation.financial?.variance || {}).every((value) => value === 0)) {
       blockers.push('Reconciliation artifact contains unresolved migration differences.');
     }
+    const expectedHouseIds = (evidence.inputs?.houses || []).map((house) => house?.sourceId);
+    if (!validSixHouseReconciliation(reconciliation, expectedHouseIds)) {
+      blockers.push('Reconciliation artifact must contain an exact, zero-variance six-house reconciliation matrix.');
+    }
   }
   if (restore) {
+    if (restore.schemaVersion !== 1 || restore.artifactType !== 'clearpath-restore-drill') {
+      blockers.push('Restore drill schemaVersion 1 and artifact type are required.');
+    }
     if (restore.ok !== true || restore.runId !== migration.runId) blockers.push('Restore drill artifact run does not match readiness evidence.');
     if (restore.packageSha256 !== migration.packageSha256) blockers.push('Restore drill artifact package does not match readiness evidence.');
     if (restore.databaseIdentity?.target?.serverIdentifier !== target.databaseServerIdentifier) blockers.push('Restore drill artifact target does not match readiness evidence.');
@@ -153,6 +320,9 @@ function validateArtifacts(evidence, observed, blockers) {
     }
   }
   if (health) {
+    if (health.schemaVersion !== 1 || health.artifactType !== 'clearpath-health-evidence') {
+      blockers.push('Health schemaVersion 1 and artifact type are required.');
+    }
     if (health.ok !== true || health.app?.url !== target.appUrl || health.health?.url !== target.healthUrl) {
       blockers.push('Health artifact target does not match readiness evidence.');
     }
@@ -164,20 +334,104 @@ function validateArtifacts(evidence, observed, blockers) {
   const restoreStartedAt = Date.parse(restore?.startedAt);
   const restoreCompletedAt = Date.parse(restore?.completedAt);
   const healthAt = Date.parse(health?.checkedAt);
-  if ([technical.completedAt, reconciliationAt, restoreStartedAt, restoreCompletedAt, healthAt].some(Number.isNaN)
+  if ([previewRelease.checkedAt, technical.completedAt, reconciliationAt, restoreStartedAt,
+    restoreCompletedAt, productionRelease.checkedAt, healthAt].some(Number.isNaN)
+    || previewRelease.checkedAt > technical.completedAt
     || technical.completedAt > reconciliationAt || reconciliationAt > restoreStartedAt
-    || restoreStartedAt > restoreCompletedAt || restoreCompletedAt > healthAt) {
-    blockers.push('Artifact timestamps must be valid and ordered technical verification, reconciliation, restore, then health.');
+    || restoreStartedAt > restoreCompletedAt || restoreCompletedAt > productionRelease.checkedAt
+    || productionRelease.checkedAt > healthAt) {
+    blockers.push('Artifact timestamps must be valid and ordered preview release, technical verification, reconciliation, restore, production release, then final health.');
   }
-  return technical.passed;
+  return {
+    passedTechnicalGates: technical.passed,
+    healthAt,
+    productionDeploymentId: productionRelease.deploymentId,
+  };
 }
 
-export function evaluateReadiness(evidence = {}, observed = {}) {
+function validateApprovals(evidence, observed, blockers, signingKey, artifactResult) {
+  const approvals = signedArtifact(
+    'cutover approvals',
+    evidence.artifacts?.approvals,
+    observed?.artifacts?.approvals,
+    blockers,
+    signingKey,
+  );
+  if (!approvals) return { houseApprovals: 0 };
+
+  if (approvals.schemaVersion !== 1 || approvals.artifactType !== 'clearpath-cutover-approvals') {
+    blockers.push('Cutover approvals schemaVersion 1 and artifact type are required.');
+  }
+
+  const expectedBindings = {
+    canonicalCommit: evidence.release?.canonicalCommit,
+    runId: evidence.migration?.runId,
+    packageSha256: evidence.migration?.packageSha256,
+    productionDeploymentId: artifactResult.productionDeploymentId,
+  };
+  if (!hasExactKeys(approvals.bindings, Object.keys(expectedBindings))
+    || Object.entries(expectedBindings).some(([key, value]) => approvals.bindings?.[key] !== value)) {
+    blockers.push('Cutover approvals are not bound to the accepted commit, migration package, run, and production deployment.');
+  }
+
+  const completedAt = Date.parse(approvals.completedAt);
+  const slade = approvals.slade || {};
+  if (!completedText(slade.name) || !completedText(slade.role)
+    || slade.approved !== true || !validTimestamp(slade.approvedAt)) {
+    blockers.push('Slade approval with identity, role, and timestamp is required.');
+  }
+
+  const houses = Array.isArray(evidence.inputs?.houses) ? evidence.inputs.houses : [];
+  const representatives = Array.isArray(approvals.houseRepresentatives)
+    ? approvals.houseRepresentatives
+    : [];
+  const expectedHouseIdentities = houses.map((house) => `${house?.sourceId}|${house?.name}`);
+  const approvedHouseIdentities = representatives.map((approval) => `${approval?.sourceId}|${approval?.house}`);
+  const exactRepresentatives = representatives.length === 6
+    && new Set(expectedHouseIdentities).size === 6
+    && new Set(approvedHouseIdentities).size === 6
+    && approvedHouseIdentities.every((identity) => expectedHouseIdentities.includes(identity))
+    && representatives.every((approval) => completedText(approval?.sourceId)
+      && completedText(approval?.house)
+      && completedText(approval?.name)
+      && completedText(approval?.role)
+      && approval?.approved === true
+      && validTimestamp(approval?.approvedAt));
+  if (!exactRepresentatives) {
+    blockers.push('Approval with identity, role, and timestamp is required from one representative for each exact house.');
+  }
+
+  const approvalTimes = [slade.approvedAt, ...representatives.map((approval) => approval?.approvedAt)]
+    .map((value) => Date.parse(value));
+  if (Number.isNaN(completedAt)
+    || Number.isNaN(artifactResult.healthAt)
+    || approvalTimes.some(Number.isNaN)
+    || approvalTimes.some((approvedAt) => approvedAt < artifactResult.healthAt || approvedAt > completedAt)
+    || completedAt < artifactResult.healthAt) {
+    blockers.push('Cutover approvals must be completed after final production health, with ordered valid timestamps.');
+  }
+
+  return {
+    houseApprovals: exactRepresentatives
+      ? representatives.filter((approval) => approval.approved === true).length
+      : 0,
+  };
+}
+
+export function evaluateReadiness(
+  evidence = {},
+  observed = {},
+  signingKeys = {
+    migration: process.env.MIGRATION_REPORT_SIGNING_KEY,
+    evidence: process.env.CLEARPATH_EVIDENCE_SIGNING_KEY,
+    approvals: process.env.CUTOVER_APPROVAL_SIGNING_KEY,
+  },
+) {
   const blockers = [];
   const release = evidence.release || {};
   const inputs = evidence.inputs || {};
-  const approvals = evidence.approvals || {};
   const houses = Array.isArray(inputs.houses) ? inputs.houses : [];
+  const normalizedSigningKeys = normalizeSigningKeys(signingKeys);
 
   if (evidence.schemaVersion !== 1) blockers.push('Evidence schemaVersion must be 1.');
   if (houses.length !== 6 || houses.some((house) => !completedText(house?.sourceId) || !completedText(house?.name) || !completedText(house?.address))) {
@@ -197,27 +451,18 @@ export function evaluateReadiness(evidence = {}, observed = {}) {
     blockers.push('Migration package SHA-256 must match live source-package validation.');
   }
 
-  if (!GIT_COMMIT_PATTERN.test(release.canonicalCommit || '')
-    || release.canonicalCommit !== release.previewCommit || release.canonicalCommit !== release.productionCommit) {
-    blockers.push('Canonical, preview, and production commit evidence must match.');
+  if (!GIT_COMMIT_PATTERN.test(release.canonicalCommit || '')) {
+    blockers.push('A full canonical Git commit is required.');
   }
-  if (release.demoMode !== false) blockers.push('Production demo mode must be disabled.');
-  if (release.authBypass !== false) blockers.push('Production authentication bypass must be disabled.');
 
-  const passedTechnicalGates = validateArtifacts(evidence, observed, blockers);
-
-  if (approvals.slade?.approved !== true || !validTimestamp(approvals.slade?.approvedAt)) {
-    blockers.push('Slade approval with timestamp is required.');
-  }
-  const representatives = Array.isArray(approvals.houseRepresentatives) ? approvals.houseRepresentatives : [];
-  const houseNames = new Set(houses.map((house) => house?.name));
-  const approvedHouseNames = new Set(representatives.map((approval) => approval?.house));
-  if (representatives.length !== 6
-      || approvedHouseNames.size !== 6
-      || [...approvedHouseNames].some((house) => !houseNames.has(house))
-      || representatives.some((approval) => !completedText(approval?.house) || approval.approved !== true || !validTimestamp(approval.approvedAt))) {
-    blockers.push('Approval with timestamp is required from one representative for each of the six houses.');
-  }
+  const artifactResult = validateArtifacts(evidence, observed, blockers, normalizedSigningKeys);
+  const approvalResult = validateApprovals(
+    evidence,
+    observed,
+    blockers,
+    normalizedSigningKeys.approvals,
+    artifactResult,
+  );
 
   return {
     ready: blockers.length === 0,
@@ -228,16 +473,19 @@ export function evaluateReadiness(evidence = {}, observed = {}) {
       packageSha256: evidence.migration?.packageSha256 || null,
       projectRef: evidence.target?.projectRef || null,
       artifactSha256: {
+        previewRelease: evidence.artifacts?.previewRelease?.sha256 || null,
+        productionRelease: evidence.artifacts?.productionRelease?.sha256 || null,
         technicalVerification: evidence.artifacts?.technicalVerification?.sha256 || null,
         reconciliation: evidence.artifacts?.reconciliation?.sha256 || null,
         restore: evidence.artifacts?.restore?.sha256 || null,
         health: evidence.artifacts?.health?.sha256 || null,
+        approvals: evidence.artifacts?.approvals?.sha256 || null,
       },
     },
     counts: {
       houses: houses.length,
-      houseApprovals: representatives.filter((approval) => approval?.approved === true).length,
-      passedTechnicalGates,
+      houseApprovals: approvalResult.houseApprovals,
+      passedTechnicalGates: artifactResult.passedTechnicalGates,
       requiredTechnicalGates: REQUIRED_TECHNICAL_CHECKS.length,
       sourcePackageFiles: sourcePackage?.counts?.sourceFiles || 0,
     },
@@ -272,7 +520,10 @@ async function observeArtifact(reference, evidencePath) {
 
 async function observeArtifacts(evidence, evidencePath) {
   const artifacts = {};
-  for (const name of ['technicalVerification', 'reconciliation', 'restore', 'health']) {
+  for (const name of [
+    'previewRelease', 'productionRelease', 'technicalVerification', 'reconciliation', 'restore', 'health',
+    'approvals',
+  ]) {
     try {
       artifacts[name] = await observeArtifact(evidence?.artifacts?.[name], evidencePath);
     } catch (error) {

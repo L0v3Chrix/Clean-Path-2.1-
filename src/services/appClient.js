@@ -12,6 +12,12 @@ const entities = Object.fromEntries(
   }),
 );
 
+const legacyStaffRoles = new Set(['platform_admin', 'volunteer']);
+
+function normalizeOperationalRole(role) {
+  return legacyStaffRoles.has(role) ? 'staff' : role;
+}
+
 function isExternalUrl(value) {
   return /^https?:\/\//i.test(value || '') || /^data:/i.test(value || '');
 }
@@ -176,7 +182,7 @@ export const appClient = {
         if (profileError && !isMissingSupabaseSetupError(profileError)) {
           throw new Error(profileError.message || 'Unable to read staff role.');
         }
-        operationalRole = profile?.role;
+        operationalRole = normalizeOperationalRole(profile?.role);
       }
 
       return {
@@ -250,28 +256,14 @@ export const appClient = {
       return data;
     },
     async updateAssignments(profile) {
-      if (!profile.user_id) return;
-      const { data: membership, error: membershipError } = await supabase
-        .from('organization_members').select('id').eq('organization_id', profile.organization_id)
-        .eq('user_id', profile.user_id).single();
-      if (membershipError) throw new Error(membershipError.message);
-      const membershipRole = profile.role === 'owner' ? 'owner' : profile.role === 'platform_admin' ? 'admin' : 'staff';
-      const { error: roleError } = await supabase.from('organization_members')
-        .update({ role: membershipRole }).eq('id', membership.id);
-      if (roleError) throw new Error(roleError.message);
-      const { error: deleteError } = await supabase.from('organization_member_locations')
-        .delete().eq('organization_member_id', membership.id);
-      if (deleteError) throw new Error(deleteError.message);
-      if (profile.location_ids?.length) {
-        const { error: insertError } = await supabase.from('organization_member_locations').insert(
-          profile.location_ids.map((locationId) => ({
-            organization_id: profile.organization_id,
-            organization_member_id: membership.id,
-            location_id: locationId,
-          })),
-        );
-        if (insertError) throw new Error(insertError.message);
-      }
+      if (!profile?.id) throw new Error('A staff profile is required to update access.');
+      const { data, error } = await supabase.rpc('update_staff_access', {
+        p_profile_id: profile.id,
+        p_role: profile.role,
+        p_location_ids: profile.location_ids || [],
+      });
+      if (error) throw new Error(error.message);
+      return data;
     },
     async sendPasswordReset(email) {
       const { error } = await supabase.auth.resetPasswordForEmail(email, {

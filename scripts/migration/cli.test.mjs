@@ -6,13 +6,14 @@ import { loadValidatedSourcePackage, parseMigrationArgs, signMigrationReport } f
 const cliPath = fileURLToPath(new URL('./cli.mjs', import.meta.url));
 const incompleteManifest = fileURLToPath(new URL('./fixtures/manifest.json', import.meta.url));
 
-function runCli(args) {
+function runCli(args, { signingKey = '' } = {}) {
   return spawnSync(process.execPath, [cliPath, ...args], {
     encoding: 'utf8',
     env: {
       ...process.env,
       SUPABASE_URL: '',
       SUPABASE_SERVICE_ROLE_KEY: '',
+      MIGRATION_REPORT_SIGNING_KEY: signingKey,
     },
   });
 }
@@ -63,17 +64,55 @@ describe('migration CLI arguments', () => {
     expect(JSON.stringify(signed)).not.toContain('release-secret');
   });
 
+  it('always signs the report with its integrity field removed', () => {
+    const report = { ok: true, expected: { residents: 6 } };
+    const signed = signMigrationReport(report, 'release-secret');
+    const resigned = signMigrationReport({
+      ...report,
+      integrity: { algorithm: 'hmac-sha256', signature: '0'.repeat(64) },
+    }, 'release-secret');
+
+    expect(resigned).toEqual(signed);
+  });
+
+  it('signs equivalent report content independently of object key order', () => {
+    const first = signMigrationReport({
+      ok: true,
+      nested: { residents: 6, houses: ['north', 'south'] },
+    }, 'release-secret');
+    const second = signMigrationReport({
+      nested: { houses: ['north', 'south'], residents: 6 },
+      ok: true,
+    }, 'release-secret');
+
+    expect(first.integrity.signature).toBe(second.integrity.signature);
+  });
+
+  it.each([
+    ['confirmed import', ['import', incompleteManifest, '--confirm']],
+    ['reconciliation', ['reconcile', incompleteManifest, '--run', '11111111-1111-4111-8111-111111111111']],
+    ['confirmed rollback', ['rollback', '--run', '11111111-1111-4111-8111-111111111111', '--confirm']],
+  ])('fails closed before %s when the report signing key is absent', (_label, args) => {
+    const result = runCli(args);
+
+    expect(result.status).toBe(1);
+    expect(result.stdout).toBe('');
+    expect(result.stderr).toMatch(/MIGRATION_REPORT_SIGNING_KEY/);
+  });
+
   it.each([
     ['import', [incompleteManifest, '--confirm']],
     ['reconcile', [incompleteManifest, '--run', '11111111-1111-4111-8111-111111111111']],
   ])('requires a passing six-house source package before %s', (command, args) => {
-    const result = runCli([command, ...args]);
+    const result = runCli([command, ...args], { signingKey: 'release-secret' });
     expect(result.stdout).not.toBe('');
     const report = JSON.parse(result.stdout);
 
     expect(result.status).toBe(1);
     expect(report.ok).toBe(false);
+    expect(report.integrity).toMatchObject({ algorithm: 'hmac-sha256' });
     expect(report.blockers).toContain('Exactly six location records are required; found 1.');
     expect(result.stderr).not.toContain('SUPABASE_URL');
+    expect(result.stdout).not.toContain('release-secret');
   });
 });

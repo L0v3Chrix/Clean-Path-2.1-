@@ -3,6 +3,7 @@ import { readFile, realpath, writeFile } from 'node:fs/promises';
 import { spawnSync } from 'node:child_process';
 import { relative, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { assertMigrationReportIntegrity, signMigrationReport } from '../migration/report-integrity.mjs';
 
 export function sanitizeDatabaseUrl(value) {
   const parsed = new URL(value);
@@ -186,8 +187,12 @@ export async function hashStorageEvidence(storageManifest, sourceDirectory, rest
   return { ...storageManifest, objects, expectedTotal: objects.length, restoredTotal: objects.length };
 }
 
-export function validateRestoreEvidence({ runId, reconciliation, database, storageManifest }) {
+export function validateRestoreEvidence(
+  { runId, reconciliation, database, storageManifest },
+  signingKey = process.env.MIGRATION_REPORT_SIGNING_KEY,
+) {
   if (!UUID_PATTERN.test(runId || '')) throw new Error('Migration run ID must be a UUID.');
+  assertMigrationReportIntegrity(reconciliation, signingKey);
   if (!reconciliation || reconciliation.ok !== true) throw new Error('Reconciliation report did not pass.');
   if (!Array.isArray(reconciliation.missing) || reconciliation.missing.length > 0
     || !Array.isArray(reconciliation.failed) || reconciliation.failed.length > 0) {
@@ -272,6 +277,7 @@ export function buildRestoreReport({
 }) {
   return {
     schemaVersion: 1,
+    artifactType: 'clearpath-restore-drill',
     ok: true,
     source: plan.source,
     restoreTarget: plan.target,
@@ -367,10 +373,13 @@ async function main(argv = process.argv.slice(2)) {
   } = parseRestoreDrillArgs(argv);
   const sourceUrl = process.env.SOURCE_DATABASE_URL;
   const restoreUrl = process.env.RESTORE_DATABASE_URL;
+  const evidenceSigningKey = process.env.CLEARPATH_EVIDENCE_SIGNING_KEY;
+  if (!evidenceSigningKey) throw new Error('CLEARPATH_EVIDENCE_SIGNING_KEY is required.');
   const plan = buildRestorePlan({ sourceUrl, restoreUrl, dumpPath, runId });
   const startedAt = new Date().toISOString();
   const connections = { source: sourceUrl, restore: restoreUrl };
   const reconciliation = JSON.parse(await readFile(resolve(reconciliationPath), 'utf8'));
+  assertMigrationReportIntegrity(reconciliation, process.env.MIGRATION_REPORT_SIGNING_KEY);
   const storageManifestContent = await readFile(resolve(storageManifestPath), 'utf8');
   const declaredStorageManifest = JSON.parse(storageManifestContent);
 
@@ -392,11 +401,11 @@ async function main(argv = process.argv.slice(2)) {
   );
   const evidence = validateRestoreEvidence({ runId, reconciliation, database, storageManifest });
 
-  const report = buildRestoreReport({
+  const report = signMigrationReport(buildRestoreReport({
     plan, dumpPath, dumpSha256, startedAt, completedAt: new Date().toISOString(), runId,
     database, evidence, reconciliation, storageManifestPath, storageManifest,
     databaseIdentity: identities,
-  });
+  }), evidenceSigningKey);
   await writeFile(resolve(reportPath), `${JSON.stringify(report, null, 2)}\n`, { mode: 0o600 });
   process.stdout.write(`${JSON.stringify(report, null, 2)}\n`);
 }

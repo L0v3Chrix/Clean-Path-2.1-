@@ -1,6 +1,7 @@
 import { writeFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { signMigrationReport } from '../migration/report-integrity.mjs';
 
 export function validateAppResponse(status, body) {
   const errors = [];
@@ -25,6 +26,7 @@ async function main(argv = process.argv.slice(2)) {
   const appUrl = process.env.CLEARPATH_APP_URL;
   const healthUrl = process.env.CLEARPATH_HEALTH_URL;
   if (!appUrl || !healthUrl) throw new Error('CLEARPATH_APP_URL and CLEARPATH_HEALTH_URL are required.');
+  if (!process.env.CLEARPATH_EVIDENCE_SIGNING_KEY) throw new Error('CLEARPATH_EVIDENCE_SIGNING_KEY is required.');
 
   const [appResponse, healthResponse] = await Promise.all([
     fetch(appUrl, { redirect: 'follow' }),
@@ -37,13 +39,15 @@ async function main(argv = process.argv.slice(2)) {
     ...validateAppResponse(appResponse.status, appBody),
     ...validateHealthResponse(healthResponse.status, healthBody),
   ];
-  const report = {
+  const report = signMigrationReport({
+    schemaVersion: 1,
+    artifactType: 'clearpath-health-evidence',
     ok: blockers.length === 0,
     checkedAt: new Date().toISOString(),
     app: { url: appUrl, status: appResponse.status },
     health: { url: healthUrl, status: healthResponse.status, database: healthBody?.checks?.database || 'unknown' },
     blockers,
-  };
+  }, process.env.CLEARPATH_EVIDENCE_SIGNING_KEY);
   const output = `${JSON.stringify(report, null, 2)}\n`;
   if (reportPath) await writeFile(resolve(reportPath), output, { mode: 0o600 });
   process.stdout.write(output);

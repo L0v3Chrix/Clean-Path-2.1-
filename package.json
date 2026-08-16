@@ -8,7 +8,7 @@
     "build": "vite build",
     "test": "vitest run",
     "test:e2e": "playwright test",
-    "test:db": "docker exec -i supabase_db_clearpath-local psql -U postgres -d postgres -v ON_ERROR_STOP=1 < supabase/tests/six_house_rls.sql",
+    "test:db": "docker exec -i supabase_db_clearpath-local psql -U postgres -d postgres -v ON_ERROR_STOP=1 < supabase/tests/six_house_rls.sql && docker exec -i supabase_db_clearpath-local psql -U postgres -d postgres -v ON_ERROR_STOP=1 < supabase/tests/audit_immutability.sql && docker exec -i supabase_db_clearpath-local psql -U postgres -d postgres -v ON_ERROR_STOP=1 < supabase/tests/security_invariants.sql",
     "lint": "eslint . --quiet",
     "lint:fix": "eslint . --fix",
     "typecheck": "tsc -p ./jsconfig.json",
@@ -31,6 +31,8 @@
     "readiness:check": "node scripts/readiness/readiness.mjs",
     "operations:health": "node scripts/operations/health-check.mjs",
     "operations:restore-drill": "node scripts/operations/restore-drill.mjs",
+    "release:evidence": "node scripts/operations/release-evidence.mjs",
+    "evidence:sign": "node scripts/operations/sign-evidence.mjs",
     "verify": "npm test && npm run lint && npm run typecheck && npm run build && npm audit --omit=dev --audit-level=high",
     "test:ui:sample": "node scripts/sample-data/ui-smoke.mjs",
     "preview": "vite preview"

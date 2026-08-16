@@ -11,21 +11,33 @@ import {
   validateRestoreEvidence,
 } from './restore-drill.mjs';
 import * as restoreDrill from './restore-drill.mjs';
+import { signMigrationReport } from '../migration/report-integrity.mjs';
 
 const runId = '11111111-1111-4111-8111-111111111111';
+const signingKey = 'restore-test-secret';
+
+function signReport(report) {
+  return signMigrationReport(report, signingKey);
+}
+
+function resignReconciliation(evidence) {
+  evidence.reconciliation = signReport(evidence.reconciliation);
+  return evidence;
+}
 
 function validEvidence() {
+  const reconciliation = {
+    ok: true,
+    runId,
+    expected: { residents: 2, documents: 1 },
+    imported: { residents: 2, documents: 1 },
+    packageSha256: 'c'.repeat(64),
+    missing: [],
+    failed: [],
+  };
   return {
     runId,
-    reconciliation: {
-      ok: true,
-      runId,
-      expected: { residents: 2, documents: 1 },
-      imported: { residents: 2, documents: 1 },
-      packageSha256: 'c'.repeat(64),
-      missing: [],
-      failed: [],
-    },
+    reconciliation: signReport(reconciliation),
     database: {
       runId,
       status: 'completed',
@@ -171,80 +183,97 @@ describe('restore drill planning', () => {
   });
 
   it('accepts reconciliation and object evidence tied to the restored run', () => {
-    expect(validateRestoreEvidence(validEvidence())).toEqual({
+    expect(validateRestoreEvidence(validEvidence(), signingKey)).toEqual({
       databaseTotals: { residents: 2, documents: 1 },
       objectTotal: 1,
     });
   });
 
+  it('rejects an unsigned reconciliation report', () => {
+    const evidence = validEvidence();
+    delete evidence.reconciliation.integrity;
+
+    expect(() => validateRestoreEvidence(evidence, signingKey)).toThrow(/integrity/i);
+  });
+
+  it('rejects a reconciliation report with an invalid HMAC before trusting its fields', () => {
+    const evidence = validEvidence();
+    evidence.reconciliation.integrity.signature = '0'.repeat(64);
+
+    expect(() => validateRestoreEvidence(evidence, signingKey)).toThrow(/integrity/i);
+  });
+
   it('fails closed when reconciliation totals do not match the restored database', () => {
     const evidence = validEvidence();
     evidence.reconciliation.imported.residents = 1;
+    resignReconciliation(evidence);
 
-    expect(() => validateRestoreEvidence(evidence)).toThrow(/database totals do not match/i);
+    expect(() => validateRestoreEvidence(evidence, signingKey)).toThrow(/database totals do not match/i);
   });
 
   it('rejects reconciliation for a different validated source package', () => {
     const evidence = validEvidence();
     evidence.reconciliation.packageSha256 = 'd'.repeat(64);
+    resignReconciliation(evidence);
 
-    expect(() => validateRestoreEvidence(evidence)).toThrow(/package/i);
+    expect(() => validateRestoreEvidence(evidence, signingKey)).toThrow(/package/i);
   });
 
   it('rejects a restored target row whose normalized values differ from lineage', () => {
     const evidence = validEvidence();
     evidence.database.records[0].target.last_name = 'Stale';
 
-    expect(() => validateRestoreEvidence(evidence)).toThrow(/restored target values/i);
+    expect(() => validateRestoreEvidence(evidence, signingKey)).toThrow(/restored target values/i);
   });
 
   it('rejects missing restored target rows even when the stale reconciliation report passed', () => {
     const evidence = validEvidence();
     evidence.database.records[0].target = null;
 
-    expect(() => validateRestoreEvidence(evidence)).toThrow(/restored target rows/i);
+    expect(() => validateRestoreEvidence(evidence, signingKey)).toThrow(/restored target rows/i);
   });
 
   it('rejects an arbitrary ok reconciliation report without count evidence', () => {
     const evidence = validEvidence();
-    evidence.reconciliation = { ok: true, missing: [], failed: [] };
+    evidence.reconciliation = signReport({ ok: true, missing: [], failed: [] });
 
-    expect(() => validateRestoreEvidence(evidence)).toThrow(/requested migration run|expected counts/i);
+    expect(() => validateRestoreEvidence(evidence, signingKey)).toThrow(/requested migration run|expected counts/i);
   });
 
   it('fails closed when the restored database run differs from the requested run', () => {
     const evidence = validEvidence();
     evidence.database.runId = '22222222-2222-4222-8222-222222222222';
 
-    expect(() => validateRestoreEvidence(evidence)).toThrow(/requested migration run/i);
+    expect(() => validateRestoreEvidence(evidence, signingKey)).toThrow(/requested migration run/i);
   });
 
   it('rejects reconciliation evidence for a different migration run', () => {
     const evidence = validEvidence();
     evidence.reconciliation.runId = '22222222-2222-4222-8222-222222222222';
+    resignReconciliation(evidence);
 
-    expect(() => validateRestoreEvidence(evidence)).toThrow(/reconciliation.*requested migration run/i);
+    expect(() => validateRestoreEvidence(evidence, signingKey)).toThrow(/reconciliation.*requested migration run/i);
   });
 
   it('fails closed when Storage object totals do not match', () => {
     const evidence = validEvidence();
     evidence.database.restoredObjects = 0;
 
-    expect(() => validateRestoreEvidence(evidence)).toThrow(/Storage object (identities|totals) do not match/i);
+    expect(() => validateRestoreEvidence(evidence, signingKey)).toThrow(/Storage object (identities|totals) do not match/i);
   });
 
   it('rejects a Storage manifest for objects other than restored database references', () => {
     const evidence = validEvidence();
     evidence.storageManifest.objects[0].path = `org/migrations/${runId}/other.pdf`;
 
-    expect(() => validateRestoreEvidence(evidence)).toThrow(/identities do not match/i);
+    expect(() => validateRestoreEvidence(evidence, signingKey)).toThrow(/identities do not match/i);
   });
 
   it('requires matching source and restored checksums for every Storage object', () => {
     const evidence = validEvidence();
     evidence.storageManifest.objects[0].restoredSha256 = 'b'.repeat(64);
 
-    expect(() => validateRestoreEvidence(evidence)).toThrow(/checksum verification failed/i);
+    expect(() => validateRestoreEvidence(evidence, signingKey)).toThrow(/checksum verification failed/i);
   });
 
   it('allows a truly zero-object restore when every source of object evidence is zero', () => {
@@ -256,7 +285,7 @@ describe('restore drill planning', () => {
     evidence.database.restoredObjects = 0;
     evidence.database.objects = [];
 
-    expect(validateRestoreEvidence(evidence)).toEqual({
+    expect(validateRestoreEvidence(evidence, signingKey)).toEqual({
       databaseTotals: { residents: 2, documents: 1 },
       objectTotal: 0,
     });
@@ -269,7 +298,7 @@ describe('restore drill planning', () => {
     evidence.storageManifest.restoredTotal = 0;
     evidence.database.restoredObjects = 0;
 
-    expect(() => validateRestoreEvidence(evidence)).toThrow(/Storage object (identities|totals) do not match/i);
+    expect(() => validateRestoreEvidence(evidence, signingKey)).toThrow(/Storage object (identities|totals) do not match/i);
   });
 
   it('builds a versioned restore report with compatibility fields', () => {

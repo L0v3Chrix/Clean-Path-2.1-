@@ -8,12 +8,12 @@ This file separates repository completion from cutover completion. A green build
 
 - Draft PR: `L0v3Chrix/Clean-Path-2.1-#1` from `codex/six-house-migration-readiness`.
 - Pull-request run 14 passes application verification, clean-database migrations, the database/browser acceptance matrix, and the Vercel preview build on implementation commit `7f3d481d447cace2754c4e3124cdf761a3eaa7b8`.
-- Current local verification passes 31 test files with 177 tests, lint, type checking, and the production build. The refreshed production dependency audit reports zero high or critical findings and two accepted moderate React Router advisories.
+- The current local candidate passes 37 test files with 270 tests, lint, type checking, production build, a clean 12-migration database reset, all three role/house/audit/security SQL suites, and 11 real-browser operator workflows. The refreshed production dependency audit reports zero high or critical findings and two accepted moderate React Router advisories.
 - Vercel Supabase resource `clearpath-production` is attached to `clearpath-rcl-mvp` Preview and Production. Preview `clearpath-rcl-h1hdz1vf6-enterweb-guru.vercel.app` is Ready, requires authentication, renders the protected-workspace login without console errors, and compiles with both `VITE_AUTH_BYPASS=false` and `VITE_CLEARPATH_DEMO_MODE=false`.
 - Live verification on 2026-08-16 confirms eight migrations in the Supabase ledger, 49 public tables, 177 public/Storage RLS policies, four private buckets, owner bootstrap, migration lineage, error audit, and export audit. The private e-signature index, binding trigger, authorization helpers, execute grants, and protected-Storage policy are present; the existing signature data has zero wrong-organization paths, missing secure objects, or duplicate paths.
 - Four Edge Functions are deployed: `health`, `public-intake`, `invite-staff`, and `critical-incident-notify`. The incident function has legacy JWT verification enabled, rejects an unauthenticated POST with HTTP 401, and remains fail-closed with zero claimed deliveries while no approved email provider is configured.
 - The health endpoint returns HTTP 200 with `checks.database: ok`; anonymous public intake reaches application token validation; unauthenticated staff invitation is rejected at the gateway.
-- The production tenant row exists, first-owner bootstrap is one-time, and the trigger-only milestone function is not executable by anonymous or authenticated API roles. The refreshed Supabase Security Advisor reports zero errors and 12 expected warnings for authenticated RLS/audit helper functions.
+- The production tenant row exists and the legacy first-owner bootstrap is one-time, but it is not pre-authorized to a named account. It remains a cutover blocker until the approved account-claim design replaces it. The trigger-only milestone function is not executable by anonymous or authenticated API roles; the last refreshed Supabase Security Advisor reported zero errors and 12 expected warnings for authenticated RLS/audit helper functions.
 - Supabase Auth uses the stable production URL and an explicit three-entry redirect allow list for production, the migration branch preview, and local development. Email confirmation remains required and anonymous sign-in is disabled.
 - A daily physical database backup dated 2026-08-15 is available. Supabase database backups exclude Storage objects, and an isolated restore plus separate object-backup proof is still required before cutover.
 - Vercel production is still the older deployment. Production environment flags have been set to false, but no production promotion is allowed until the remaining cutover gates pass.
@@ -24,12 +24,18 @@ This file separates repository completion from cutover completion. A green build
 - [x] Canonical baseline preserved on a feature branch and divergent upstream left unmerged.
 - [x] Supabase schema covers organization membership, house assignments, migration lineage, and public-intake tokens.
 - [x] House- and resident-scoped RLS replaces broad organization-only access for beta workflows.
-- [x] Staff invitation, role/profile setup, house assignments, and password recovery are implemented.
+- [x] Staff invitation links imported staff profiles by organization-scoped email or explicit profile ID, assigns roles/houses, and supports password recovery without migrating passwords.
+- [x] Owner/Admin privilege tiers, operational roles, house assignments, resident routes, resident self-service capabilities, chat, chores, and audit immutability have database allow/deny coverage in the local candidate.
+- [x] Exited or deactivated residents lose linked read/write access, one Auth user cannot bind to multiple residents, and terminal signature responses cannot be rewritten.
+- [x] Only an Owner may grant Owner/Admin access; operational role and house changes use one transactional server operation.
+- [ ] Pre-authorized first-owner account claim and resumable guided onboarding are approved and implemented.
+- [ ] Resident invitations bind one login to one approved resident record and complete a resident-specific walkthrough.
 - [x] Public intake uses an opaque token, server-side validation, private attachments, and truthful background-check status.
 - [x] Oath Track migration commands support inspect, validate, dry run, import, reconciliation, rerun idempotency, attachment lineage, and rollback.
 - [x] Source-package validation independently verifies six houses, source counts, SHA-256 checksums, dictionary coverage, staff assignments, attachment paths, and cutoff metadata before rehearsal.
 - [x] Source-package acceptance requires all 14 beta domains, explicit per-house zero counts, field-level dictionary coverage, approved financial reconciliation, and live revalidation at the cutover gate.
-- [x] Migration reconciliation verifies rerun lineage, target-row values, attachment existence/checksums, and fee/payment totals rather than trusting lineage counts alone.
+- [x] Migration reconciliation verifies rerun lineage, target-row values, attachment existence/checksums, fee/payment totals, and an exact zero-variance matrix for all six source house IDs rather than trusting organization-wide counts alone.
+- [x] Migration, release, technical, restore, final-health, and human-approval artifacts require canonical HMACs; readiness rejects unsigned, invalid, stale, or tampered evidence.
 - [x] Restore drills compare database-reported server/database identities, restored target-row values, run/package-bound reconciliation, and restored Storage identities/checksums; a database-only, stale, or bare-success report fails closed.
 - [x] Unconfigured email, AI, extraction, and provider integrations cannot report delivery, generated output, or a verified connection.
 - [x] Critical-incident alerts are organization/location scoped, omit incident details, and deep-link only to an incident already returned by authorized RLS queries.
@@ -38,7 +44,7 @@ This file separates repository completion from cutover completion. A green build
 - [x] Sensitive mutations, protected document access, and CSV exports are audited.
 - [x] Operational exports exist for houses/beds, staff, residents/contacts, documents, medications/logs, incidents, schedules, and care plans.
 - [x] Privacy-minimized application error events and a database-backed health endpoint are implemented.
-- [x] Backup/restore and fail-closed cutover-readiness commands bind computed artifact hashes, exact commit/backend/package identity, run identity where applicable, fixed check identities/results, and ordered report timestamps.
+- [x] Backup/restore and fail-closed cutover-readiness commands bind computed artifact hashes, signed machine-derived preview/production Vercel deployment evidence, exact commit/backend/package identity, run identity where applicable, fixed check identities/results, final production health, and signed house-specific approvals in order.
 - [x] RLS, private Storage, public intake, staff access, and automated-check gates ignore caller-edited booleans and require a schema-versioned technical verification artifact whose bytes match the declared SHA-256.
 - [x] Pull-request CI runs tests, lint, type checking, production build, dependency threshold, clean database migrations, the RLS acceptance matrix, and real-browser operator workflows with both bypass flags disabled.
 - [x] Synthetic migration import, unchanged rerun, reconciliation, rollback, and reimport have been exercised locally.
@@ -52,14 +58,16 @@ This file separates repository completion from cutover completion. A green build
 - [ ] Complete Oath Track exports, data dictionary, attachment archive/manifest, history cutoff, and financial totals are supplied.
 - [ ] Staff roster with roles and house assignments is approved.
 - [x] Business-owned Vercel-managed Supabase project is provisioned; migrations, Auth, private Storage, and Edge Functions are deployed and structurally verified.
-- [x] Production tenant, migration ledger, authentication URL allow list, and first-owner bootstrap contract are verified.
+- [x] Production tenant, migration ledger, and authentication URL allow list are verified.
+- [ ] The legacy open first-owner bootstrap is replaced by the approved pre-authorized account-claim contract.
 - [x] Accepted preview compiles `VITE_AUTH_BYPASS=false` and `VITE_CLEARPATH_DEMO_MODE=false` against the new Supabase project.
 - [ ] Production is promoted from the accepted Git commit and both bypass flags are re-observed on that deployment.
 - [ ] A fresh technical verification artifact for the exact accepted 40-character commit, production Supabase project, and final source-package SHA-256 records all five required checks passing in order.
-- [ ] The first approved owner account is created and the organization-owner bootstrap succeeds.
+- [ ] The first approved Owner completes account claim and onboarding, then invites the approved management team with accepted roles and house assignments.
+- [ ] Approved residents receive separately bound portal invitations and pass resident capability acceptance.
 - [ ] Scrubbed rehearsal using the final Oath Track package passes reconciliation and operator acceptance.
 - [ ] Provider backup plus logical dump is restored into an isolated database and reconciled.
 - [ ] Final freeze, all-six-house import, file reconciliation, user provisioning, and production smoke check pass.
-- [ ] Slade and one representative from each of the six houses approve the cutover with timestamps.
+- [ ] Slade and one named representative from each exact source house approve after final health in the signed cutover-approval artifact.
 
 The authoritative final answer is generated by `npm run readiness:check`; until it returns `ready: true`, ClearPath is not approved for the six-house cutover.

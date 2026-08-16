@@ -10,15 +10,49 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import MaintenanceBoard from '@/components/maintenance/MaintenanceBoard';
 
 const roleColors = {
-  platform_admin: 'bg-red-100 text-red-700',
   owner: 'bg-purple-100 text-purple-700',
+  admin: 'bg-red-100 text-red-700',
   director: 'bg-indigo-100 text-indigo-700',
   house_manager: 'bg-teal-100 text-teal-700',
   peer_support: 'bg-green-100 text-green-700',
   case_manager: 'bg-blue-100 text-blue-700',
   staff: 'bg-slate-100 text-slate-600',
-  volunteer: 'bg-yellow-100 text-yellow-700',
 };
+
+const nonPrivilegedStaffRoles = [
+  'director',
+  'house_manager',
+  'case_manager',
+  'peer_support',
+  'staff',
+];
+const canonicalStaffRoles = new Set(['owner', 'admin', ...nonPrivilegedStaffRoles]);
+
+export function getAssignableStaffRoles(assignerRole) {
+  if (assignerRole === 'owner') return ['owner', 'admin', ...nonPrivilegedStaffRoles];
+  if (assignerRole === 'admin') return [...nonPrivilegedStaffRoles];
+  return [];
+}
+
+export function canManageStaffAssignments(role) {
+  return role === 'owner' || role === 'admin';
+}
+
+export function normalizeStaffFormRole(role) {
+  return canonicalStaffRoles.has(role) ? role : 'staff';
+}
+
+export function splitStaffEditPayload(data) {
+  const { id, role, location_ids: locationIds, ...profileFields } = data;
+  return {
+    profileFields,
+    access: {
+      id,
+      role: normalizeStaffFormRole(role),
+      location_ids: locationIds || [],
+    },
+  };
+}
 
 export default function Staff() {
   const [staff, setStaff] = useState([]);
@@ -28,6 +62,7 @@ export default function Staff() {
   const [showForm, setShowForm] = useState(false);
   const [editing, setEditing] = useState(null);
   const [tab, setTab] = useState('staff');
+  const canManageStaff = canManageStaffAssignments(user?.role);
 
   useEffect(() => { loadData(); }, []);
   const loadData = async () => {
@@ -51,7 +86,7 @@ export default function Staff() {
           <h1 className="text-2xl font-bold text-slate-900">Staff</h1>
           <p className="text-slate-500 text-sm mt-1">{staff.filter(s => s.status === 'active').length} active staff members</p>
         </div>
-        {tab === 'staff' && (
+        {tab === 'staff' && canManageStaff && (
           <Button onClick={() => { setEditing(null); setShowForm(true); }} className="bg-teal-600 hover:bg-teal-700 gap-2">
             <Plus className="w-4 h-4" /> Add Staff
           </Button>
@@ -87,39 +122,49 @@ export default function Staff() {
             </div>
           ) : (
             <div className="divide-y">
-              {staff.map(s => (
-                <button key={s.id} className="w-full flex items-center justify-between px-5 py-4 hover:bg-slate-50 text-left" onClick={() => { setEditing(s); setShowForm(true); }}>
-                  <div className="flex items-center gap-4">
-                    <div className="w-10 h-10 rounded-full bg-purple-100 flex items-center justify-center text-purple-700 font-bold text-sm">
-                      {s.first_name?.[0]}{s.last_name?.[0]}
+              {staff.map(s => {
+                const displayedRole = normalizeStaffFormRole(s.role);
+                return (
+                  <button
+                    key={s.id}
+                    className={`w-full flex items-center justify-between px-5 py-4 text-left ${canManageStaff ? 'hover:bg-slate-50' : 'cursor-default'}`}
+                    disabled={!canManageStaff}
+                    onClick={() => { setEditing(s); setShowForm(true); }}
+                  >
+                    <div className="flex items-center gap-4">
+                      <div className="w-10 h-10 rounded-full bg-purple-100 flex items-center justify-center text-purple-700 font-bold text-sm">
+                        {s.first_name?.[0]}{s.last_name?.[0]}
+                      </div>
+                      <div>
+                        <p className="font-medium text-slate-800">{s.first_name} {s.last_name}</p>
+                        <p className="text-xs text-slate-500">{s.email} {s.title ? `· ${s.title}` : ''}</p>
+                      </div>
                     </div>
-                    <div>
-                      <p className="font-medium text-slate-800">{s.first_name} {s.last_name}</p>
-                      <p className="text-xs text-slate-500">{s.email} {s.title ? `· ${s.title}` : ''}</p>
+                    <div className="flex items-center gap-2">
+                      {s.lived_experience && <Badge className="bg-teal-100 text-teal-700 border-0 text-xs">Lived Experience</Badge>}
+                      <Badge className={`${roleColors[displayedRole]} border-0 text-xs capitalize`}>
+                        {displayedRole.replace(/_/g, ' ')}
+                      </Badge>
+                      {canManageStaff && <ChevronRight className="w-4 h-4 text-slate-400" />}
                     </div>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    {s.lived_experience && <Badge className="bg-teal-100 text-teal-700 border-0 text-xs">Lived Experience</Badge>}
-                    <Badge className={`${roleColors[s.role] || 'bg-slate-100 text-slate-600'} border-0 text-xs capitalize`}>
-                      {s.role?.replace(/_/g, ' ')}
-                    </Badge>
-                    <ChevronRight className="w-4 h-4 text-slate-400" />
-                  </div>
-                </button>
-              ))}
+                  </button>
+                );
+              })}
             </div>
           )}
         </CardContent>
       </Card>}
 
-      {showForm && (
+      {showForm && canManageStaff && (
         <StaffForm
           member={editing}
           locations={locations}
+          assignerRole={user?.role}
           onSave={async (data) => {
             if (data.id) {
-              const updated = await appClient.entities.StaffMember.update(data.id, data);
-              await appClient.staffAccess.updateAssignments(updated);
+              const { profileFields, access } = splitStaffEditPayload(data);
+              await appClient.entities.StaffMember.update(data.id, profileFields);
+              await appClient.staffAccess.updateAssignments(access);
             } else {
               await appClient.staffAccess.invite({ ...data, organization_id: user.organization_id });
             }
@@ -134,8 +179,11 @@ export default function Staff() {
   );
 }
 
-function StaffForm({ member, locations, onSave, onClose }) {
-  const [form, setForm] = useState(member || {
+function StaffForm({ member, locations, assignerRole, onSave, onClose }) {
+  const [form, setForm] = useState(member ? {
+    ...member,
+    role: normalizeStaffFormRole(member.role),
+  } : {
     first_name: '', last_name: '', email: '', phone: '',
     role: 'staff', title: '', hire_date: '', status: 'active', lived_experience: false, location_ids: [],
   });
@@ -185,7 +233,7 @@ function StaffForm({ member, locations, onSave, onClose }) {
               <Select value={form.role} onValueChange={v => set('role', v)}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
-                  {['platform_admin','owner','director','house_manager','peer_support','case_manager','staff','volunteer'].map(r => (
+                  {getAssignableStaffRoles(assignerRole).map(r => (
                     <SelectItem key={r} value={r} className="capitalize">{r.replace(/_/g, ' ')}</SelectItem>
                   ))}
                 </SelectContent>

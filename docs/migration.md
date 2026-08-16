@@ -10,6 +10,8 @@ Do not begin a confirmed import until these items are complete:
 - `[FILL: OATH_TRACK_EXPORT_FILES_AND_FORMATS]` and the matching data dictionary.
 - `[FILL: SOURCE_COUNTS_BY_HOUSE_AND_ENTITY]` captured at the agreed cutoff.
 - `[FILL: STAFF_USER_ROSTER_WITH_ROLE_AND_HOUSE_ASSIGNMENTS]`.
+- `[FILL: APPROVED_FIRST_OWNER_EMAIL_AND_ACCOUNT_CLAIM]`.
+- `[FILL: RESIDENT_PORTAL_INVITATION_ROSTER]`, with one approved user identity per resident record.
 - `[FILL: DOCUMENT_AND_ATTACHMENT_ARCHIVE_WITH_SOURCE_IDS]`.
 - `[FILL: RECORD_HISTORY_CUTOFF_AND_REQUIRED_HISTORICAL_DOMAINS]`.
 - `[FILL: REQUIRED_FINANCIAL_BALANCES_AND_PAYMENT_HISTORY]`.
@@ -33,6 +35,14 @@ Copy the examples into ignored `.migration-input/`; do not fill or commit them i
 
 Supported entities are locations, staff profiles, residents, resident contacts, bed assignments, resident documents, care-plan goals/tasks, medications/logs, incidents, shifts, resident fees, and resident payments. Add an explicit transformer and tests before importing any additional Oath Track domain.
 
+## Account Onboarding And Roles
+
+The proposed onboarding contract is pending product approval and must remain fail-closed until approved. A pre-authorized account claim creates the first user as `owner`; public sign-up must never be able to claim an empty organization. The Owner then completes a resumable setup sequence for organization details, the six houses, management invitations, roles, and house assignments before the role-specific guided walkthrough begins.
+
+The canonical internal roles are `owner`, `admin`, `director`, `house_manager`, `case_manager`, `peer_support`, and `staff`. Only an Owner may grant or manage `owner` or `admin`; an Admin may manage operational users. Location-scoped roles require at least one assigned house. Resident access is provisioned separately and binds the invited user to exactly one approved `residents.user_id`; it is never created through the Staff invitation workflow.
+
+Resident capability is limited to the resident portal, permitted house chat, assigned chores, personal reflections, assigned signatures, and read-only self records. Residents cannot modify clinical, medication, financial, incident, secure-document, staff-review, or other residents' records. Final onboarding screens, copy, completion criteria, and resident-invitation ownership remain `[FILL: APPROVED_ONBOARDING_DESIGN]`.
+
 The optional attachment manifest is CSV or JSON with:
 
 ```text
@@ -55,19 +65,21 @@ npm run migration:import -- .migration-input/manifest.json --report .migration-o
 
 The package-validation command independently reads the handoff and fails on altered checksums; missing required domains; blank or incorrect per-house/entity counts, including explicit zero counts; anything other than six mapped houses; incomplete field-level dictionary coverage; invalid staff assignments; missing document attachments; blank or unreconciled financial totals; or unapproved cutoff metadata. Confirmed import and reconciliation consume the exact in-memory dataset snapshot accepted by this validator. Its report proves package receipt only; it does not replace rehearsal reconciliation, restoration, production smoke testing, or human cutover approvals.
 
-Confirmed database operations require server-only credentials. The signing key adds a verifiable HMAC to generated reports.
+Confirmed database operations require server-only credentials. `MIGRATION_REPORT_SIGNING_KEY` is mandatory for confirmed imports, reconciliation, and rollback. `CLEARPATH_EVIDENCE_SIGNING_KEY` signs release, technical-verification, restore, and final-health evidence. `CUTOVER_APPROVAL_SIGNING_KEY` separately signs the final human acceptance record. Generate and store all three outside Git; each report receives a canonical HMAC so field-order changes do not alter the signature and later tampering fails cutover validation.
 
 ```bash
 export SUPABASE_URL='[FILL: business Supabase URL]'
 export SUPABASE_SERVICE_ROLE_KEY='[FILL: server-only service role key]'
 export MIGRATION_REPORT_SIGNING_KEY='[FILL: migration report signing secret]'
+export CLEARPATH_EVIDENCE_SIGNING_KEY='[FILL: operational evidence signing secret]'
+export CUTOVER_APPROVAL_SIGNING_KEY='[FILL: cutover approval signing secret]'
 
 npm run migration:import -- .migration-input/manifest.json --confirm --report .migration-output/import.json
 npm run migration:reconcile -- .migration-input/manifest.json --run '[FILL: run UUID]' --report .migration-output/reconciliation.json
 npm run migration:rollback -- --run '[FILL: run UUID]' --confirm --report .migration-output/rollback.json
 ```
 
-An unchanged rerun skips previously imported source records. A changed row or attachment with the same source identity is a conflict and stops the run. New target rows use create-only inserts, so concurrent runs cannot both claim the same deterministic target ID and a failing run cannot compensate by deleting another run's row. Roll back the earlier run or correct the source identity; never bypass lineage manually.
+An unchanged rerun skips previously imported source records. A changed row or attachment with the same source identity is a conflict and stops the run. New target rows use create-only inserts, so concurrent runs cannot both claim the same deterministic target ID and a failing run cannot compensate by deleting another run's row. Roll back the earlier run or correct the source identity; never bypass lineage manually. Reconciliation reports include an exact matrix for the six source house IDs with expected, actual, and variance counts by entity and status, attachment totals, fee/payment/balance totals, and house-scope mismatches. Any nonzero variance or scope mismatch fails the run.
 
 ## Cutover Gate
 
@@ -78,10 +90,11 @@ An unchanged rerun skips previously imported source records. A changed row or at
 5. Complete a scrubbed rehearsal using the final file layout and attachment manifest.
 6. Freeze Oath Track edits at `[FILL: cutoff timestamp]` and record source totals.
 7. Run one confirmed import for all six houses.
-8. Require reconciliation with no missing rows, duplicate source IDs, orphaned references, failed files, or unexplained financial differences.
-9. Provision users through staff invitations; do not migrate passwords.
+8. Require both organization-wide and per-house reconciliation with no missing rows, duplicate source IDs, orphaned references, failed files, scope mismatches, attachment differences, or unexplained financial differences.
+9. Provision the approved Owner, management/staff invitations, and separately bound resident invitations; do not migrate passwords.
 10. Promote only the Git-backed Vercel preview built from the accepted commit.
-11. Record approval from Slade and `[FILL: one representative per house]`.
+11. Collect signed production-release evidence, then run the final application/backend health check.
+12. Record signed approval from Slade and `[FILL: one representative per house]` only after final health passes.
 
 ## Backup And Recovery
 
@@ -92,6 +105,7 @@ The restore target is destructive and must be an isolated database. Before `pg_d
 ```bash
 export SOURCE_DATABASE_URL='[FILL: source Postgres URL]'
 export RESTORE_DATABASE_URL='[FILL: isolated restore Postgres URL]'
+export CLEARPATH_EVIDENCE_SIGNING_KEY='[FILL: operational evidence signing secret]'
 npm run operations:restore-drill -- \
   --run '[FILL: completed migration run UUID]' \
   --dump .migration-output/clearpath-backup.dump \
@@ -102,7 +116,7 @@ npm run operations:restore-drill -- \
   --report .migration-output/restore-drill.json
 ```
 
-The reconciliation report is mandatory. It must include `runId` and `packageSha256` for the same requested run and validated source package. Its expected and imported totals must match the completed run's recorded totals and imported lineage on the restored database identified by `RESTORE_DATABASE_URL`. The drill independently reads every restored target row across all supported migration tables and compares each normalized field to restored lineage; a stale report, missing row, or changed value fails even when counts match. A bare `{ "ok": true }` report is rejected.
+The signed reconciliation report is mandatory. It must include a valid HMAC made with `MIGRATION_REPORT_SIGNING_KEY`, `runId`, and `packageSha256` for the same requested run and validated source package. Its expected and imported totals must match the completed run's recorded totals and imported lineage on the restored database identified by `RESTORE_DATABASE_URL`. The drill independently reads every restored target row across all supported migration tables and compares each normalized field to restored lineage; a missing/invalid signature, stale report, missing row, or changed value fails even when counts match. A bare `{ "ok": true }` report is rejected.
 
 The Storage restore manifest is also mandatory and must list exact database object identities. Place the authoritative backed-up objects and separately downloaded restored objects beneath the two supplied directories using `<bucket>/<storage path>`. The command reads both trees and computes their SHA-256 values itself; do not put caller-supplied checksums in the manifest.
 
@@ -122,12 +136,13 @@ The drill fails unless the manifest identities exactly match the requested run's
 
 ## Release Health And Readiness
 
-Deploy the `health` and `critical-incident-notify` Supabase Edge Functions, then verify the Vercel application shell, database connectivity, and the incident function's anonymous-access boundary:
+Deploy the `health` and `critical-incident-notify` Supabase Edge Functions. Run this final health collection only after the accepted Git deployment has been promoted to production; it verifies the production application shell, database connectivity, and the incident function's anonymous-access boundary:
 
 ```bash
 export CLEARPATH_APP_URL='[FILL: accepted Vercel deployment URL]'
 export CLEARPATH_HEALTH_URL='[FILL: Supabase health function URL]'
 export CLEARPATH_HEALTH_ANON_KEY='[FILL: publishable key, when required]'
+export CLEARPATH_EVIDENCE_SIGNING_KEY='[FILL: operational evidence signing secret]'
 npm run operations:health -- --report .migration-output/health.json
 
 test "$(curl -sS -o /dev/null -w '%{http_code}' \
@@ -138,7 +153,17 @@ test "$(curl -sS -o /dev/null -w '%{http_code}' \
 
 Keep JWT verification enabled. Without an approved email provider, an authorized request must report `providerConfigured: false`, `deliveredCount: 0`, and no resident or incident details; deployment alone is not evidence that an alert was delivered.
 
-Copy `migration-templates/readiness-evidence.example.json` to `.migration-output/readiness-evidence.json` and replace every placeholder with observed evidence. Keep `sourcePackageManifest` pointed at the manifest inside `.migration-input`. Keep the technical verification, reconciliation, restore, and health reports beside the readiness file, record their exact SHA-256 values, and use relative paths that remain inside that directory. The cutover command recomputes each artifact hash, reopens and validates the live package, and binds all four reports to one full 40-character canonical commit, migration package hash, Supabase backend target, migration run where applicable, application/health URLs, and ordered timestamps.
+Every Vite deployment emits `/clearpath-release.json` with the exact Git commit, compiled demo/auth flags, and public Supabase project ref. From a clean checkout of the accepted commit, collect preview evidence first and production evidence only after promotion:
+
+```bash
+export CLEARPATH_EVIDENCE_SIGNING_KEY='[FILL: operational evidence signing secret]'
+npm run release:evidence -- --preview --report .migration-output/preview-release.json
+npm run release:evidence -- --report .migration-output/production-release.json
+```
+
+The command queries the bound Vercel project, selects the latest deployment for the explicit environment, requires `READY` Git metadata for the current full `HEAD`, reads the exact deployment's protected release file through Vercel, and signs the report. Preview inspection requires `--preview`; production is the fail-closed default. A dirty worktree, wrong project or commit, non-ready deployment, malformed release file, missing backend identity, or unavailable signing key fails without printing raw Vercel metadata or account details. Readiness independently hashes and verifies both reports; handwritten preview/production commit or flag fields have no authority.
+
+Copy `migration-templates/readiness-evidence.example.json` to `.migration-output/readiness-evidence.json` and replace every placeholder with observed evidence. Keep `sourcePackageManifest` pointed at the manifest inside `.migration-input`. Keep the preview release, technical verification, reconciliation, restore, production release, final health, and cutover approval reports beside the readiness file, record their exact SHA-256 values, and use relative paths that remain inside that directory. The cutover command recomputes each artifact hash, verifies every HMAC, reopens and validates the live package, and binds all seven reports to one full 40-character canonical commit, Vercel project, migration package hash, Supabase backend target, migration run where applicable, application/health URLs, production deployment, and ordered timestamps.
 
 RLS, private Storage, public intake, staff access, and automated checks are accepted only from `technical-verification.json`; fields such as `technical.rlsVerified: true` have no authority. Build the artifact from the exact accepted check outputs using schema version 1 and this fixed contract:
 
@@ -164,7 +189,24 @@ RLS, private Storage, public intake, staff access, and automated checks are acce
 }
 ```
 
-All five identities must appear exactly once, in the listed order, and pass. `packageValidatedAt` must precede the artifact start; check timestamps must be valid, monotonic, and inside the artifact start/completion interval; and technical verification must precede reconciliation. The readiness command revalidates the package at runtime and requires the recomputed package SHA-256 to match the artifact binding, rather than incorrectly requiring a previously written artifact to follow that new runtime timestamp. A missing file, changed byte, stale timestamp, failed/renamed/duplicate/reordered check, short or mismatched commit, backend mismatch, package mismatch, or wrong schema fails closed.
+Sign the completed technical artifact with the operational evidence key:
+
+```bash
+npm run evidence:sign -- \
+  .migration-output/technical-verification.unsigned.json \
+  --report .migration-output/technical-verification.json
+```
+
+All five identities must appear exactly once, in the listed order, and pass. `packageValidatedAt` must precede the artifact start; check timestamps must be valid, monotonic, and inside the artifact start/completion interval. The full artifact order is preview release, technical verification, reconciliation, isolated restore, production release, final health, then cutover approvals. Complete `migration-templates/cutover-approvals.example.json` only after final health, then sign it separately:
+
+```bash
+npm run evidence:sign -- \
+  .migration-output/cutover-approvals.unsigned.json \
+  --report .migration-output/cutover-approvals.json \
+  --key-env CUTOVER_APPROVAL_SIGNING_KEY
+```
+
+The approvals report must identify Slade and exactly one named representative for each source house, bind the accepted commit, migration run/package, and production deployment ID, and contain approval times no earlier than final health. The readiness command revalidates the package at runtime and requires the recomputed package SHA-256 to match the artifact binding, rather than incorrectly requiring a previously written artifact to follow that new runtime timestamp. A missing file, changed byte, invalid HMAC, stale timestamp, failed/renamed/duplicate/reordered check, short or mismatched commit, Vercel project drift, backend mismatch, package mismatch, wrong approval identity, or wrong schema fails closed.
 
 ```bash
 npm run readiness:check -- \

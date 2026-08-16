@@ -10,7 +10,7 @@ This project is a compliance-ready foundation, not a HIPAA-compliant finished sy
 - Backend: business-owned Vercel-managed Supabase Postgres, Auth, private Storage, and Edge Functions.
 - Data access: browser-safe Supabase client in `src/lib/supabaseClient.js`.
 - Domain services: `src/services/*`.
-- Database schema: eight tracked migrations under `supabase/migrations/`, applied through `20260816120000_private_esignature_document_access.sql`.
+- Database schema: 12 tracked migrations under `supabase/migrations/`, applied through `20260816160000_security_invariants.sql`.
 - Removable MVP sample data: `scripts/sample-data/*` and `docs/sample-data.md`.
 - Controlled Oath Track migration tooling: `scripts/migration/*` and `docs/migration.md`.
 - Public intake: opaque token, Supabase Edge Function validation, and private attachment storage.
@@ -129,7 +129,7 @@ Open the printed Vite URL in a browser, usually:
 open http://localhost:5173
 ```
 
-Create the first user from the ClearPath login screen. The first authenticated user can claim the seeded organization as `owner` through the included `bootstrap_organization_owner` RPC. After the first owner exists, use the Staff screen to invite later users, assign their operational role and houses, or request password recovery.
+Do not use open self-registration to establish a production owner. The legacy `bootstrap_organization_owner` RPC is one-time but is not pre-authorized to a named account, so secure first-owner onboarding remains a cutover blocker. After an approved Owner is provisioned through the account-claim flow, use the Staff screen to invite later users, assign their operational role and houses, or request password recovery.
 
 Check that Vite is responding:
 
@@ -146,6 +146,8 @@ npm test
 npm run lint
 npm run typecheck
 npm run build
+# Requires CLEARPATH_EVIDENCE_SIGNING_KEY:
+npm run release:evidence -- --preview --report .migration-output/preview-release.json
 npm run test:db
 npm run test:e2e
 npm run verify
@@ -186,12 +188,15 @@ What is real now:
 What Slade still needs before production:
 
 - The first approved owner account and organization-owner bootstrap.
+- Approval and implementation of the pre-authorized first-owner onboarding and guided walkthrough.
+- A resident invitation flow that binds each resident login to exactly one approved resident record.
 - The approved staff user roster, roles, and house assignments.
 - The complete six-house roster, source exports, data dictionary, source counts, attachments, user roster, and cutoff decision described in `docs/migration.md`.
 - A privacy/security review before storing sensitive health or resident information.
 - Promotion of the accepted Git-backed Vercel preview after every cutover gate passes.
 - A real domain name.
 - A completed backup/restore drill against the business-owned Supabase database.
+- Server-managed migration, operational-evidence, and cutover-approval signing keys stored outside Git.
 - Written operating policies for staff use.
 - Actual vendor decisions only after the core app is stable.
 
