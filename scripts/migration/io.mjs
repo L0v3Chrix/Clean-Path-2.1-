@@ -1,16 +1,23 @@
 import { createHash } from 'node:crypto';
-import { readFile } from 'node:fs/promises';
+import { readFile, realpath } from 'node:fs/promises';
 import { basename, dirname, extname, relative, resolve } from 'node:path';
 import { parse } from 'csv-parse/sync';
 import { sha256 } from './migration.mjs';
 
-function resolveInside(baseDirectory, requestedPath) {
-  const absolute = resolve(baseDirectory, requestedPath);
-  const relation = relative(baseDirectory, absolute);
-  if (relation.startsWith('..') || relation === '' && absolute === baseDirectory) {
+function assertInside(baseDirectory, absolutePath, requestedPath) {
+  const relation = relative(baseDirectory, absolutePath);
+  if (relation.startsWith('..') || relation === '' && absolutePath === baseDirectory) {
     throw new Error(`Migration source path must stay inside the manifest directory: ${requestedPath}`);
   }
-  return absolute;
+}
+
+async function resolveInside(baseDirectory, realBaseDirectory, requestedPath) {
+  const absolutePath = resolve(baseDirectory, requestedPath);
+  assertInside(baseDirectory, absolutePath, requestedPath);
+
+  const realPath = await realpath(absolutePath);
+  assertInside(realBaseDirectory, realPath, requestedPath);
+  return { absolutePath, realPath };
 }
 
 function parseSourceFile(path, content) {
@@ -46,6 +53,7 @@ function mapColumns(row, columnMap = {}) {
 export async function loadMigrationDataset(manifestPath) {
   const absoluteManifestPath = resolve(manifestPath);
   const baseDirectory = dirname(absoluteManifestPath);
+  const realBaseDirectory = await realpath(baseDirectory);
   const manifestContent = await readFile(absoluteManifestPath, 'utf8');
   const manifest = JSON.parse(manifestContent);
   if (!Array.isArray(manifest.files) || manifest.files.length === 0) {
@@ -57,8 +65,8 @@ export async function loadMigrationDataset(manifestPath) {
   for (const file of manifest.files) {
     if (!file.entity || !file.path) throw new Error('Every manifest file needs entity and path.');
     if (entities[file.entity]) throw new Error(`Manifest contains duplicate entity file: ${file.entity}`);
-    const absolutePath = resolveInside(baseDirectory, file.path);
-    const content = await readFile(absolutePath, 'utf8');
+    const { absolutePath, realPath } = await resolveInside(baseDirectory, realBaseDirectory, file.path);
+    const content = await readFile(realPath, 'utf8');
     const rows = parseSourceFile(absolutePath, content);
     entities[file.entity] = rows.map((row) => mapColumns(row, file.columnMap));
     sourceFiles.push({
@@ -71,18 +79,23 @@ export async function loadMigrationDataset(manifestPath) {
 
   const attachments = [];
   if (manifest.attachmentManifest) {
-    const attachmentManifestPath = resolveInside(baseDirectory, manifest.attachmentManifest);
-    const attachmentManifestContent = await readFile(attachmentManifestPath, 'utf8');
-    const attachmentRows = parseSourceFile(attachmentManifestPath, attachmentManifestContent);
+    const attachmentManifest = await resolveInside(
+      baseDirectory,
+      realBaseDirectory,
+      manifest.attachmentManifest,
+    );
+    const attachmentManifestContent = await readFile(attachmentManifest.realPath, 'utf8');
+    const attachmentRows = parseSourceFile(attachmentManifest.absolutePath, attachmentManifestContent);
     for (const row of attachmentRows) {
       if (!row.source_entity || !row.source_id || !row.path) {
         throw new Error('Every attachment row needs source_entity, source_id, and path.');
       }
-      const absolutePath = resolveInside(baseDirectory, row.path);
-      const content = await readFile(absolutePath);
+      const { absolutePath, realPath } = await resolveInside(baseDirectory, realBaseDirectory, row.path);
+      const content = await readFile(realPath);
       attachments.push({
         ...row,
         absolute_path: absolutePath,
+        real_path: realPath,
         file_name: row.file_name || basename(absolutePath),
         mime_type: row.mime_type || 'application/octet-stream',
         size: content.byteLength,

@@ -23,7 +23,9 @@ Use the handoff templates before creating the final manifest:
 
 - `locations.example.csv`: exactly six approved houses with source IDs, addresses, bed/room structure, program, status, and local settings.
 - `source-counts.example.csv`: source totals and SHA-256 for every house/entity export. Add rows for every required historical domain.
+- `data-dictionary.example.csv`: Oath Track field meanings, formats, and coded values for every imported entity.
 - `staff-roster.example.csv`: email, approved role, and house assignments. Never include passwords.
+- `financial-totals.example.csv`: approved opening balance, charges, payments, adjustments, and closing balance for each house.
 - `attachments.csv`: attachment lineage. Copy it beside the source files and add one row per file.
 - `cutover-approvals.example.csv`: Slade plus one representative for each house. Set approval only after acceptance and retain timestamps.
 
@@ -38,17 +40,20 @@ source_entity,source_id,path,file_name,mime_type
 resident_documents,oath-document-123,attachments/photo-id.pdf,photo-id.pdf,application/pdf
 ```
 
-Attachment paths must stay inside the manifest directory. Every attachment is hashed before import, uploaded beneath an organization/run-owned storage path, recorded in lineage, and removed only by rollback of that run.
+Attachment paths must stay inside the manifest directory. Every attachment is hashed before import, and its stable identity, metadata, size, and checksum participate in the source record hash. Changing an attachment therefore conflicts with prior active lineage even when the CSV row is unchanged. Imported objects are uploaded beneath an organization/run-owned storage path, recorded in lineage, and removed only by rollback of that run.
 
 ## Commands
 
 Inspection and validation are offline:
 
 ```bash
+npm run migration:package-validate -- .migration-input/manifest.json --report .migration-output/source-package-validation.json
 npm run migration:inspect -- .migration-input/manifest.json --report .migration-output/inspect.json
 npm run migration:validate -- .migration-input/manifest.json --report .migration-output/validation.json
 npm run migration:import -- .migration-input/manifest.json --report .migration-output/dry-run.json
 ```
+
+The package-validation command independently reads the handoff and fails on altered checksums; missing required domains; blank or incorrect per-house/entity counts, including explicit zero counts; anything other than six mapped houses; incomplete field-level dictionary coverage; invalid staff assignments; missing document attachments; blank or unreconciled financial totals; or unapproved cutoff metadata. Confirmed import and reconciliation consume the exact in-memory dataset snapshot accepted by this validator. Its report proves package receipt only; it does not replace rehearsal reconciliation, restoration, production smoke testing, or human cutover approvals.
 
 Confirmed database operations require server-only credentials. The signing key adds a verifiable HMAC to generated reports.
 
@@ -62,7 +67,7 @@ npm run migration:reconcile -- .migration-input/manifest.json --run '[FILL: run 
 npm run migration:rollback -- --run '[FILL: run UUID]' --confirm --report .migration-output/rollback.json
 ```
 
-An unchanged rerun skips previously imported source records. A changed row with the same source identity is a conflict and stops the run. Roll back the earlier run or correct the source identity; never bypass lineage manually.
+An unchanged rerun skips previously imported source records. A changed row or attachment with the same source identity is a conflict and stops the run. New target rows use create-only inserts, so concurrent runs cannot both claim the same deterministic target ID and a failing run cannot compensate by deleting another run's row. Roll back the earlier run or correct the source identity; never bypass lineage manually.
 
 ## Cutover Gate
 
@@ -82,18 +87,38 @@ An unchanged rerun skips previously imported source records. A changed row with 
 
 Before cutover, create a provider backup and a logical database dump, then restore into an isolated project. Back up Storage objects separately because Supabase database backups contain Storage metadata but not the objects themselves. Record the database backup identifier, object-manifest checksum, dump checksum, restore target, start/end time, operator, and reconciliation report under `.migration-output/`. A backup is not accepted until its database and required objects have both been restored successfully.
 
-The restore target is destructive and must be an isolated database. The command refuses to run when the source and restore host/database identity match:
+The restore target is destructive and must be an isolated database. Before `pg_dump` or `pg_restore`, the command queries both databases for PostgreSQL's server system identifier and database OID. It refuses the operation when those database-reported identities match, including when direct and pooler URLs use different hosts:
 
 ```bash
 export SOURCE_DATABASE_URL='[FILL: source Postgres URL]'
 export RESTORE_DATABASE_URL='[FILL: isolated restore Postgres URL]'
 npm run operations:restore-drill -- \
+  --run '[FILL: completed migration run UUID]' \
   --dump .migration-output/clearpath-backup.dump \
   --reconciliation-report .migration-output/reconciliation.json \
+  --storage-manifest .migration-output/storage-restore-manifest.json \
+  --source-storage-dir .migration-output/source-storage \
+  --restored-storage-dir .migration-output/restored-storage \
   --report .migration-output/restore-drill.json
 ```
 
-The report contains sanitized database identities, the dump SHA-256, timestamps, restored migration-run count, and reconciliation status. It never records database credentials.
+The reconciliation report is mandatory. It must include `runId` and `packageSha256` for the same requested run and validated source package. Its expected and imported totals must match the completed run's recorded totals and imported lineage on the restored database identified by `RESTORE_DATABASE_URL`. The drill independently reads every restored target row across all supported migration tables and compares each normalized field to restored lineage; a stale report, missing row, or changed value fails even when counts match. A bare `{ "ok": true }` report is rejected.
+
+The Storage restore manifest is also mandatory and must list exact database object identities. Place the authoritative backed-up objects and separately downloaded restored objects beneath the two supplied directories using `<bucket>/<storage path>`. The command reads both trees and computes their SHA-256 values itself; do not put caller-supplied checksums in the manifest.
+
+```json
+{
+  "runId": "[FILL: same migration run UUID]",
+  "objects": [
+    {
+      "bucket": "resident-documents",
+      "path": "[FILL: organization]/migrations/[FILL: original import run UUID]/[FILL: object]"
+    }
+  ]
+}
+```
+
+The drill fails unless the manifest identities exactly match the requested run's active database references, every independently read source/restored byte hash matches, and the object totals equal both the run references and `storage.objects` rows on the restored target. The report contains sanitized URLs, database-reported source/target identities, the validated package hash, dump SHA-256, timestamps, exact database/object totals, and computed evidence checksums. It never records database credentials.
 
 ## Release Health And Readiness
 
@@ -106,7 +131,33 @@ export CLEARPATH_HEALTH_ANON_KEY='[FILL: publishable key, when required]'
 npm run operations:health -- --report .migration-output/health.json
 ```
 
-Copy `migration-templates/readiness-evidence.example.json` to `.migration-output/readiness-evidence.json` and replace every placeholder with observed evidence. The cutover command fails until all six houses, external inputs, technical gates, matching Git commits, restore proof, smoke check, and seven approvals are complete:
+Copy `migration-templates/readiness-evidence.example.json` to `.migration-output/readiness-evidence.json` and replace every placeholder with observed evidence. Keep `sourcePackageManifest` pointed at the manifest inside `.migration-input`. Keep the technical verification, reconciliation, restore, and health reports beside the readiness file, record their exact SHA-256 values, and use relative paths that remain inside that directory. The cutover command recomputes each artifact hash, reopens and validates the live package, and binds all four reports to one full 40-character canonical commit, migration package hash, Supabase backend target, migration run where applicable, application/health URLs, and ordered timestamps.
+
+RLS, private Storage, public intake, staff access, and automated checks are accepted only from `technical-verification.json`; fields such as `technical.rlsVerified: true` have no authority. Build the artifact from the exact accepted check outputs using schema version 1 and this fixed contract:
+
+```json
+{
+  "schemaVersion": 1,
+  "artifactType": "clearpath-technical-verification",
+  "startedAt": "[FILL: ISO-8601 start after source-package validation]",
+  "completedAt": "[FILL: ISO-8601 completion before reconciliation]",
+  "bindings": {
+    "canonicalCommit": "[FILL: exact 40-character accepted Git commit]",
+    "projectRef": "[FILL: exact business-owned Supabase project ref]",
+    "packageSha256": "[FILL: exact validated migration package SHA-256]",
+    "packageValidatedAt": "[FILL: checkedAt from the accepted package-validation report]"
+  },
+  "checks": [
+    { "id": "rls-role-cross-house", "result": "passed", "checkedAt": "[FILL: ISO-8601]" },
+    { "id": "private-storage-access", "result": "passed", "checkedAt": "[FILL: ISO-8601]" },
+    { "id": "public-intake", "result": "passed", "checkedAt": "[FILL: ISO-8601]" },
+    { "id": "staff-access", "result": "passed", "checkedAt": "[FILL: ISO-8601]" },
+    { "id": "automated-checks", "result": "passed", "checkedAt": "[FILL: ISO-8601]" }
+  ]
+}
+```
+
+All five identities must appear exactly once, in the listed order, and pass. `packageValidatedAt` must precede the artifact start; check timestamps must be valid, monotonic, and inside the artifact start/completion interval; and technical verification must precede reconciliation. The readiness command revalidates the package at runtime and requires the recomputed package SHA-256 to match the artifact binding, rather than incorrectly requiring a previously written artifact to follow that new runtime timestamp. A missing file, changed byte, stale timestamp, failed/renamed/duplicate/reordered check, short or mismatched commit, backend mismatch, package mismatch, or wrong schema fails closed.
 
 ```bash
 npm run readiness:check -- \

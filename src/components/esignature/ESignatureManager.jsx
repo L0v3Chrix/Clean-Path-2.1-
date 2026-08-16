@@ -7,6 +7,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Textarea } from '@/components/ui/textarea';
 import { FilePen, Plus, X, Upload, Clock, CheckCircle2, XCircle, Eye, Loader2, Send } from 'lucide-react';
 import { format } from 'date-fns';
+import { toast } from 'sonner';
+import { ESignatureDocumentLink } from './ESignaturePanel';
 
 const DOC_TYPES = [
   { value: 'house_rules', label: 'House Rules' },
@@ -54,35 +56,52 @@ export default function ESignatureManager({ resident }) {
   const handleSend = async () => {
     if (!form.title || !form.file_url) return;
     setSending(true);
-    const me = await appClient.auth.me();
-    await appClient.entities.SignatureRequest.create({
-      organization_id: resident.organization_id,
-      resident_id: resident.id,
-      resident_name: `${resident.first_name} ${resident.last_name}`,
-      resident_email: resident.email,
-      title: form.title,
-      description: form.description,
-      document_type: form.document_type,
-      file_url: form.file_url,
-      file_name: form.file_name,
-      due_date: form.due_date,
-      sent_by_name: me.full_name || me.email,
-      sent_by_id: me.id,
-      status: 'pending',
-    });
-
-    if (resident.email) {
-      await appClient.integrations.Core.SendEmail({
-        to: resident.email,
-        subject: `Action Required: Please sign "${form.title}"`,
-        body: `Hi ${resident.first_name},\n\nA document requires your signature: "${form.title}".\n\n${form.description || ''}\n\nPlease log in to your ClearPath portal to review and sign this document${form.due_date ? ` by ${form.due_date}` : ''}.\n\nThank you.`,
+    try {
+      const me = await appClient.auth.me();
+      await appClient.entities.SignatureRequest.create({
+        organization_id: resident.organization_id,
+        resident_id: resident.id,
+        resident_name: `${resident.first_name} ${resident.last_name}`,
+        resident_email: resident.email,
+        title: form.title,
+        description: form.description,
+        document_type: form.document_type,
+        file_url: form.file_url,
+        file_name: form.file_name,
+        due_date: form.due_date,
+        sent_by_name: me.full_name || me.email,
+        sent_by_id: me.id,
+        status: 'pending',
       });
-    }
 
-    setForm({ title: '', description: '', document_type: 'house_rules', due_date: '', file_url: '', file_name: '' });
-    setShowForm(false);
-    setSending(false);
-    load();
+      if (!resident.email) {
+        toast.warning('Signature request saved in ClearPath. No resident email address is available for delivery.');
+      } else {
+        try {
+          const delivery = await appClient.integrations.Core.SendEmail({
+            to: resident.email,
+            subject: `Action Required: Please sign "${form.title}"`,
+            body: `Hi ${resident.first_name},\n\nA document requires your signature: "${form.title}".\n\n${form.description || ''}\n\nPlease log in to your ClearPath portal to review and sign this document${form.due_date ? ` by ${form.due_date}` : ''}.\n\nThank you.`,
+          });
+          if (delivery?.delivered === true) {
+            toast.success('Signature request saved in ClearPath and email delivery was verified.');
+          } else {
+            toast.warning('Signature request saved in ClearPath. Email delivery could not be verified.');
+          }
+        } catch (error) {
+          const reason = error?.code === 'PROVIDER_NOT_CONFIGURED'
+            ? 'No email provider is configured.'
+            : 'Email delivery could not be verified.';
+          toast.warning(`Signature request saved in ClearPath. ${reason}`);
+        }
+      }
+
+      setForm({ title: '', description: '', document_type: 'house_rules', due_date: '', file_url: '', file_name: '' });
+      setShowForm(false);
+      await load();
+    } finally {
+      setSending(false);
+    }
   };
 
   const handleDelete = async (id) => {
@@ -98,7 +117,7 @@ export default function ESignatureManager({ resident }) {
           <FilePen className="w-4 h-4 text-teal-600" /> E-Signature Requests
         </h3>
         <Button size="sm" onClick={() => setShowForm(v => !v)} className="gap-1 bg-teal-600 hover:bg-teal-700 text-white">
-          <Plus className="w-3.5 h-3.5" /> Send Request
+          <Plus className="w-3.5 h-3.5" /> New Request
         </Button>
       </div>
 
@@ -143,7 +162,7 @@ export default function ESignatureManager({ resident }) {
             onClick={handleSend}
           >
             {sending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
-            {sending ? 'Sending...' : `Send to ${resident.first_name}`}
+            {sending ? 'Saving...' : `Create for ${resident.first_name}`}
           </Button>
         </div>
       )}
@@ -152,7 +171,7 @@ export default function ESignatureManager({ resident }) {
         <div className="text-center py-6 text-slate-400 text-sm">Loading...</div>
       ) : requests.length === 0 ? (
         <div className="text-center py-8 text-slate-400 text-sm border rounded-xl bg-slate-50">
-          No signature requests sent yet.
+          No signature requests created yet.
         </div>
       ) : (
         <div className="space-y-2">
@@ -169,17 +188,17 @@ export default function ESignatureManager({ resident }) {
                     </Badge>
                   </div>
                   <div className="text-xs text-slate-400 space-y-0.5">
-                    <p>Sent {format(new Date(req.created_date), 'MMM d, yyyy')} by {req.sent_by_name}</p>
+                    <p>Created {format(new Date(req.created_date), 'MMM d, yyyy')} by {req.sent_by_name}</p>
                     {req.due_date && <p>Due: {req.due_date}</p>}
                     {req.signed_at && <p className="text-green-600">Signed: {format(new Date(req.signed_at), 'MMM d, yyyy h:mm a')}</p>}
                     {req.signature_name && <p className="text-green-600">By: {req.signature_name}</p>}
                     {req.decline_reason && <p className="text-red-500">Declined: {req.decline_reason}</p>}
                   </div>
                   {req.file_url && (
-                    <a href={req.file_url} target="_blank" rel="noopener noreferrer"
-                      className="text-xs text-teal-600 hover:underline mt-1 inline-block">
-                      View document ↗
-                    </a>
+                    <ESignatureDocumentLink
+                      request={req}
+                      className="text-xs text-teal-600 hover:underline mt-1 inline-block"
+                    />
                   )}
                 </div>
                 {req.status === 'pending' && (

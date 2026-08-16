@@ -210,7 +210,20 @@ export function validateMigrationDataset(input) {
   return { ok: errors.length === 0, errors };
 }
 
-function normalizeRow(input, entity, row) {
+function attachmentIdentity(attachment) {
+  if (!attachment) return null;
+  return {
+    sourceEntity: attachment.source_entity,
+    sourceId: String(attachment.source_id),
+    path: attachment.path || null,
+    fileName: attachment.file_name || null,
+    mimeType: attachment.mime_type || null,
+    size: Number.isInteger(Number(attachment.size)) ? Number(attachment.size) : null,
+    sha256: attachment.sha256 || null,
+  };
+}
+
+function normalizeRow(input, entity, row, attachment) {
   const { organizationId, sourceSystem } = input.manifest;
   const spec = ENTITY_SPECS[entity];
   const sourceId = String(row.source_id);
@@ -234,10 +247,15 @@ function normalizeRow(input, entity, row) {
     ));
   }
 
-  return { payload, sourceId, targetId, sourceSha256: sha256(row) };
+  return {
+    payload,
+    sourceId,
+    targetId,
+    sourceSha256: sha256({ row, attachment: attachmentIdentity(attachment) }),
+  };
 }
 
-export function buildMigrationPlan(input, priorRecords = []) {
+export function buildMigrationPlan(input, priorRecords = [], packageSha256) {
   const validation = validateMigrationDataset(input);
   if (!validation.ok) {
     const error = new Error(`Migration dataset failed validation with ${validation.errors.length} error(s).`);
@@ -245,9 +263,13 @@ export function buildMigrationPlan(input, priorRecords = []) {
     throw error;
   }
 
-  const priorBySource = new Map(
-    priorRecords.map((record) => [sourceKey(record.source_entity, String(record.source_id)), record]),
-  );
+  const priorBySource = new Map();
+  const blockingPriorBySource = new Map();
+  for (const record of priorRecords) {
+    const key = sourceKey(record.source_entity, String(record.source_id));
+    if (record.status === 'imported') priorBySource.set(key, record);
+    else if (!['skipped', 'rolled_back'].includes(record.status)) blockingPriorBySource.set(key, record);
+  }
   const records = [];
   const attachments = new Map((input.attachments || []).map((attachment) => [
     sourceKey(attachment.source_entity, String(attachment.source_id)), attachment,
@@ -255,11 +277,14 @@ export function buildMigrationPlan(input, priorRecords = []) {
 
   for (const entity of IMPORT_ORDER) {
     for (const row of input.entities[entity] || []) {
-      const normalized = normalizeRow(input, entity, row);
-      const prior = priorBySource.get(sourceKey(entity, normalized.sourceId));
+      const attachment = attachments.get(sourceKey(entity, String(row.source_id))) || null;
+      const normalized = normalizeRow(input, entity, row, attachment);
+      const key = sourceKey(entity, normalized.sourceId);
+      const prior = priorBySource.get(key);
+      const blockingPrior = blockingPriorBySource.get(key);
       let action = 'import';
       if (prior?.source_sha256 === normalized.sourceSha256 && prior.status === 'imported') action = 'skip';
-      else if (prior && prior.status !== 'rolled_back') action = 'conflict';
+      else if (prior || blockingPrior) action = 'conflict';
 
       records.push({
         sourceSystem: input.manifest.sourceSystem,
@@ -269,7 +294,8 @@ export function buildMigrationPlan(input, priorRecords = []) {
         targetTable: ENTITY_SPECS[entity].table,
         targetId: normalized.targetId,
         payload: normalized.payload,
-        attachment: attachments.get(sourceKey(entity, normalized.sourceId)) || null,
+        priorPayload: prior?.normalized_payload || null,
+        attachment,
         action,
       });
     }
@@ -282,9 +308,12 @@ export function buildMigrationPlan(input, priorRecords = []) {
     }
   }
 
+  const datasetSha256 = sha256(input);
   return {
     manifest: input.manifest,
-    manifestSha256: sha256(input),
+    packageSha256: packageSha256 || datasetSha256,
+    datasetSha256,
+    manifestSha256: datasetSha256,
     records,
   };
 }
@@ -298,28 +327,187 @@ function countByEntity(records, predicate = () => true) {
   return counts;
 }
 
-export function reconcilePlan(plan, importedRecords) {
+export function reconcilePlan(plan, importedRecords, migrationRun) {
   const expected = countByEntity(plan.records);
-  const imported = countByEntity(importedRecords, (record) => record.status === 'imported');
-  const importedKeys = new Set(
-    importedRecords.filter((record) => record.status === 'imported').map(
-      (record) => sourceKey(record.source_entity, String(record.source_id)),
-    ),
+  const acceptedRecords = importedRecords.filter((record) => ['imported', 'skipped'].includes(record.status));
+  const acceptedBySource = new Map();
+  for (const record of acceptedRecords) {
+    const key = sourceKey(record.source_entity, String(record.source_id));
+    const records = acceptedBySource.get(key) || [];
+    records.push(record);
+    acceptedBySource.set(key, records);
+  }
+  const recordsBySource = new Map(
+    [...acceptedBySource].map(([key, records]) => [key, records[0]]),
   );
-  const missing = plan.records.filter(
-    (record) => !importedKeys.has(sourceKey(record.sourceEntity, record.sourceId)),
+  const plannedKeys = new Set(plan.records.map(
+    (record) => sourceKey(record.sourceEntity, record.sourceId),
+  ));
+  const recorded = countByEntity(acceptedRecords);
+  const statuses = {
+    imported: countByEntity(importedRecords, (record) => record.status === 'imported'),
+    skipped: countByEntity(importedRecords, (record) => record.status === 'skipped'),
+  };
+  const missingLineage = plan.records.filter(
+    (record) => !recordsBySource.has(sourceKey(record.sourceEntity, record.sourceId)),
   ).map((record) => ({ entity: record.sourceEntity, sourceId: record.sourceId }));
   const failed = importedRecords.filter((record) => record.status === 'failed').map(
     (record) => ({ entity: record.source_entity, sourceId: record.source_id, error: record.error_message }),
   );
+  const duplicateLineage = [...acceptedBySource.entries()]
+    .filter(([, records]) => records.length > 1)
+    .map(([, records]) => ({
+      entity: records[0].source_entity,
+      sourceId: String(records[0].source_id),
+      count: records.length,
+    }));
+  const extraLineage = acceptedRecords
+    .filter((record) => !plannedKeys.has(sourceKey(record.source_entity, String(record.source_id))))
+    .map((record) => ({ entity: record.source_entity, sourceId: String(record.source_id) }));
 
-  return { ok: missing.length === 0 && failed.length === 0, expected, imported, missing, failed };
+  const sameValue = (left, right) => (
+    JSON.stringify(stableValue(left)) === JSON.stringify(stableValue(right))
+  );
+  const runMismatches = [];
+  const addRunMismatch = (field, expectedValue, actualValue) => {
+    if (!sameValue(expectedValue, actualValue)) {
+      runMismatches.push({ field, expected: expectedValue, actual: actualValue });
+    }
+  };
+  if (!migrationRun) {
+    runMismatches.push({ field: 'migration_run', expected: 'existing run', actual: null });
+  } else {
+    addRunMismatch('status', 'completed', migrationRun.status);
+    addRunMismatch('organization_id', plan.manifest.organizationId, migrationRun.organization_id);
+    addRunMismatch('source_system', plan.manifest.sourceSystem, migrationRun.source_system);
+    addRunMismatch('source_sha256', plan.packageSha256, migrationRun.source_sha256);
+    addRunMismatch('expected_counts', expected, migrationRun.expected_counts);
+    if (!sameValue(expected, migrationRun.imported_counts) || !sameValue(recorded, migrationRun.imported_counts)) {
+      runMismatches.push({
+        field: 'imported_counts',
+        expected,
+        actual: migrationRun.imported_counts,
+        acceptedLineage: recorded,
+      });
+    }
+  }
+
+  const lineageMismatches = [];
+  const missingTargets = [];
+  const mismatchedTargets = [];
+  const missingAttachments = [];
+  const mismatchedAttachments = [];
+
+  for (const planned of plan.records) {
+    const actual = recordsBySource.get(sourceKey(planned.sourceEntity, planned.sourceId));
+    if (!actual) continue;
+    const lineageFields = [];
+    if (actual.source_sha256 !== planned.sourceSha256) lineageFields.push('source_sha256');
+    if (actual.target_table !== planned.targetTable) lineageFields.push('target_table');
+    if (actual.target_id !== planned.targetId) lineageFields.push('target_id');
+    if (migrationRun && actual.migration_run_id !== migrationRun.id) lineageFields.push('migration_run_id');
+    if (migrationRun && actual.organization_id !== migrationRun.organization_id) lineageFields.push('organization_id');
+    if (migrationRun && actual.source_system !== migrationRun.source_system) lineageFields.push('source_system');
+    if (lineageFields.length) {
+      lineageMismatches.push({ entity: planned.sourceEntity, sourceId: planned.sourceId, fields: lineageFields });
+    }
+
+    if (!actual.target) {
+      missingTargets.push({
+        entity: planned.sourceEntity, sourceId: planned.sourceId,
+        targetTable: planned.targetTable, targetId: planned.targetId,
+      });
+    } else {
+      const fields = Object.entries(planned.payload).filter(([field, expectedValue]) => (
+        JSON.stringify(stableValue(actual.target[field])) !== JSON.stringify(stableValue(expectedValue))
+      )).map(([field]) => field);
+      if (fields.length) {
+        mismatchedTargets.push({
+          entity: planned.sourceEntity, sourceId: planned.sourceId,
+          targetTable: planned.targetTable, targetId: planned.targetId, fields,
+        });
+      }
+    }
+
+    if (planned.attachment) {
+      const evidence = actual.attachmentEvidence;
+      if (!evidence?.exists) {
+        missingAttachments.push({ entity: planned.sourceEntity, sourceId: planned.sourceId });
+      } else {
+        const fields = [];
+        const lineageBucket = actual.normalized_payload?.storage_bucket;
+        const lineagePath = actual.normalized_payload?.storage_path;
+        if (evidence.bucket !== lineageBucket) fields.push('bucket');
+        if (evidence.path !== lineagePath) fields.push('path');
+        if (evidence.sha256 !== planned.attachment.sha256) fields.push('sha256');
+        if (fields.length) mismatchedAttachments.push({
+          entity: planned.sourceEntity,
+          sourceId: planned.sourceId,
+          fields,
+          expectedBucket: lineageBucket || null,
+          actualBucket: evidence.bucket || null,
+          expectedPath: lineagePath || null,
+          actualPath: evidence.path || null,
+          expectedSha256: planned.attachment.sha256,
+          actualSha256: evidence.sha256,
+        });
+      }
+    }
+  }
+
+  const financialTotal = (records, entity, valueFromRecord) => records
+    .filter((record) => (record.sourceEntity || record.source_entity) === entity)
+    .reduce((total, record) => total + (Number(valueFromRecord(record)) || 0), 0);
+  const roundCurrency = (value) => Math.round((value + Number.EPSILON) * 100) / 100;
+  const expectedFees = roundCurrency(financialTotal(plan.records, 'resident_fees', (record) => record.payload.amount));
+  const expectedPayments = roundCurrency(financialTotal(plan.records, 'resident_payments', (record) => record.payload.amount));
+  const actualFees = roundCurrency(financialTotal(acceptedRecords, 'resident_fees', (record) => record.target?.amount));
+  const actualPayments = roundCurrency(financialTotal(acceptedRecords, 'resident_payments', (record) => record.target?.amount));
+  const expectedFinancial = {
+    fees: expectedFees,
+    payments: expectedPayments,
+    balance: roundCurrency(expectedFees - expectedPayments),
+  };
+  const actualFinancial = {
+    fees: actualFees,
+    payments: actualPayments,
+    balance: roundCurrency(actualFees - actualPayments),
+  };
+  const variance = Object.fromEntries(Object.keys(expectedFinancial).map((key) => [
+    key, roundCurrency(actualFinancial[key] - expectedFinancial[key]),
+  ]));
+
+  return {
+    ok: [
+      missingLineage, failed, lineageMismatches, missingTargets, mismatchedTargets,
+      missingAttachments, mismatchedAttachments, runMismatches, duplicateLineage, extraLineage,
+    ].every((issues) => issues.length === 0) && Object.values(variance).every((value) => value === 0),
+    runId: migrationRun?.id || null,
+    expected,
+    recorded,
+    imported: recorded,
+    statuses,
+    missingLineage,
+    missing: missingLineage,
+    failed,
+    runMismatches,
+    duplicateLineage,
+    extraLineage,
+    lineageMismatches,
+    targets: { missing: missingTargets, mismatched: mismatchedTargets },
+    attachments: { missing: missingAttachments, mismatched: mismatchedAttachments },
+    financial: { expected: expectedFinancial, actual: actualFinancial, variance },
+  };
 }
 
 export function selectRollbackRecords(records, migrationRunId) {
   const rank = new Map([...IMPORT_ORDER].reverse().map((entity, index) => [ENTITY_SPECS[entity].table, index]));
   return records
-    .filter((record) => record.migration_run_id === migrationRunId && record.status === 'imported' && record.target_id)
+    .filter((record) => (
+      record.migration_run_id === migrationRunId
+      && ['imported', 'failed'].includes(record.status)
+      && record.target_id
+    ))
     .map((record) => ({ table: record.target_table, id: record.target_id }))
     .sort((left, right) => (rank.get(left.table) ?? Number.MAX_SAFE_INTEGER) - (rank.get(right.table) ?? Number.MAX_SAFE_INTEGER));
 }

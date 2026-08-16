@@ -7,33 +7,44 @@
     "demoMode": "[FILL: false after production verification]",
     "authBypass": "[FILL: false after production verification]"
   },
+  "migration": {
+    "runId": "[FILL: completed migration run UUID]",
+    "packageSha256": "[FILL: packageSha256 from live source-package validation and reconciliation]"
+  },
+  "target": {
+    "projectRef": "[FILL: business-owned Supabase project ref]",
+    "databaseServerIdentifier": "[FILL: databaseIdentity.target.serverIdentifier from restore drill]",
+    "appUrl": "[FILL: exact production application URL from health report]",
+    "healthUrl": "[FILL: exact production health URL from health report]"
+  },
   "inputs": {
     "houses": [
-      { "name": "[FILL: HOUSE_1_NAME]", "address": "[FILL]", "sourceCountsVerified": false },
-      { "name": "[FILL: HOUSE_2_NAME]", "address": "[FILL]", "sourceCountsVerified": false },
-      { "name": "[FILL: HOUSE_3_NAME]", "address": "[FILL]", "sourceCountsVerified": false },
-      { "name": "[FILL: HOUSE_4_NAME]", "address": "[FILL]", "sourceCountsVerified": false },
-      { "name": "[FILL: HOUSE_5_NAME]", "address": "[FILL]", "sourceCountsVerified": false },
-      { "name": "[FILL: HOUSE_6_NAME]", "address": "[FILL]", "sourceCountsVerified": false }
+      { "sourceId": "[FILL: HOUSE_1_SOURCE_ID]", "name": "[FILL: HOUSE_1_NAME]", "address": "[FILL]" },
+      { "sourceId": "[FILL: HOUSE_2_SOURCE_ID]", "name": "[FILL: HOUSE_2_NAME]", "address": "[FILL]" },
+      { "sourceId": "[FILL: HOUSE_3_SOURCE_ID]", "name": "[FILL: HOUSE_3_NAME]", "address": "[FILL]" },
+      { "sourceId": "[FILL: HOUSE_4_SOURCE_ID]", "name": "[FILL: HOUSE_4_NAME]", "address": "[FILL]" },
+      { "sourceId": "[FILL: HOUSE_5_SOURCE_ID]", "name": "[FILL: HOUSE_5_NAME]", "address": "[FILL]" },
+      { "sourceId": "[FILL: HOUSE_6_SOURCE_ID]", "name": "[FILL: HOUSE_6_NAME]", "address": "[FILL]" }
     ],
-    "oathTrackExportsChecksummed": false,
-    "dataDictionaryReceived": false,
-    "staffRosterReceived": false,
-    "attachmentManifestReceived": false,
-    "historyCutoffApproved": false,
-    "financialTotalsApproved": false
+    "sourcePackageManifest": "../.migration-input/manifest.json"
   },
-  "technical": {
-    "businessSupabaseVerified": false,
-    "rlsVerified": false,
-    "storageVerified": false,
-    "publicIntakeVerified": false,
-    "staffAccessVerified": false,
-    "migrationRehearsalPassed": false,
-    "reconciliationPassed": false,
-    "restoreDrillPassed": false,
-    "automatedChecksPassed": false,
-    "productionSmokePassed": false
+  "artifacts": {
+    "technicalVerification": {
+      "path": "technical-verification.json",
+      "sha256": "[FILL: SHA-256 of exact technical-verification.json bytes]"
+    },
+    "reconciliation": {
+      "path": "reconciliation.json",
+      "sha256": "[FILL: SHA-256 of exact reconciliation.json bytes]"
+    },
+    "restore": {
+      "path": "restore-drill.json",
+      "sha256": "[FILL: SHA-256 of exact restore-drill.json bytes]"
+    },
+    "health": {
+      "path": "health.json",
+      "sha256": "[FILL: SHA-256 of exact health.json bytes]"
+    }
   },
   "approvals": {
     "slade": { "approved": false, "approvedAt": null },

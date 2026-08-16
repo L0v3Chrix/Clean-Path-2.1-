@@ -7,6 +7,7 @@ import {
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { Input } from '@/components/ui/input';
+import { resolveESignatureDocumentUrl } from '@/components/esignature/ESignaturePanel';
 
 const CATEGORY_CONFIG = {
   signed_agreements: {
@@ -64,6 +65,97 @@ const SIG_TYPE_TO_CATEGORY = {
   other: 'other_docs',
 };
 
+export function resolveWalletSignatureDocumentUrl(request) {
+  return resolveESignatureDocumentUrl(request);
+}
+
+export function WalletDocumentActions({ access, onView, onSave, onRetry }) {
+  if (access.loading) {
+    return (
+      <span className="flex items-center gap-1.5 text-xs text-slate-400 px-2.5 py-1.5">
+        <Loader2 className="w-3.5 h-3.5 animate-spin" /> Preparing...
+      </span>
+    );
+  }
+
+  if (access.error || !access.url) {
+    if (!access.error) {
+      return (
+        <>
+          <button type="button" onClick={onView} className="flex items-center gap-1.5 text-xs text-teal-600 hover:text-teal-800 font-medium px-2.5 py-1.5 rounded-lg border border-teal-200 hover:bg-teal-50 transition-colors">
+            <ExternalLink className="w-3.5 h-3.5" /> View
+          </button>
+          <button type="button" onClick={onSave} className="flex items-center gap-1.5 text-xs text-slate-600 hover:text-slate-800 font-medium px-2.5 py-1.5 rounded-lg border border-slate-200 hover:bg-slate-100 transition-colors">
+            <Download className="w-3.5 h-3.5" /> Save
+          </button>
+        </>
+      );
+    }
+    return (
+      <button
+        type="button"
+        onClick={onRetry}
+        className="flex items-center gap-1.5 text-xs text-red-600 hover:text-red-800 font-medium px-2.5 py-1.5 rounded-lg border border-red-200 hover:bg-red-50 transition-colors"
+      >
+        Retry
+      </button>
+    );
+  }
+
+  return (
+    <>
+      <a
+        href={access.url}
+        target="_blank"
+        rel="noopener noreferrer"
+        className="flex items-center gap-1.5 text-xs text-teal-600 hover:text-teal-800 font-medium px-2.5 py-1.5 rounded-lg border border-teal-200 hover:bg-teal-50 transition-colors"
+      >
+        <ExternalLink className="w-3.5 h-3.5" /> View
+      </a>
+      <a
+        href={access.url}
+        download
+        className="flex items-center gap-1.5 text-xs text-slate-600 hover:text-slate-800 font-medium px-2.5 py-1.5 rounded-lg border border-slate-200 hover:bg-slate-100 transition-colors"
+      >
+        <Download className="w-3.5 h-3.5" /> Save
+      </a>
+    </>
+  );
+}
+
+function SignatureWalletDocumentActions({ doc }) {
+  const [access, setAccess] = useState({ url: '', loading: false, error: '' });
+  const [lastAction, setLastAction] = useState('view');
+
+  const resolveAction = async (action) => {
+    setLastAction(action);
+    setAccess({ url: '', loading: true, error: '' });
+    try {
+      const url = await resolveWalletSignatureDocumentUrl(doc);
+      setAccess({ url, loading: false, error: '' });
+      if (action === 'save') {
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = doc.file_name || doc.title || 'document';
+        link.click();
+      } else {
+        window.open(url, '_blank', 'noopener,noreferrer');
+      }
+    } catch {
+      setAccess({ url: '', loading: false, error: 'Unable to open this secure document.' });
+    }
+  };
+
+  return (
+    <WalletDocumentActions
+      access={access}
+      onView={() => resolveAction('view')}
+      onSave={() => resolveAction('save')}
+      onRetry={() => resolveAction(lastAction)}
+    />
+  );
+}
+
 function DocCard({ doc }) {
   const filename = doc.file_name || doc.label || doc.title || 'Document';
   const date = doc.signed_at
@@ -86,21 +178,27 @@ function DocCard({ doc }) {
         )}
       </div>
       <div className="flex items-center gap-2 flex-shrink-0">
-        <a
-          href={doc.file_url}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="flex items-center gap-1.5 text-xs text-teal-600 hover:text-teal-800 font-medium px-2.5 py-1.5 rounded-lg border border-teal-200 hover:bg-teal-50 transition-colors"
-        >
-          <ExternalLink className="w-3.5 h-3.5" /> View
-        </a>
-        <a
-          href={doc.file_url}
-          download
-          className="flex items-center gap-1.5 text-xs text-slate-600 hover:text-slate-800 font-medium px-2.5 py-1.5 rounded-lg border border-slate-200 hover:bg-slate-100 transition-colors"
-        >
-          <Download className="w-3.5 h-3.5" /> Save
-        </a>
+        {doc._source === 'sig' ? (
+          <SignatureWalletDocumentActions doc={doc} />
+        ) : (
+          <>
+            <a
+              href={doc.file_url}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center gap-1.5 text-xs text-teal-600 hover:text-teal-800 font-medium px-2.5 py-1.5 rounded-lg border border-teal-200 hover:bg-teal-50 transition-colors"
+            >
+              <ExternalLink className="w-3.5 h-3.5" /> View
+            </a>
+            <a
+              href={doc.file_url}
+              download
+              className="flex items-center gap-1.5 text-xs text-slate-600 hover:text-slate-800 font-medium px-2.5 py-1.5 rounded-lg border border-slate-200 hover:bg-slate-100 transition-colors"
+            >
+              <Download className="w-3.5 h-3.5" /> Save
+            </a>
+          </>
+        )}
       </div>
     </div>
   );

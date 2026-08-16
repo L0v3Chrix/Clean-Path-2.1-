@@ -6,6 +6,7 @@ import { loadMigrationDataset } from './io.mjs';
 import { buildMigrationPlan, reconcilePlan, validateMigrationDataset } from './migration.mjs';
 import { createSupabaseMigrationRepository } from './repository.mjs';
 import { executeImport, executeRollback } from './runner.mjs';
+import { validateSourcePackage } from './source-package.mjs';
 
 export function parseMigrationArgs(argv) {
   const [command, ...options] = argv;
@@ -34,6 +35,20 @@ export function signMigrationReport(report, signingKey) {
   return { ...report, integrity: { algorithm: 'hmac-sha256', signature } };
 }
 
+export async function loadValidatedSourcePackage(manifestPath, validator = validateSourcePackage) {
+  const validation = await validator(manifestPath);
+  if (validation.ok && !validation.validatedDataset) {
+    throw new Error('Source-package validator did not return its validated dataset snapshot.');
+  }
+  return { validation, dataset: validation.validatedDataset || null };
+}
+
+export function projectRefFromSupabaseUrl(value) {
+  if (!value) return null;
+  const hostname = new URL(value).hostname;
+  return hostname.endsWith('.supabase.co') ? hostname.split('.')[0] : hostname;
+}
+
 async function emitReport(report, path) {
   const signedReport = signMigrationReport(report, process.env.MIGRATION_REPORT_SIGNING_KEY);
   const content = `${JSON.stringify(signedReport, null, 2)}\n`;
@@ -54,35 +69,41 @@ async function main(argv = process.argv.slice(2)) {
   }
   if (!args.manifestPath) throw new Error(`${args.command} requires a manifest path.`);
 
-  const dataset = await loadMigrationDataset(args.manifestPath);
-  const validation = validateMigrationDataset(dataset);
-  if (args.command === 'inspect') {
+  if (['inspect', 'validate'].includes(args.command)) {
+    const dataset = await loadMigrationDataset(args.manifestPath);
+    const validation = validateMigrationDataset(dataset);
+    if (args.command === 'inspect') {
+      await emitReport({
+        ok: validation.ok,
+        sourceSystem: dataset.manifest.sourceSystem,
+        organizationId: dataset.manifest.organizationId,
+        cutoffAt: dataset.manifest.cutoffAt,
+        files: dataset.sourceFiles,
+        validationErrors: validation.errors,
+      }, args.reportPath);
+      return;
+    }
     await emitReport({
-      ok: validation.ok,
-      sourceSystem: dataset.manifest.sourceSystem,
-      organizationId: dataset.manifest.organizationId,
-      cutoffAt: dataset.manifest.cutoffAt,
-      files: dataset.sourceFiles,
-      validationErrors: validation.errors,
+      ...validation,
     }, args.reportPath);
+    if (!validation.ok) process.exitCode = 1;
     return;
   }
-  if (!validation.ok) {
-    await emitReport(validation, args.reportPath);
+
+  const { validation: sourcePackage, dataset } = await loadValidatedSourcePackage(args.manifestPath);
+  if (!sourcePackage.ok) {
+    await emitReport(sourcePackage, args.reportPath);
     process.exitCode = 1;
-    return;
-  }
-  if (args.command === 'validate') {
-    await emitReport(validation, args.reportPath);
     return;
   }
 
   if (args.command === 'import' && !args.confirm) {
-    const plan = buildMigrationPlan(dataset);
+    const plan = buildMigrationPlan(dataset, [], sourcePackage.packageSha256);
       await emitReport({
         ok: true,
         dryRun: true,
-        manifestSha256: plan.manifestSha256,
+        packageSha256: plan.packageSha256,
+        datasetSha256: plan.datasetSha256,
         actions: plan.records.reduce((counts, record) => {
           counts[record.action] = (counts[record.action] || 0) + 1;
           return counts;
@@ -96,7 +117,7 @@ async function main(argv = process.argv.slice(2)) {
     dataset.manifest.organizationId,
     dataset.manifest.sourceSystem,
   );
-  const plan = buildMigrationPlan(dataset, priorRecords);
+  const plan = buildMigrationPlan(dataset, priorRecords, sourcePackage.packageSha256);
 
   if (args.command === 'import') {
     await emitReport(await executeImport(plan, repository), args.reportPath);
@@ -104,8 +125,15 @@ async function main(argv = process.argv.slice(2)) {
   }
 
   if (!args.runId) throw new Error('Reconcile requires --run <id>.');
+  const migrationRun = await repository.getRun(args.runId);
   const runRecords = await repository.listRunRecords(args.runId);
-  const report = reconcilePlan(plan, runRecords);
+  const report = {
+    runId: args.runId,
+    checkedAt: new Date().toISOString(),
+    packageSha256: plan.packageSha256,
+    target: { projectRef: projectRefFromSupabaseUrl(process.env.SUPABASE_URL) },
+    ...reconcilePlan(plan, runRecords, migrationRun),
+  };
   await emitReport(report, args.reportPath);
   if (!report.ok) process.exitCode = 1;
 }

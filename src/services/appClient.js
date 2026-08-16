@@ -99,31 +99,29 @@ async function uploadFile({ file, bucket = 'secure-documents', pathPrefix = 'upl
   };
 }
 
-async function sendEmail(payload) {
-  console.info('[ClearPath email placeholder]', payload);
-  return {
-    ok: true,
-    skipped: 'Email provider is not configured.',
-  };
+const providerStatus = Object.freeze({
+  email: Object.freeze({ configured: false }),
+  llm: Object.freeze({ configured: false }),
+  documentExtraction: Object.freeze({ configured: false }),
+});
+
+function providerNotConfigured(provider) {
+  const error = new Error(`${provider} provider is not configured.`);
+  error.code = 'PROVIDER_NOT_CONFIGURED';
+  error.provider = provider;
+  return error;
+}
+
+async function sendEmail() {
+  throw providerNotConfigured('email');
 }
 
 async function invokeLLM() {
-  return {
-    output: {
-      summary: '[FILL: Configure an LLM provider to generate summaries.]',
-      recommendation: 'pending',
-      records: [],
-    },
-  };
+  throw providerNotConfigured('llm');
 }
 
 async function extractDataFromUploadedFile() {
-  return {
-    output: {
-      records: [],
-      note: '[FILL: Configure document extraction provider.]',
-    },
-  };
+  throw providerNotConfigured('document-extraction');
 }
 
 async function invokeFunction(name, payload) {
@@ -223,6 +221,7 @@ export const appClient = {
   entities,
   integrations: {
     Core: {
+      providerStatus,
       UploadFile: uploadFile,
       CreateSignedUrl: createSignedStorageUrl,
       SendEmail: sendEmail,

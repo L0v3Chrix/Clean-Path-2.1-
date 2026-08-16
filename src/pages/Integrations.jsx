@@ -1,8 +1,7 @@
-import { useState, useEffect } from 'react';
+import { useCallback, useState, useEffect } from 'react';
 import { appClient } from '@/services/appClient';
-import { CheckCircle2, ExternalLink } from 'lucide-react';
+import { AlertCircle, CheckCircle2, ExternalLink, Loader2, RefreshCw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
 const INTEGRATION_CATALOG = [
   {
@@ -55,6 +54,65 @@ const INTEGRATION_CATALOG = [
   },
 ];
 
+// Add a provider only after its server-side adapter verifies credentials and connectivity.
+const VERIFIED_PROVIDER_ADAPTERS = new Set();
+
+export function getIntegrationDisplayStatus(config) {
+  if (!config) return 'disconnected';
+  if (config.status !== 'connected') return config.status;
+  const metadata = config.metadata || {};
+  return VERIFIED_PROVIDER_ADAPTERS.has(config.integration_name)
+    && metadata.verification_status === 'verified' && metadata.verified_at
+    ? 'connected'
+    : 'pending';
+}
+
+export async function loadIntegrationData(client) {
+  const [orgs, configs] = await Promise.all([
+    client.entities.Organization.list(),
+    client.entities.IntegrationConfig.list(),
+  ]);
+  return { orgId: orgs?.[0]?.id || null, configs: configs || [] };
+}
+
+export async function savePendingIntegration(client, { configs, orgId, integration }) {
+  if (!orgId) throw new Error('Active organization is unavailable.');
+  const existing = configs.find(config => (
+    config.integration_name === integration.name && config.organization_id === orgId
+  ));
+  const pendingConfig = {
+    status: 'pending',
+    connected_date: null,
+    metadata: {
+      ...(existing?.metadata || {}),
+      verification_status: 'unverified',
+      verified_at: null,
+    },
+  };
+
+  if (existing) {
+    return client.entities.IntegrationConfig.update(existing.id, pendingConfig);
+  }
+  return client.entities.IntegrationConfig.create({
+    organization_id: orgId,
+    integration_name: integration.name,
+    integration_type: integration.type,
+    ...pendingConfig,
+  });
+}
+
+export function disconnectIntegration(client, config) {
+  return client.entities.IntegrationConfig.update(config.id, {
+    status: 'disconnected',
+    connected_date: null,
+    metadata: {
+      ...(config.metadata || {}),
+      verification_status: 'unverified',
+      verified_at: null,
+    },
+  });
+}
+
 function StatusBadge({ status }) {
   const cfg = {
     connected: { bg: 'bg-emerald-100', text: 'text-emerald-700', label: '● Connected' },
@@ -65,9 +123,13 @@ function StatusBadge({ status }) {
   return <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${cfg.bg} ${cfg.text}`}>{cfg.label}</span>;
 }
 
-function IntegrationCard({ integration, config, onConnect, onDisconnect }) {
+function IntegrationCard({ integration, config, onConnect, onDisconnect, busyAction }) {
   const [expanded, setExpanded] = useState(false);
-  const isConnected = config?.status === 'connected';
+  const displayStatus = getIntegrationDisplayStatus(config);
+  const isConnected = displayStatus === 'connected';
+  const connectBusy = busyAction === `connect:${integration.name}`;
+  const disconnectBusy = busyAction === `disconnect:${config?.id}`;
+  const mutationBusy = busyAction !== null;
 
   return (
     <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden hover:shadow-md transition-shadow">
@@ -79,7 +141,7 @@ function IntegrationCard({ integration, config, onConnect, onDisconnect }) {
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2 flex-wrap">
               <p className="font-bold text-slate-800">{integration.name}</p>
-              <StatusBadge status={config?.status || 'disconnected'} />
+              <StatusBadge status={displayStatus} />
             </div>
             <p className="text-xs text-slate-500 mt-0.5">{integration.desc}</p>
           </div>
@@ -107,12 +169,12 @@ function IntegrationCard({ integration, config, onConnect, onDisconnect }) {
           </a>
           <div className="ml-auto flex gap-2">
             {isConnected ? (
-              <Button size="sm" variant="outline" className="text-xs text-red-500 border-red-200 hover:bg-red-50" onClick={() => onDisconnect(config.id)}>
-                Disconnect
+              <Button size="sm" variant="outline" disabled={mutationBusy} className="text-xs text-red-500 border-red-200 hover:bg-red-50" onClick={() => onDisconnect(config)}>
+                {disconnectBusy ? <><Loader2 className="w-3.5 h-3.5 animate-spin" /> Disconnecting</> : 'Disconnect'}
               </Button>
             ) : (
-              <Button size="sm" className="text-xs bg-amber-600 hover:bg-amber-700 text-white" onClick={() => onConnect(integration)}>
-                Connect
+              <Button size="sm" disabled={mutationBusy} className="text-xs bg-amber-600 hover:bg-amber-700 text-white" onClick={() => onConnect(integration)}>
+                {connectBusy ? <><Loader2 className="w-3.5 h-3.5 animate-spin" /> Saving</> : 'Record Setup'}
               </Button>
             )}
           </div>
@@ -126,52 +188,68 @@ export default function Integrations() {
   const [configs, setConfigs] = useState([]);
   const [orgId, setOrgId] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState('');
+  const [mutationError, setMutationError] = useState('');
+  const [busyAction, setBusyAction] = useState(null);
   const [filterType, setFilterType] = useState('all');
   const [connectingTo, setConnectingTo] = useState(null);
-  const [connStatus, setConnStatus] = useState('connected');
 
-  const load = async () => {
-    const [orgs, cfgs] = await Promise.all([
-      appClient.entities.Organization.list(),
-      appClient.entities.IntegrationConfig.list(),
-    ]);
-    if (orgs[0]) setOrgId(orgs[0].id);
-    setConfigs(cfgs);
-    setLoading(false);
-  };
+  const load = useCallback(async ({ showLoading = true } = {}) => {
+    if (showLoading) setLoading(true);
+    setLoadError('');
+    try {
+      const data = await loadIntegrationData(appClient);
+      setOrgId(data.orgId);
+      setConfigs(data.configs);
+      if (!data.orgId) setLoadError('No active organization is available. Retry after your account access is restored.');
+      return true;
+    } catch {
+      setLoadError('Integrations could not be loaded. Check your connection and try again.');
+      return false;
+    } finally {
+      setLoading(false);
+    }
+  }, []);
 
-  useEffect(() => { load(); }, []);
+  useEffect(() => { load(); }, [load]);
 
   const handleConnect = (integration) => {
+    setMutationError('');
     setConnectingTo(integration);
-    setConnStatus('connected');
   };
 
   const confirmConnect = async () => {
-    const existing = configs.find(c => c.integration_name === connectingTo.name && c.organization_id === orgId);
-    if (existing) {
-      await appClient.entities.IntegrationConfig.update(existing.id, { status: connStatus, connected_date: new Date().toISOString().split('T')[0] });
-    } else {
-      await appClient.entities.IntegrationConfig.create({
-        organization_id: orgId,
-        integration_name: connectingTo.name,
-        integration_type: connectingTo.type,
-        status: connStatus,
-        connected_date: new Date().toISOString().split('T')[0],
-      });
+    if (!connectingTo || busyAction) return;
+    setMutationError('');
+    setBusyAction(`connect:${connectingTo.name}`);
+    try {
+      await savePendingIntegration(appClient, { configs, orgId, integration: connectingTo });
+      setConnectingTo(null);
+      await load({ showLoading: false });
+    } catch {
+      setMutationError('Setup could not be saved. Nothing was marked connected. Try again.');
+    } finally {
+      setBusyAction(null);
     }
-    setConnectingTo(null);
-    load();
   };
 
-  const handleDisconnect = async (id) => {
-    await appClient.entities.IntegrationConfig.update(id, { status: 'disconnected' });
-    load();
+  const handleDisconnect = async (config) => {
+    if (busyAction) return;
+    setMutationError('');
+    setBusyAction(`disconnect:${config.id}`);
+    try {
+      await disconnectIntegration(appClient, config);
+      await load({ showLoading: false });
+    } catch {
+      setMutationError('The integration could not be disconnected. Its displayed status was not changed. Try again.');
+    } finally {
+      setBusyAction(null);
+    }
   };
 
   const types = ['all', ...new Set(INTEGRATION_CATALOG.map(i => i.type))];
   const filtered = filterType === 'all' ? INTEGRATION_CATALOG : INTEGRATION_CATALOG.filter(i => i.type === filterType);
-  const connectedCount = configs.filter(c => c.status === 'connected').length;
+  const connectedCount = configs.filter(c => getIntegrationDisplayStatus(c) === 'connected').length;
 
   if (loading) return <div className="flex items-center justify-center min-h-64"><div className="w-8 h-8 border-4 border-amber-200 border-t-amber-600 rounded-full animate-spin" /></div>;
 
@@ -180,13 +258,26 @@ export default function Integrations() {
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div>
           <h1 className="text-2xl font-bold text-slate-900">Integrations & Connections</h1>
-          <p className="text-sm text-slate-500 mt-0.5">Connect Stripe, Twilio, QuickBooks, and more to your platform.</p>
+          <p className="text-sm text-slate-500 mt-0.5">Track provider setup and verified connections.</p>
         </div>
         <div className="flex items-center gap-2 bg-emerald-50 border border-emerald-200 rounded-xl px-4 py-2">
           <CheckCircle2 className="w-4 h-4 text-emerald-600" />
-          <span className="text-sm font-semibold text-emerald-700">{connectedCount} connected</span>
+          <span className="text-sm font-semibold text-emerald-700">{connectedCount} verified connected</span>
         </div>
       </div>
+
+      {loadError && (
+        <div role="alert" className="flex items-center gap-3 border border-red-200 bg-red-50 text-red-800 px-4 py-3 text-sm rounded-lg">
+          <AlertCircle className="w-4 h-4 flex-shrink-0" />
+          <span className="flex-1">{loadError}</span>
+          <Button variant="outline" size="sm" onClick={() => load()} disabled={loading || busyAction !== null} className="gap-1.5">
+            <RefreshCw className="w-3.5 h-3.5" /> Retry
+          </Button>
+        </div>
+      )}
+      {mutationError && !connectingTo && (
+        <div role="alert" className="border border-red-200 bg-red-50 text-red-800 px-4 py-3 text-sm rounded-lg">{mutationError}</div>
+      )}
 
       {/* Connect modal */}
       {connectingTo && (
@@ -195,29 +286,19 @@ export default function Integrations() {
             <div className="flex items-center gap-3">
               <span className="text-3xl">{connectingTo.icon}</span>
               <div>
-                <h3 className="font-bold text-slate-800">Connect {connectingTo.name}</h3>
-                <p className="text-xs text-slate-500">Mark connection status for your records</p>
+                <h3 className="font-bold text-slate-800">Set up {connectingTo.name}</h3>
+                <p className="text-xs text-slate-500">Save this provider as pending setup</p>
               </div>
             </div>
-            <div>
-              <label className="text-xs font-medium text-slate-500">Connection Status</label>
-              <Select value={connStatus} onValueChange={setConnStatus}>
-                <SelectTrigger className="mt-1">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="connected">Connected</SelectItem>
-                  <SelectItem value="pending">Pending Setup</SelectItem>
-                  <SelectItem value="error">Error / Issues</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
             <p className="text-xs text-slate-400 bg-blue-50 rounded-lg p-3">
-              ℹ️ For full API integration (live data sync), follow the setup guide and configure your API keys in the platform's Secrets/Environment settings.
+              This record will remain Pending until ClearPath verifies the provider connection. Saving setup does not prove API access or live data sync.
             </p>
+            {mutationError && <p role="alert" className="text-xs text-red-700 bg-red-50 border border-red-200 rounded-lg p-3">{mutationError}</p>}
             <div className="flex gap-2">
-              <Button variant="outline" className="flex-1" onClick={() => setConnectingTo(null)}>Cancel</Button>
-              <Button className="flex-1 bg-amber-600 hover:bg-amber-700 text-white" onClick={confirmConnect}>Save</Button>
+              <Button variant="outline" className="flex-1" disabled={busyAction !== null} onClick={() => setConnectingTo(null)}>Cancel</Button>
+              <Button disabled={!orgId || busyAction !== null} className="flex-1 bg-amber-600 hover:bg-amber-700 text-white" onClick={confirmConnect}>
+                {busyAction === `connect:${connectingTo.name}` ? <><Loader2 className="w-4 h-4 animate-spin" /> Saving</> : 'Save Pending'}
+              </Button>
             </div>
           </div>
         </div>
@@ -244,6 +325,7 @@ export default function Integrations() {
               config={config}
               onConnect={handleConnect}
               onDisconnect={handleDisconnect}
+              busyAction={busyAction}
             />
           );
         })}
@@ -254,16 +336,16 @@ export default function Integrations() {
         <div className="rounded-2xl p-5" style={{ background: '#F0E9DC', border: '1px solid #E0D5C5' }}>
           <h2 className="font-bold text-slate-800 mb-3">Active Connections</h2>
           <div className="space-y-2">
-            {configs.filter(c => c.status === 'connected').map(c => (
+            {configs.filter(c => getIntegrationDisplayStatus(c) === 'connected').map(c => (
               <div key={c.id} className="bg-white rounded-xl p-3 flex items-center justify-between border border-slate-100">
                 <div className="flex items-center gap-3">
                   <span className="text-lg">{INTEGRATION_CATALOG.find(i => i.name === c.integration_name)?.icon || '🔗'}</span>
                   <div>
                     <p className="font-semibold text-sm text-slate-800">{c.integration_name}</p>
-                    <p className="text-xs text-slate-400">Connected {c.connected_date || ''}</p>
+                    <p className="text-xs text-slate-400">Verified {c.metadata?.verified_at || c.connected_date || ''}</p>
                   </div>
                 </div>
-                <StatusBadge status={c.status} />
+                <StatusBadge status={getIntegrationDisplayStatus(c)} />
               </div>
             ))}
           </div>

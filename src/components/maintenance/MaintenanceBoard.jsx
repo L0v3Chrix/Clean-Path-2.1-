@@ -7,6 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { cn } from '@/lib/utils';
 import TicketCard from './TicketCard';
 import TicketFormModal from './TicketFormModal';
+import { toast } from 'sonner';
 
 const STATUS_COLS = [
   { id: 'open',        label: 'Open',        icon: AlertTriangle, color: 'text-red-500',   bg: 'bg-red-50',   border: 'border-red-200' },
@@ -53,12 +54,26 @@ export default function MaintenanceBoard({ user }) {
     // Notify submitter when completed
     if (newStatus === 'completed' && ticket.submitted_by_email) {
       try {
-        await appClient.integrations.Core.SendEmail({
+        const delivery = await appClient.integrations.Core.SendEmail({
           to: ticket.submitted_by_email,
           subject: `✅ Maintenance Ticket Completed: ${ticket.title}`,
           body: `Hi ${ticket.submitted_by_name},\n\nYour maintenance request "${ticket.title}" (${ticket.room || ticket.location_name}) has been marked as completed.\n\n${ticket.resolution_notes ? `Resolution notes: ${ticket.resolution_notes}` : ''}\n\nThank you!\nClearPath Maintenance Team`,
         });
-      } catch (e) { console.warn('Email notification failed', e); }
+        if (delivery?.delivered === true) {
+          toast.success('Ticket marked completed in ClearPath and email delivery was verified.');
+        } else {
+          toast.warning('Ticket marked completed in ClearPath. Email delivery could not be verified.');
+        }
+      } catch (error) {
+        const reason = error?.code === 'PROVIDER_NOT_CONFIGURED'
+          ? 'No email provider is configured.'
+          : 'Email delivery could not be verified.';
+        toast.warning(`Ticket marked completed in ClearPath. ${reason}`);
+      }
+    } else if (newStatus === 'completed') {
+      toast.warning('Ticket marked completed in ClearPath. No submitter email address is available for delivery.');
+    } else {
+      toast.success('Ticket status saved in ClearPath.');
     }
 
     setTickets(prev => prev.map(t => t.id === ticket.id ? { ...t, ...update } : t));

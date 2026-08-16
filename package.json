@@ -23,6 +23,7 @@
     "sample:validate": "node scripts/sample-data/validate.mjs",
     "sample:remove": "node scripts/sample-data/remove.mjs",
     "migration:inspect": "node scripts/migration/cli.mjs inspect",
+    "migration:package-validate": "node scripts/migration/source-package.mjs",
     "migration:validate": "node scripts/migration/cli.mjs validate",
     "migration:import": "node scripts/migration/cli.mjs import",
     "migration:reconcile": "node scripts/migration/cli.mjs reconcile",
