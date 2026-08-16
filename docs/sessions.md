@@ -22,6 +22,11 @@
 ## Session: 2026-08-16
 
 ### Accomplished
+- Verified GitHub Actions run `31977223444` on commit `12eac7ae384294c71735c4c4a909e30ba8fcc7fd`: application and database/browser jobs plus the exact Git-backed Vercel preview all passed.
+- Verified preview deployment `dpl_J2qAhyFjza8jzZcpjZzuRoH5r7g4` is Ready, Git-sourced from the exact commit, and publishes matching release metadata with both demo and auth bypass flags disabled against Supabase project `dcfldvtdrpukaojkpvzp`.
+- Applied and ledgered migrations `20260816130000` through `20260816160000` on `clearpath-production`, bringing the live database to all 12 repository migrations.
+- Refreshed the live `public-intake` and `invite-staff` Edge Functions to the hardened branch implementations and verified health/preflight HTTP 200 plus unauthenticated staff/incident HTTP 401 boundaries.
+- Confirmed the current production tenant has one organization, one Auth user, one active Owner, no resident login binding, and a pre-change physical backup dated `2026-08-16 11:55:11 UTC`.
 - Verified pull-request run 14 on implementation commit `7f3d481d447cace2754c4e3124cdf761a3eaa7b8`: application checks, clean database migrations, the RLS acceptance matrix, real-backend browser workflows, and the Vercel preview passed.
 - Verified the Ready preview requires authentication, uses the Vercel-managed `clearpath-production` backend, and renders the protected-workspace login without console errors.
 - Applied and recorded migration `20260816120000_private_esignature_document_access` in the production Supabase migration ledger.

@@ -37,9 +37,9 @@ VITE_AUTH_BYPASS=false
 ## Backend Blocker Resolution
 
 - The original hosted project did not expose the ClearPath schema and returned `PGRST205` for application tables. That project is no longer the production target.
-- Vercel-managed Supabase project `clearpath-production` now records all eight migrations and exposes the application schema, owner bootstrap, house-scoped RLS, and audit functions.
+- Vercel-managed Supabase project `clearpath-production` now records all 12 migrations through `20260816160000_security_invariants` and exposes the application schema, owner bootstrap, house- and resident-scoped RLS, immutable audit tables, and hardened staff/resident capabilities.
 - The four required Storage buckets are deployed as private buckets.
-- The `health`, `public-intake`, `invite-staff`, and `critical-incident-notify` Edge Functions are deployed. The incident function requires JWT authentication and cannot claim delivery without an approved provider.
+- The `health`, `public-intake`, `invite-staff`, and `critical-incident-notify` Edge Functions are deployed. The live intake and staff functions match the hardened database contract; the incident function requires JWT authentication and cannot claim delivery without an approved provider.
 - Vercel preview and production environment values do not enable either authentication bypass or demo mode; the accepted preview requires a real Supabase session.
 - External integrations remain planning/config screens only.
 
@@ -63,8 +63,8 @@ No existing project-specific Ralph loop definition was found in this repository.
 
 ## Remaining Acceptance Work
 
-1. Create the first approved owner and run the one-time organization bootstrap.
-2. Validate the approved staff roster, roles, and house assignments.
+1. Replace open self-registration and the legacy bootstrap with the approved pre-authorized account-claim and guided-onboarding contract. The current production tenant already has one active Owner.
+2. Have the approved Owner invite and validate the management/staff roster, roles, and house assignments; provision resident logins separately.
 3. Complete the authoritative six-house source package, scrubbed rehearsal, restore drill, reconciliation, and approvals.
 4. Promote only the accepted Git-backed Vercel deployment after `readiness:check` returns `ready: true`.
 5. Keep external integrations disabled until each vendor is intentionally approved and verified.

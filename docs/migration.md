@@ -43,6 +43,23 @@ The canonical internal roles are `owner`, `admin`, `director`, `house_manager`, 
 
 Resident capability is limited to the resident portal, permitted house chat, assigned chores, personal reflections, assigned signatures, and read-only self records. Residents cannot modify clinical, medication, financial, incident, secure-document, staff-review, or other residents' records. Final onboarding screens, copy, completion criteria, and resident-invitation ownership remain `[FILL: APPROVED_ONBOARDING_DESIGN]`.
 
+The proposed first-account sequence is:
+
+1. Validate a single-use, expiring, pre-authorized account claim for the named organization and email address; create the first membership with full administration authority only after the claim succeeds.
+2. Capture the organization profile and require the six approved houses, including names, addresses, status, and room/bed structure.
+3. Invite the management team, choosing one canonical role per person and explicit house assignments for every location-scoped role.
+4. Present an access review showing organization-wide users, house-scoped users, pending invitations, and the capabilities each role receives; the first administrator confirms this review before onboarding completes.
+5. Start a versioned, resumable guided walkthrough tailored to the signed-in role. Progress is stored per user, can be dismissed and replayed, and never grants access or reports an action merely because a walkthrough step was viewed.
+
+The proposed walkthroughs are:
+
+- Owner/Admin: organization and houses, bed capacity, team invitations and access review, resident intake, medication/document/incident safeguards, exports, and audit review.
+- Director: organization-wide operational dashboard, houses, residents, staffing, compliance, incidents, outcomes, and exports without identity-administration authority.
+- House Manager/Case Manager/Peer Support/Staff: assigned-house dashboard, shift handoff, resident workflow, chores, care plans, medications, incidents, and document boundaries according to role.
+- Resident: personal portal, assigned chores, permitted house chat, reflections, signatures, and the boundary between self-service and staff-managed records.
+
+Onboarding is accepted only when the claim is auditable, refresh/resume works, invitation and role changes pass database allow/deny tests, no open signup can create or seize an organization, and each role's walkthrough is browser-tested at desktop and mobile widths.
+
 The optional attachment manifest is CSV or JSON with:
 
 ```text
