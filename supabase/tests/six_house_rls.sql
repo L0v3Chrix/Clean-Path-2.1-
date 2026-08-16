@@ -74,6 +74,8 @@ exception
 end;
 $$;
 reset role;
+select set_config('request.jwt.claim.role', '', true);
+select set_config('request.jwt.claim.sub', '', true);
 
 insert into public.organizations (id, name, status)
 values
