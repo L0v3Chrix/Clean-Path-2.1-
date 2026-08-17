@@ -53,7 +53,12 @@ jobs:
       - run: npm run sample:seed
       - name: Start and verify Edge Functions
         run: |
-          nohup supabase functions serve > /tmp/clearpath-functions.log 2>&1 &
+          printf '%s\n' \
+            "USER_INVITE_REDIRECT_URL=$USER_INVITE_REDIRECT_URL" \
+            "CLEARPATH_SUPABASE_PUBLIC_URL=$CLEARPATH_SUPABASE_PUBLIC_URL" \
+            > /tmp/clearpath-functions.env
+          nohup supabase functions serve --env-file /tmp/clearpath-functions.env \
+            > /tmp/clearpath-functions.log 2>&1 &
           for attempt in {1..30}; do
             if curl --fail --silent -H "apikey: $VITE_SUPABASE_PUBLISHABLE_KEY" "$SUPABASE_URL/functions/v1/health" > /dev/null; then
               exit 0
@@ -70,5 +75,6 @@ jobs:
           path: |
             playwright-report
             test-results
+            /tmp/clearpath-functions.log
       - if: always()
         run: supabase stop --no-backup
