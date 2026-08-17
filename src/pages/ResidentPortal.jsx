@@ -11,6 +11,7 @@ import MorningReflectionWidget from '@/components/resident_portal/MorningReflect
 import ESignaturePanel from '@/components/esignature/ESignaturePanel';
 import ResidentWallet from '@/components/resident_portal/ResidentWallet';
 import JourneyTracker from '@/components/resident_portal/JourneyTracker';
+import { getResidentPortalLoadState } from '@/lib/residentAccess';
 
 export default function ResidentPortal() {
   const [user, setUser] = useState(null);
@@ -18,15 +19,14 @@ export default function ResidentPortal() {
   const [location, setLocation] = useState(null);
   const [org, setOrg] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState(null);
 
   useEffect(() => {
     const load = async () => {
       const me = await appClient.auth.me();
       setUser(me);
 
-      // Find resident profile linked to this user
-      const residents = await appClient.entities.Resident.filter({ status: 'active' });
-      const mine = residents.find(r => r.user_id === me.id || r.email === me.email);
+      const mine = await appClient.residentAccess.me();
       if (mine) {
         setResident(mine);
         const [locs, orgs] = await Promise.all([
@@ -36,12 +36,15 @@ export default function ResidentPortal() {
         if (mine.location_id) setLocation(locs.find(l => l.id === mine.location_id) || null);
         if (mine.organization_id) setOrg(orgs.find(o => o.id === mine.organization_id) || null);
       }
-      setLoading(false);
     };
-    load().catch(() => setLoading(false));
+    load()
+      .catch(setLoadError)
+      .finally(() => setLoading(false));
   }, []);
 
-  if (loading) {
+  const portalState = getResidentPortalLoadState({ loading, error: loadError, resident });
+
+  if (portalState === 'loading') {
     return (
       <div className="flex items-center justify-center min-h-64">
         <div className="w-8 h-8 border-4 border-amber-200 border-t-amber-600 rounded-full animate-spin" />
@@ -50,6 +53,32 @@ export default function ResidentPortal() {
   }
 
   const firstName = resident?.first_name || user?.full_name?.split(' ')[0] || 'there';
+
+  if (portalState === 'error') {
+    return (
+      <div className="mx-auto flex min-h-64 max-w-xl items-center justify-center p-6">
+        <div className="rounded-lg border border-red-200 bg-red-50 p-5 text-center">
+          <h1 className="font-semibold text-slate-900">Unable to load resident profile</h1>
+          <p className="mt-2 text-sm text-slate-600">
+            Refresh the page. If the problem continues, contact an organization administrator.
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  if (portalState === 'unlinked') {
+    return (
+      <div className="mx-auto flex min-h-64 max-w-xl items-center justify-center p-6">
+        <div className="rounded-lg border border-amber-200 bg-amber-50 p-5 text-center">
+          <h1 className="font-semibold text-slate-900">Resident profile not linked</h1>
+          <p className="mt-2 text-sm text-slate-600">
+            Ask an organization administrator to link this account to an active resident record.
+          </p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="p-4 sm:p-6 max-w-4xl mx-auto space-y-6">

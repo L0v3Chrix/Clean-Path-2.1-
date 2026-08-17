@@ -34,6 +34,7 @@ import BedCapacity from './pages/BedCapacity';
 import SecureDocuments from './pages/SecureDocuments';
 import Presentation from './pages/Presentation';
 import Login from './pages/Login';
+import AcceptInvite from './pages/AcceptInvite';
 import Reports from './pages/Reports';
 import OperationalTelemetryReporter from './components/OperationalTelemetryReporter';
 
@@ -44,6 +45,10 @@ const AuthenticatedApp = () => {
 
   if (isPublicIntake) {
     return <Routes><Route path="/intake" element={<IntakeForm />} /></Routes>;
+  }
+
+  if (location.pathname === '/accept-invite') {
+    return <Routes><Route path="/accept-invite" element={<AcceptInvite />} /></Routes>;
   }
 
   if (isLoadingPublicSettings || isLoadingAuth) {

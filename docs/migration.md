@@ -10,7 +10,7 @@ Do not begin a confirmed import until these items are complete:
 - `[FILL: OATH_TRACK_EXPORT_FILES_AND_FORMATS]` and the matching data dictionary.
 - `[FILL: SOURCE_COUNTS_BY_HOUSE_AND_ENTITY]` captured at the agreed cutoff.
 - `[FILL: STAFF_USER_ROSTER_WITH_ROLE_AND_HOUSE_ASSIGNMENTS]`.
-- `[FILL: APPROVED_FIRST_OWNER_EMAIL_AND_ACCOUNT_CLAIM]`.
+- `[FILL: APPROVED_FIRST_ADMIN_EMAIL_AND_ACCOUNT_CLAIM]`.
 - `[FILL: RESIDENT_PORTAL_INVITATION_ROSTER]`, with one approved user identity per resident record.
 - `[FILL: DOCUMENT_AND_ATTACHMENT_ARCHIVE_WITH_SOURCE_IDS]`.
 - `[FILL: RECORD_HISTORY_CUTOFF_AND_REQUIRED_HISTORICAL_DOMAINS]`.
@@ -37,28 +37,39 @@ Supported entities are locations, staff profiles, residents, resident contacts, 
 
 ## Account Onboarding And Roles
 
-The proposed onboarding contract is pending product approval and must remain fail-closed until approved. A pre-authorized account claim creates the first user as `owner`; public sign-up must never be able to claim an empty organization. The Owner then completes a resumable setup sequence for organization details, the six houses, management invitations, roles, and house assignments before the role-specific guided walkthrough begins.
+The approved onboarding contract is invitation-only. A single-use, expiring, pre-authorized account claim creates the first account user as `admin` by default; public sign-up cannot claim an empty organization. The first administrator is guided through organization details, the six houses, management invitations, roles, and house assignments as part of the versioned role walkthrough. Completion of the underlying business setup is verified separately at the cutover gate; viewing a walkthrough step is not evidence that its action occurred. An explicitly authorized business provisioning operation may still create an initial `owner`, but no browser workflow can grant that role implicitly.
 
-The canonical internal roles are `owner`, `admin`, `director`, `house_manager`, `case_manager`, `peer_support`, and `staff`. Only an Owner may grant or manage `owner` or `admin`; an Admin may manage operational users. Location-scoped roles require at least one assigned house. Resident access is provisioned separately and binds the invited user to exactly one approved `residents.user_id`; it is never created through the Staff invitation workflow.
+The canonical internal roles are `owner`, `admin`, `director`, `house_manager`, `case_manager`, `peer_support`, and `staff`. Only an Owner may grant or manage `owner`; an Admin may grant peer `admin` access and manage non-owner users. Location-scoped roles require at least one assigned house. Resident access is provisioned separately and binds the invited user to exactly one approved `residents.user_id`; it is never created through the Staff invitation workflow.
 
-Resident capability is limited to the resident portal, permitted house chat, assigned chores, personal reflections, assigned signatures, and read-only self records. Residents cannot modify clinical, medication, financial, incident, secure-document, staff-review, or other residents' records. Final onboarding screens, copy, completion criteria, and resident-invitation ownership remain `[FILL: APPROVED_ONBOARDING_DESIGN]`.
+Resident capability is limited to the resident portal, the home-house schedule, permitted house chat, assigned chores, personal reflections, assigned signatures, read-only self records, and resident documents explicitly marked `resident_and_staff`. Residents cannot modify clinical, medication, financial, incident, secure-document, staff-review, staff-assignment, storage-object, or other residents' records.
 
-The proposed first-account sequence is:
+| Role | Effective scope and capability |
+|---|---|
+| Owner | Organization-wide operations, account administration, peer Owners and Admins, and the protected Owner boundary |
+| Admin | Organization-wide operations, team invitations, peer Admins, operational role assignment, and house assignment; cannot create or manage Owners |
+| Director | Organization-wide operational data and workflows; no Owner or Admin identity authority |
+| House Manager | Operational management for explicitly assigned houses |
+| Case Manager | Resident care and documentation for explicitly assigned houses |
+| Peer Support | Limited resident support, chat, and training for explicitly assigned houses |
+| Staff | Standard operational access for explicitly assigned houses |
+| Resident | One linked resident record and the bounded resident-facing capabilities above |
 
-1. Validate a single-use, expiring, pre-authorized account claim for the named organization and email address; create the first membership with full administration authority only after the claim succeeds.
+The required first-account operating sequence is:
+
+1. Validate a single-use, expiring, pre-authorized account claim for the named organization and email address; create the first membership as `admin` only after the claim succeeds.
 2. Capture the organization profile and require the six approved houses, including names, addresses, status, and room/bed structure.
 3. Invite the management team, choosing one canonical role per person and explicit house assignments for every location-scoped role.
-4. Present an access review showing organization-wide users, house-scoped users, pending invitations, and the capabilities each role receives; the first administrator confirms this review before onboarding completes.
-5. Start a versioned, resumable guided walkthrough tailored to the signed-in role. Progress is stored per user, can be dismissed and replayed, and never grants access or reports an action merely because a walkthrough step was viewed.
+4. Review organization-wide users, house-scoped users, pending invitations, and the capabilities each role receives; record the first administrator's confirmation in the cutover acceptance evidence.
+5. Use the versioned, resumable guided walkthrough tailored to the signed-in role. Progress is stored per user, can be dismissed and replayed, and never grants access or reports an action merely because a walkthrough step was viewed.
 
-The proposed walkthroughs are:
+The implemented versioned walkthroughs are:
 
 - Owner/Admin: organization and houses, bed capacity, team invitations and access review, resident intake, medication/document/incident safeguards, exports, and audit review.
 - Director: organization-wide operational dashboard, houses, residents, staffing, compliance, incidents, outcomes, and exports without identity-administration authority.
 - House Manager/Case Manager/Peer Support/Staff: assigned-house dashboard, shift handoff, resident workflow, chores, care plans, medications, incidents, and document boundaries according to role.
 - Resident: personal portal, assigned chores, permitted house chat, reflections, signatures, and the boundary between self-service and staff-managed records.
 
-Onboarding is accepted only when the claim is auditable, refresh/resume works, invitation and role changes pass database allow/deny tests, no open signup can create or seize an organization, and each role's walkthrough is browser-tested at desktop and mobile widths.
+The walkthrough implementation is accepted only when the claim is auditable, refresh/resume works, invitation and role changes pass database allow/deny tests, no open signup can create or seize an organization, and each role's walkthrough is browser-tested at desktop and mobile widths. The six-house setup and management access review remain separate human cutover gates.
 
 The optional attachment manifest is CSV or JSON with:
 

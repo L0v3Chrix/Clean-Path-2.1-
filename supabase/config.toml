@@ -2,26 +2,32 @@ project_id = "clearpath-local"
 
 [api]
 enabled = true
-port = 54321
+port = 55321
 schemas = ["public", "storage"]
 extra_search_path = ["public", "extensions"]
 max_rows = 1000
 
 [db]
-port = 54322
-shadow_port = 54320
+port = 55322
+shadow_port = 55320
 major_version = 17
 
 [studio]
 enabled = true
-port = 54323
+port = 55323
 
 [auth]
 enabled = true
 site_url = "http://127.0.0.1:5173"
 additional_redirect_urls = ["http://localhost:5173"]
 jwt_expiry = 3600
-enable_signup = true
+enable_signup = false
+
+[local_smtp]
+enabled = true
+port = 55324
+smtp_port = 55325
+pop3_port = 55326
 
 [storage]
 enabled = true
@@ -32,3 +38,12 @@ verify_jwt = false
 
 [functions.health]
 verify_jwt = false
+
+[functions.invite-staff]
+verify_jwt = true
+
+[functions.invite-resident]
+verify_jwt = true
+
+[functions.document-access]
+verify_jwt = true

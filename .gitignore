@@ -24,6 +24,7 @@ dist-ssr
 playwright-report/
 test-results/
 supabase/.branches/
+supabase/.temp/
 
 # Editor directories and files
 .vscode/*

@@ -4,17 +4,14 @@ import {
   Eye,
   EyeOff,
   KeyRound,
-  LogIn,
   Mail,
   Moon,
   ShieldCheck,
   Sun,
-  UserPlus,
 } from 'lucide-react';
 import { supabase } from '@/lib/supabaseClient';
-import { appClient } from '@/services/appClient';
 import { authBypassEnabled } from '@/lib/authBypass';
-import { authSetupMessage, isMissingSupabaseSetupError } from '@/lib/authErrors';
+import { authSetupMessage } from '@/lib/authErrors';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -36,17 +33,14 @@ function getInitialThemePreference() {
 }
 
 export default function Login() {
-  const [mode, setMode] = useState('sign-in');
   const [themePreference, setThemePreference] = useState(getInitialThemePreference);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [fullName, setFullName] = useState('');
   const [status, setStatus] = useState('');
   const [error, setError] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
 
-  const isSignUp = mode === 'sign-up';
   const activeLoginMode = useMemo(() => getLoginMode(themePreference), [themePreference]);
   const isDarkLogin = activeLoginMode.id === 'dark';
 
@@ -70,42 +64,12 @@ export default function Login() {
     }
 
     try {
-      const authResult = isSignUp
-        ? await supabase.auth.signUp({
-            email,
-            password,
-            options: {
-              emailRedirectTo: `${window.location.origin}/login`,
-              data: {
-                full_name: fullName,
-              },
-            },
-          })
-        : await supabase.auth.signInWithPassword({ email, password });
+      const authResult = await supabase.auth.signInWithPassword({ email, password });
 
       if (authResult.error) throw authResult.error;
 
-      if (!authResult.data.session) {
-        setStatus('Check your email to confirm the account, then sign in.');
-        return;
-      }
-
-      try {
-        await appClient.auth.bootstrapOrganizationOwner(fullName || email);
-      } catch (setupError) {
-        if (isMissingSupabaseSetupError(setupError)) {
-          setStatus(authSetupMessage(setupError));
-          window.setTimeout(() => window.location.assign('/'), 1500);
-          return;
-        }
-        throw setupError;
-      }
-
       window.location.assign('/');
     } catch (submitError) {
-      if (isSignUp || !isMissingSupabaseSetupError(submitError)) {
-        await supabase.auth.signOut();
-      }
       setError(authSetupMessage(submitError));
     } finally {
       setIsSubmitting(false);
@@ -127,7 +91,7 @@ export default function Login() {
     }
 
     const { error: resetError } = await supabase.auth.resetPasswordForEmail(email, {
-      redirectTo: `${window.location.origin}/login`,
+      redirectTo: `${window.location.origin}/accept-invite?mode=recovery`,
     });
 
     if (resetError) {
@@ -200,51 +164,6 @@ export default function Login() {
             </div>
 
             <form onSubmit={handleSubmit} className="relative space-y-5">
-              <div className="grid grid-cols-2 gap-2 rounded-lg border border-[#E8D5C6] bg-[#FAF6F3] p-1">
-                <Button
-                  type="button"
-                  variant="ghost"
-                  className={`cp-focus-ring h-10 rounded-md text-sm ${
-                    !isSignUp
-                      ? 'bg-[#2A1D15] text-[#FFF8EA] shadow hover:bg-[#2A1D15] hover:text-[#FFF8EA]'
-                      : 'text-[#5F4A3D] hover:bg-[#FFF8EA] hover:text-[#2A1D15]'
-                  }`}
-                  onClick={() => setMode('sign-in')}
-                >
-                  <LogIn className="h-4 w-4" />
-                  Sign in
-                </Button>
-                <Button
-                  type="button"
-                  variant="ghost"
-                  className={`cp-focus-ring h-10 rounded-md text-sm ${
-                    isSignUp
-                      ? 'bg-[#2A1D15] text-[#FFF8EA] shadow hover:bg-[#2A1D15] hover:text-[#FFF8EA]'
-                      : 'text-[#5F4A3D] hover:bg-[#FFF8EA] hover:text-[#2A1D15]'
-                  }`}
-                  onClick={() => setMode('sign-up')}
-                >
-                  <UserPlus className="h-4 w-4" />
-                  Create user
-                </Button>
-              </div>
-
-              {isSignUp && (
-                <div className="space-y-2">
-                  <Label htmlFor="fullName" className="text-[#2A1D15]">
-                    Name
-                  </Label>
-                  <Input
-                    id="fullName"
-                    value={fullName}
-                    onChange={(event) => setFullName(event.target.value)}
-                    placeholder="Slade"
-                    autoComplete="name"
-                    className="h-12 border-[#DCC5B4] bg-white/82 text-[#2A1D15] placeholder:text-[#806B5D] focus-visible:ring-2 focus-visible:ring-[#F26D2B] focus-visible:ring-offset-2 focus-visible:ring-offset-[#FFF8EA]"
-                  />
-                </div>
-              )}
-
               <div className="space-y-2">
                 <Label htmlFor="email" className="text-[#2A1D15]">
                   Email
@@ -285,7 +204,7 @@ export default function Login() {
                     type={showPassword ? 'text' : 'password'}
                     value={password}
                     onChange={(event) => setPassword(event.target.value)}
-                    autoComplete={isSignUp ? 'new-password' : 'current-password'}
+                    autoComplete="current-password"
                     minLength={6}
                     required
                     className="h-12 border-[#DCC5B4] bg-white/88 pl-10 pr-11 text-[#2A1D15] placeholder:text-[#806B5D] focus-visible:ring-2 focus-visible:ring-[#F26D2B] focus-visible:ring-offset-2 focus-visible:ring-offset-[#FFF8EA]"
@@ -317,7 +236,7 @@ export default function Login() {
                 className="cp-focus-ring cp-path-button h-12 w-full rounded-md text-base font-bold"
                 disabled={isSubmitting}
               >
-                {isSubmitting ? 'Working...' : isSignUp ? 'Create account' : 'Sign in'}
+                {isSubmitting ? 'Signing in...' : 'Sign in'}
                 <ArrowRight className="h-4 w-4" />
               </Button>
             </form>

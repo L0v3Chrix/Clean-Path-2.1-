@@ -286,8 +286,10 @@ select pg_temp.assert_sqlstate(
 reset role;
 select set_config('request.jwt.claim.role', '', true);
 
-set local role authenticated;
-select set_config('request.jwt.claim.role', 'authenticated', true);
+-- Service-role writes bypass RLS, so these checks prove the table-level owner
+-- invariant remains intact beneath the authenticated RPC-only access layer.
+set local role service_role;
+select set_config('request.jwt.claim.role', 'service_role', true);
 select set_config('request.jwt.claim.sub', 'a1000000-0000-4000-8000-000000000001', true);
 
 select pg_temp.assert_sqlstate(
@@ -331,6 +333,9 @@ begin
 end;
 $$;
 
+reset role;
+set local role authenticated;
+select set_config('request.jwt.claim.role', 'authenticated', true);
 select set_config('request.jwt.claim.sub', 'a1000000-0000-4000-8000-000000000004', true);
 
 do $$

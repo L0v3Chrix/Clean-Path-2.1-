@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { appClient } from '@/services/appClient';
 import { Badge } from '@/components/ui/badge';
 import {
@@ -8,6 +8,12 @@ import {
 import { format } from 'date-fns';
 import { Input } from '@/components/ui/input';
 import { resolveESignatureDocumentUrl } from '@/components/esignature/ESignaturePanel';
+import {
+  buildResidentWalletViewModel,
+  getResidentDocumentStorageReference,
+  isResidentVisibleDocument,
+  isSignedDocumentUrl,
+} from '@/lib/residentWallet';
 
 const CATEGORY_CONFIG = {
   signed_agreements: {
@@ -40,33 +46,53 @@ const CATEGORY_CONFIG = {
   },
 };
 
-const DOC_TYPE_TO_CATEGORY = {
-  resident_agreement: 'signed_agreements',
-  house_rules: 'signed_agreements',
-  release_of_information: 'signed_agreements',
-  recovery_plan: 'signed_agreements',
-  insurance_card: 'insurance',
-  consent_form: 'medical_consent',
-  intake_assessment: 'medical_consent',
-  medication_log: 'medical_consent',
-  tb_test: 'medical_consent',
-  photo_id: 'other_docs',
-  drug_test_result: 'other_docs',
-  other: 'other_docs',
-};
-
-const SIG_TYPE_TO_CATEGORY = {
-  house_rules: 'signed_agreements',
-  lease_agreement: 'signed_agreements',
-  release_of_information: 'signed_agreements',
-  consent_form: 'medical_consent',
-  medication_policy: 'medical_consent',
-  grievance_policy: 'signed_agreements',
-  other: 'other_docs',
-};
+const RESIDENT_WALLET_SIGNED_URL_TTL_SECONDS = 600;
+const DOCUMENT_UNAVAILABLE_MESSAGE = 'Document unavailable.';
 
 export function resolveWalletSignatureDocumentUrl(request) {
   return resolveESignatureDocumentUrl(request);
+}
+
+export async function resolveWalletResidentDocumentUrl(document) {
+  try {
+    if (!isResidentVisibleDocument(document)) throw new Error('Document is not resident-visible.');
+
+    const reference = getResidentDocumentStorageReference(
+      document?._storageReference || document,
+    );
+    if (!reference) throw new Error('Document has no private storage object path.');
+
+    const url = await appClient.integrations.Core.CreateSignedUrl(
+      reference,
+      RESIDENT_WALLET_SIGNED_URL_TTL_SECONDS,
+    );
+    if (!isSignedDocumentUrl(url)) throw new Error('Signed URL was invalid.');
+    return url;
+  } catch {
+    throw new Error(DOCUMENT_UNAVAILABLE_MESSAGE);
+  }
+}
+
+function downloadResidentWalletDocument(url, document) {
+  const link = globalThis.document?.createElement?.('a');
+  if (!link) return;
+
+  link.href = url;
+  link.download = document?.file_name || document?.title || 'document';
+  link.click();
+}
+
+export async function performResidentWalletDocumentAction(document, action, overrides = {}) {
+  const url = await resolveWalletResidentDocumentUrl(document);
+  if (action === 'download') {
+    const download = overrides.download || downloadResidentWalletDocument;
+    download(url, document);
+    return url;
+  }
+
+  const openWindow = overrides.openWindow || globalThis.window?.open;
+  openWindow?.(url, '_blank', 'noopener,noreferrer');
+  return url;
 }
 
 export function WalletDocumentActions({ access, onView, onSave, onRetry }) {
@@ -92,13 +118,16 @@ export function WalletDocumentActions({ access, onView, onSave, onRetry }) {
       );
     }
     return (
-      <button
-        type="button"
-        onClick={onRetry}
-        className="flex items-center gap-1.5 text-xs text-red-600 hover:text-red-800 font-medium px-2.5 py-1.5 rounded-lg border border-red-200 hover:bg-red-50 transition-colors"
-      >
-        Retry
-      </button>
+      <div className="flex items-center gap-2">
+        <span className="text-xs text-red-600">{access.error}</span>
+        <button
+          type="button"
+          onClick={onRetry}
+          className="flex items-center gap-1.5 text-xs text-red-600 hover:text-red-800 font-medium px-2.5 py-1.5 rounded-lg border border-red-200 hover:bg-red-50 transition-colors"
+        >
+          Retry
+        </button>
+      </div>
     );
   }
 
@@ -156,6 +185,31 @@ function SignatureWalletDocumentActions({ doc }) {
   );
 }
 
+export function ResidentWalletDocumentActions({ doc }) {
+  const [access, setAccess] = useState({ url: '', loading: false, error: '' });
+  const [lastAction, setLastAction] = useState('view');
+
+  const prepareAccess = async (action) => {
+    setLastAction(action);
+    setAccess({ url: '', loading: true, error: '' });
+    try {
+      await performResidentWalletDocumentAction(doc, action);
+      setAccess({ url: '', loading: false, error: '' });
+    } catch {
+      setAccess({ url: '', loading: false, error: DOCUMENT_UNAVAILABLE_MESSAGE });
+    }
+  };
+
+  return (
+    <WalletDocumentActions
+      access={access}
+      onView={() => prepareAccess('view')}
+      onSave={() => prepareAccess('download')}
+      onRetry={() => prepareAccess(lastAction)}
+    />
+  );
+}
+
 function DocCard({ doc }) {
   const filename = doc.file_name || doc.label || doc.title || 'Document';
   const date = doc.signed_at
@@ -181,23 +235,7 @@ function DocCard({ doc }) {
         {doc._source === 'sig' ? (
           <SignatureWalletDocumentActions doc={doc} />
         ) : (
-          <>
-            <a
-              href={doc.file_url}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="flex items-center gap-1.5 text-xs text-teal-600 hover:text-teal-800 font-medium px-2.5 py-1.5 rounded-lg border border-teal-200 hover:bg-teal-50 transition-colors"
-            >
-              <ExternalLink className="w-3.5 h-3.5" /> View
-            </a>
-            <a
-              href={doc.file_url}
-              download
-              className="flex items-center gap-1.5 text-xs text-slate-600 hover:text-slate-800 font-medium px-2.5 py-1.5 rounded-lg border border-slate-200 hover:bg-slate-100 transition-colors"
-            >
-              <Download className="w-3.5 h-3.5" /> Save
-            </a>
-          </>
+          <ResidentWalletDocumentActions doc={doc} />
         )}
       </div>
     </div>
@@ -247,24 +285,12 @@ export default function ResidentWallet({ resident }) {
         appClient.entities.SignatureRequest.filter({ resident_id: resident.id }),
       ]);
 
-      const groups = { signed_agreements: [], insurance: [], medical_consent: [], other_docs: [] };
-
-      // Resident documents with a file_url
-      resDocs.filter(d => d.file_url).forEach(doc => {
-        const cat = DOC_TYPE_TO_CATEGORY[doc.document_type] || 'other_docs';
-        groups[cat].push({ ...doc, _source: 'doc' });
+      const viewModel = buildResidentWalletViewModel({
+        residentDocuments: resDocs,
+        signatureRequests: sigRequests,
       });
-
-      // Signed signature requests only
-      sigRequests.filter(r => r.status === 'signed' && r.file_url).forEach(req => {
-        const cat = SIG_TYPE_TO_CATEGORY[req.document_type] || 'signed_agreements';
-        // Avoid duplicates (check file_url)
-        const alreadyAdded = Object.values(groups).flat().some(d => d.file_url === req.file_url);
-        if (!alreadyAdded) groups[cat].push({ ...req, _source: 'sig' });
-      });
-
-      setGrouped(groups);
-      setTotal(Object.values(groups).reduce((sum, arr) => sum + arr.length, 0));
+      setGrouped(viewModel.groups);
+      setTotal(viewModel.total);
       setLoading(false);
     };
     if (resident?.id) load();

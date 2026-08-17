@@ -30,7 +30,7 @@ const canonicalStaffRoles = new Set(['owner', 'admin', ...nonPrivilegedStaffRole
 
 export function getAssignableStaffRoles(assignerRole) {
   if (assignerRole === 'owner') return ['owner', 'admin', ...nonPrivilegedStaffRoles];
-  if (assignerRole === 'admin') return [...nonPrivilegedStaffRoles];
+  if (assignerRole === 'admin') return ['admin', ...nonPrivilegedStaffRoles];
   return [];
 }
 
@@ -42,15 +42,19 @@ export function normalizeStaffFormRole(role) {
   return canonicalStaffRoles.has(role) ? role : 'staff';
 }
 
-export function splitStaffEditPayload(data) {
-  const { id, role, location_ids: locationIds, ...profileFields } = data;
+export function buildStaffEditPayload(data) {
   return {
-    profileFields,
-    access: {
-      id,
-      role: normalizeStaffFormRole(role),
-      location_ids: locationIds || [],
-    },
+    id: data.id,
+    first_name: data.first_name,
+    last_name: data.last_name,
+    phone: data.phone || null,
+    title: data.title || null,
+    hire_date: data.hire_date || null,
+    status: data.status,
+    lived_experience: Boolean(data.lived_experience),
+    notes: data.notes || null,
+    role: normalizeStaffFormRole(data.role),
+    location_ids: data.location_ids || [],
   };
 }
 
@@ -162,9 +166,9 @@ export default function Staff() {
           assignerRole={user?.role}
           onSave={async (data) => {
             if (data.id) {
-              const { profileFields, access } = splitStaffEditPayload(data);
-              await appClient.entities.StaffMember.update(data.id, profileFields);
-              await appClient.staffAccess.updateAssignments(access);
+              await appClient.staffAccess.updateProfileAndAssignments(
+                buildStaffEditPayload(data),
+              );
             } else {
               await appClient.staffAccess.invite({ ...data, organization_id: user.organization_id });
             }
@@ -182,7 +186,15 @@ export default function Staff() {
 function StaffForm({ member, locations, assignerRole, onSave, onClose }) {
   const [form, setForm] = useState(member ? {
     ...member,
+    first_name: member.first_name || '',
+    last_name: member.last_name || '',
+    email: member.email || '',
+    phone: member.phone || '',
+    title: member.title || '',
+    hire_date: member.hire_date || '',
     role: normalizeStaffFormRole(member.role),
+    status: member.status || 'inactive',
+    location_ids: member.location_ids || [],
   } : {
     first_name: '', last_name: '', email: '', phone: '',
     role: 'staff', title: '', hire_date: '', status: 'active', lived_experience: false, location_ids: [],
@@ -224,7 +236,7 @@ function StaffForm({ member, locations, assignerRole, onSave, onClose }) {
             </div>
           </div>
           <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-1.5"><Label>Email</Label><Input type="email" value={form.email} onChange={e => set('email', e.target.value)} /></div>
+            <div className="space-y-1.5"><Label>Email</Label><Input type="email" value={form.email} disabled={Boolean(member?.user_id)} onChange={e => set('email', e.target.value)} /></div>
             <div className="space-y-1.5"><Label>Phone</Label><Input value={form.phone} onChange={e => set('phone', e.target.value)} /></div>
           </div>
           <div className="grid grid-cols-2 gap-4">
@@ -258,7 +270,7 @@ function StaffForm({ member, locations, assignerRole, onSave, onClose }) {
             <input type="checkbox" checked={form.lived_experience} onChange={e => set('lived_experience', e.target.checked)} className="rounded" />
             Has lived experience in recovery
           </label>
-          {member?.email && (
+          {member?.user_id && member?.email && (
             <Button type="button" variant="outline" onClick={async () => {
               setError('');
               try { await appClient.staffAccess.sendPasswordReset(member.email); setResetSent(true); }

@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { toLocalDateInputValue } from '@/lib/localDate';
 import { format, addDays, startOfWeek, isToday } from 'date-fns';
 
 const ROLE_CFG = {
@@ -22,7 +23,7 @@ const STATUS_CFG = {
 
 function ShiftForm({ shift, staff, locations, onSave, onClose }) {
   const [form, setForm] = useState(shift || {
-    shift_date: new Date().toISOString().split('T')[0],
+    shift_date: toLocalDateInputValue(),
     start_time: '08:00',
     end_time: '16:00',
     staff_id: '',

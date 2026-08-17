@@ -22,6 +22,28 @@ begin
 end;
 $$;
 
+create function pg_temp.assert_sqlstate(statement text, expected_state text, label text)
+returns void
+language plpgsql
+as $$
+declare
+  actual_state text;
+begin
+  begin
+    execute statement;
+  exception
+    when others then
+      get stacked diagnostics actual_state = returned_sqlstate;
+      if actual_state = expected_state then
+        return;
+      end if;
+      raise exception '% failed with SQLSTATE %, expected %', label, actual_state, expected_state;
+  end;
+
+  raise exception '% unexpectedly succeeded', label;
+end;
+$$;
+
 create function pg_temp.assert_only_resident_rows(table_name text, resident_id uuid)
 returns void
 language plpgsql
@@ -56,7 +78,8 @@ values
   ('10000000-0000-4000-8000-000000000008', '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated', 'admin-staff-target@example.test', '', now(), now()),
   ('10000000-0000-4000-8000-000000000009', '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated', 'owner-insert-target@example.test', '', now(), now()),
   ('10000000-0000-4000-8000-000000000010', '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated', 'service-owner-target@example.test', '', now(), now()),
-  ('10000000-0000-4000-8000-000000000011', '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated', 'denied-owner-target@example.test', '', now(), now());
+  ('10000000-0000-4000-8000-000000000011', '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated', 'denied-owner-target@example.test', '', now(), now()),
+  ('10000000-0000-4000-8000-000000000012', '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated', 'director@example.test', '', now(), now());
 
 do $$
 begin
@@ -80,15 +103,16 @@ begin
 end;
 $$;
 
-set local role authenticated;
-select set_config('request.jwt.claim.role', 'authenticated', true);
-select set_config('request.jwt.claim.sub', '10000000-0000-4000-8000-000000000004', true);
-select public.bootstrap_organization_owner(
+insert into public.organization_members (
+  organization_id, user_id, role, display_name, email, status
+) values (
   '00000000-0000-4000-8000-000000000001',
-  'Bootstrap Owner',
-  'bootstrap-owner@example.test'
+  '10000000-0000-4000-8000-000000000004',
+  'owner',
+  'Fixture Owner',
+  'bootstrap-owner@example.test',
+  'active'
 );
-reset role;
 
 do $$
 begin
@@ -99,32 +123,10 @@ begin
       and role = 'owner'
       and status = 'active'
   ) then
-    raise exception 'First authenticated user must become the production tenant owner';
+    raise exception 'Production tenant owner fixture was not created';
   end if;
 end;
 $$;
-
-set local role authenticated;
-select set_config('request.jwt.claim.role', 'authenticated', true);
-select set_config('request.jwt.claim.sub', '10000000-0000-4000-8000-000000000005', true);
-do $$
-begin
-  perform public.bootstrap_organization_owner(
-    '00000000-0000-4000-8000-000000000001',
-    'Second Bootstrap',
-    'second-bootstrap@example.test'
-  );
-  raise exception 'Second bootstrap unexpectedly succeeded';
-exception
-  when others then
-    if sqlerrm <> 'Organization already has active members' then
-      raise;
-    end if;
-end;
-$$;
-reset role;
-select set_config('request.jwt.claim.role', '', true);
-select set_config('request.jwt.claim.sub', '', true);
 
 insert into public.organizations (id, name, status)
 values
@@ -143,10 +145,74 @@ values
   ('40000000-0000-4000-8000-000000000002', '20000000-0000-4000-8000-000000000001', '10000000-0000-4000-8000-000000000002', 'staff', 'active'),
   ('40000000-0000-4000-8000-000000000003', '20000000-0000-4000-8000-000000000001', '10000000-0000-4000-8000-000000000003', 'resident', 'active'),
   ('40000000-0000-4000-8000-000000000004', '20000000-0000-4000-8000-000000000002', '10000000-0000-4000-8000-000000000006', 'owner', 'active'),
-  ('40000000-0000-4000-8000-000000000005', '20000000-0000-4000-8000-000000000001', '10000000-0000-4000-8000-000000000007', 'admin', 'active');
+  ('40000000-0000-4000-8000-000000000005', '20000000-0000-4000-8000-000000000001', '10000000-0000-4000-8000-000000000007', 'admin', 'active'),
+  ('40000000-0000-4000-8000-000000000006', '20000000-0000-4000-8000-000000000001', '10000000-0000-4000-8000-000000000008', 'staff', 'active'),
+  ('40000000-0000-4000-8000-000000000010', '20000000-0000-4000-8000-000000000001', '10000000-0000-4000-8000-000000000012', 'staff', 'active');
 
 insert into public.organization_member_locations (organization_id, organization_member_id, location_id)
 values ('20000000-0000-4000-8000-000000000001', '40000000-0000-4000-8000-000000000002', '30000000-0000-4000-8000-000000000001');
+
+do $$
+declare
+  rejected boolean := false;
+begin
+  begin
+    insert into public.organization_member_locations (
+      organization_id, organization_member_id, location_id
+    ) values (
+      '20000000-0000-4000-8000-000000000001',
+      '40000000-0000-4000-8000-000000000003',
+      '30000000-0000-4000-8000-000000000002'
+    );
+  exception
+    when check_violation then
+      rejected := true;
+  end;
+
+  if not rejected then
+    raise exception 'Resident received a staff house assignment';
+  end if;
+end $$;
+
+do $$
+declare
+  rejected boolean := false;
+begin
+  begin
+    insert into public.organization_member_locations (
+      organization_id, organization_member_id, location_id
+    ) values (
+      '20000000-0000-4000-8000-000000000001',
+      '40000000-0000-4000-8000-000000000002',
+      '30000000-0000-4000-8000-000000000003'
+    );
+  exception
+    when foreign_key_violation then
+      rejected := true;
+  end;
+
+  if not rejected then
+    raise exception 'Staff received a cross-organization house assignment';
+  end if;
+end $$;
+
+do $$
+declare
+  rejected boolean := false;
+begin
+  begin
+    update public.organization_member_locations
+    set location_id = '30000000-0000-4000-8000-000000000003'
+    where organization_member_id = '40000000-0000-4000-8000-000000000002';
+  exception
+    when foreign_key_violation then
+      rejected := true;
+  end;
+
+  if not rejected then
+    raise exception 'Staff assignment was moved to a cross-organization house';
+  end if;
+end $$;
 
 insert into public.residents (id, organization_id, location_id, user_id, first_name, last_name, status)
 values
@@ -160,8 +226,23 @@ insert into public.signature_requests (
 values
   ('68000000-0000-4000-8000-000000000001', '20000000-0000-4000-8000-000000000001', '50000000-0000-4000-8000-000000000001', 'Assigned signature', '20000000-0000-4000-8000-000000000001/signatures/assigned.pdf', 'assigned.pdf', 'pending'),
   ('68000000-0000-4000-8000-000000000002', '20000000-0000-4000-8000-000000000001', '50000000-0000-4000-8000-000000000002', 'Other-house signature', '20000000-0000-4000-8000-000000000001/signatures/other-house.pdf', 'other-house.pdf', 'pending'),
-  ('68000000-0000-4000-8000-000000000003', '20000000-0000-4000-8000-000000000002', '50000000-0000-4000-8000-000000000003', 'Cross-organization signature', '20000000-0000-4000-8000-000000000002/signatures/cross-org.pdf', 'cross-org.pdf', 'pending'),
-  ('68000000-0000-4000-8000-000000000004', '20000000-0000-4000-8000-000000000002', '50000000-0000-4000-8000-000000000003', 'Mismatched path signature', '20000000-0000-4000-8000-000000000001/signatures/mismatched.pdf', 'mismatched.pdf', 'pending');
+  ('68000000-0000-4000-8000-000000000003', '20000000-0000-4000-8000-000000000002', '50000000-0000-4000-8000-000000000003', 'Cross-organization signature', '20000000-0000-4000-8000-000000000002/signatures/cross-org.pdf', 'cross-org.pdf', 'pending');
+
+select pg_temp.assert_sqlstate(
+  $$insert into public.signature_requests (
+      id, organization_id, resident_id, title, file_url, file_name, status
+    ) values (
+      '68000000-0000-4000-8000-000000000004',
+      '20000000-0000-4000-8000-000000000002',
+      '50000000-0000-4000-8000-000000000003',
+      'Mismatched path signature',
+      '20000000-0000-4000-8000-000000000001/signatures/mismatched.pdf',
+      'mismatched.pdf',
+      'pending'
+    )$$,
+  '23514',
+  'Signature request cross-organization storage path'
+);
 
 insert into storage.objects (id, bucket_id, name)
 values
@@ -207,20 +288,153 @@ begin
   end if;
 end $$;
 
+do $$
+begin
+  if exists (
+    select 1
+    from pg_catalog.pg_policies
+    where schemaname = 'public'
+      and tablename in (
+        'organization_members',
+        'organization_member_locations',
+        'staff_profiles'
+      )
+      and cmd in ('ALL', 'INSERT', 'UPDATE', 'DELETE')
+  ) then
+    raise exception 'Access-management tables retain a direct-write RLS policy';
+  end if;
+
+  if not has_function_privilege(
+    'authenticated',
+    'public.update_staff_access(uuid,text,uuid[])',
+    'EXECUTE'
+  ) or has_function_privilege(
+    'anon',
+    'public.update_staff_access(uuid,text,uuid[])',
+    'EXECUTE'
+  ) then
+    raise exception 'Staff-access RPC grants do not match the authenticated-only contract';
+  end if;
+
+  if not has_function_privilege(
+    'authenticated',
+    'public.update_staff_profile_and_access(uuid,text,text,text,text,date,text,boolean,text,text,uuid[])',
+    'EXECUTE'
+  ) or has_function_privilege(
+    'anon',
+    'public.update_staff_profile_and_access(uuid,text,text,text,text,date,text,boolean,text,text,uuid[])',
+    'EXECUTE'
+  ) then
+    raise exception 'Atomic staff-profile RPC grants do not match the authenticated-only contract';
+  end if;
+end $$;
+
 insert into public.staff_profiles (id, organization_id, user_id, location_ids, first_name, last_name, role, status)
 values
   ('60000000-0000-4000-8000-000000000001', '20000000-0000-4000-8000-000000000001', '10000000-0000-4000-8000-000000000002', array['30000000-0000-4000-8000-000000000001']::uuid[], 'Assigned', 'Staff', 'house_manager', 'active'),
-  ('60000000-0000-4000-8000-000000000002', '20000000-0000-4000-8000-000000000001', null, array['30000000-0000-4000-8000-000000000002']::uuid[], 'Other', 'Staff', 'house_manager', 'active');
+  ('60000000-0000-4000-8000-000000000002', '20000000-0000-4000-8000-000000000001', null, array['30000000-0000-4000-8000-000000000002']::uuid[], 'Other', 'Staff', 'house_manager', 'active'),
+  ('60000000-0000-4000-8000-000000000003', '20000000-0000-4000-8000-000000000001', '10000000-0000-4000-8000-000000000001', '{}'::uuid[], 'Organization', 'Owner', 'owner', 'active'),
+  ('60000000-0000-4000-8000-000000000004', '20000000-0000-4000-8000-000000000001', '10000000-0000-4000-8000-000000000008', '{}'::uuid[], 'Provisioned', 'Staff', 'staff', 'active'),
+  ('60000000-0000-4000-8000-000000000010', '20000000-0000-4000-8000-000000000001', '10000000-0000-4000-8000-000000000012', '{}'::uuid[], 'Operations', 'Director', 'director', 'active');
 
 insert into public.bed_assignments (id, organization_id, location_id, resident_id, bed_label, status)
 values
   ('61000000-0000-4000-8000-000000000001', '20000000-0000-4000-8000-000000000001', '30000000-0000-4000-8000-000000000001', '50000000-0000-4000-8000-000000000001', 'A-1', 'occupied'),
   ('61000000-0000-4000-8000-000000000002', '20000000-0000-4000-8000-000000000001', '30000000-0000-4000-8000-000000000002', '50000000-0000-4000-8000-000000000002', 'B-1', 'occupied');
 
-insert into public.resident_documents (id, organization_id, resident_id, location_id, document_type, title, status)
+insert into public.resident_documents (
+  id, organization_id, resident_id, location_id, document_type, title, status,
+  storage_bucket, storage_path, file_url, visibility_scope
+)
 values
-  ('62000000-0000-4000-8000-000000000001', '20000000-0000-4000-8000-000000000001', '50000000-0000-4000-8000-000000000001', '30000000-0000-4000-8000-000000000001', 'agreement', 'Assigned agreement', 'current'),
-  ('62000000-0000-4000-8000-000000000002', '20000000-0000-4000-8000-000000000001', '50000000-0000-4000-8000-000000000002', '30000000-0000-4000-8000-000000000002', 'agreement', 'Other agreement', 'current');
+  (
+    '62000000-0000-4000-8000-000000000001', '20000000-0000-4000-8000-000000000001',
+    '50000000-0000-4000-8000-000000000001', '30000000-0000-4000-8000-000000000001',
+    'agreement', 'Assigned resident-visible agreement', 'current', 'resident-documents',
+    '20000000-0000-4000-8000-000000000001/residents/assigned-visible.pdf',
+    '20000000-0000-4000-8000-000000000001/residents/assigned-visible.pdf', 'resident_and_staff'
+  ),
+  (
+    '62000000-0000-4000-8000-000000000002', '20000000-0000-4000-8000-000000000001',
+    '50000000-0000-4000-8000-000000000002', '30000000-0000-4000-8000-000000000002',
+    'agreement', 'Other resident-visible agreement', 'current', 'resident-documents',
+    '20000000-0000-4000-8000-000000000001/residents/other-visible.pdf',
+    '20000000-0000-4000-8000-000000000001/residents/other-visible.pdf', 'resident_and_staff'
+  ),
+  (
+    '62000000-0000-4000-8000-000000000003', '20000000-0000-4000-8000-000000000001',
+    '50000000-0000-4000-8000-000000000001', '30000000-0000-4000-8000-000000000001',
+    'intake_assessment', 'Assigned staff-only assessment', 'current', 'resident-documents',
+    '20000000-0000-4000-8000-000000000001/residents/assigned-staff-only.pdf',
+    '20000000-0000-4000-8000-000000000001/residents/assigned-staff-only.pdf', 'staff_and_admin'
+  ),
+  (
+    '62000000-0000-4000-8000-000000000004', '20000000-0000-4000-8000-000000000001',
+    '50000000-0000-4000-8000-000000000001', '30000000-0000-4000-8000-000000000001',
+    'intake_assessment', 'Assigned administrator-only assessment', 'current', 'resident-documents',
+    '20000000-0000-4000-8000-000000000001/residents/assigned-admin-only.pdf',
+    '20000000-0000-4000-8000-000000000001/residents/assigned-admin-only.pdf', 'admin_only'
+  );
+
+select pg_temp.assert_sqlstate(
+  $$insert into public.resident_documents (
+      id, organization_id, resident_id, location_id, document_type, title, status,
+      storage_bucket, storage_path, file_url, visibility_scope
+    ) values (
+      '62000000-0000-4000-8000-000000000010',
+      '20000000-0000-4000-8000-000000000001',
+      '50000000-0000-4000-8000-000000000001',
+      '30000000-0000-4000-8000-000000000001',
+      'agreement', 'Forged cross-organization path', 'current', 'resident-documents',
+      '20000000-0000-4000-8000-000000000002/residents/forged.pdf',
+      '20000000-0000-4000-8000-000000000002/residents/forged.pdf',
+      'resident_and_staff'
+    )$$,
+  '23514',
+  'Resident document cross-organization storage path'
+);
+
+select pg_temp.assert_sqlstate(
+  $$insert into public.secure_documents (
+      id, organization_id, resident_id, location_id, title, storage_bucket, storage_path
+    ) values (
+      '72000000-0000-4000-8000-000000000010',
+      '20000000-0000-4000-8000-000000000001',
+      '50000000-0000-4000-8000-000000000003',
+      '30000000-0000-4000-8000-000000000001',
+      'Forged resident relation', 'secure-documents',
+      '20000000-0000-4000-8000-000000000001/secure/forged.pdf'
+    )$$,
+  '23503',
+  'Secure document cross-organization resident relation'
+);
+
+select pg_temp.assert_sqlstate(
+  $$update public.resident_documents
+    set storage_path = '20000000-0000-4000-8000-000000000002/residents/retargeted.pdf'
+    where id = '62000000-0000-4000-8000-000000000001'$$,
+  '23514',
+  'Resident document storage-path retargeting'
+);
+
+insert into storage.objects (id, bucket_id, name)
+values
+  (
+    '69000000-0000-4000-8000-000000000010', 'resident-documents',
+    '20000000-0000-4000-8000-000000000001/residents/assigned-visible.pdf'
+  ),
+  (
+    '69000000-0000-4000-8000-000000000011', 'resident-documents',
+    '20000000-0000-4000-8000-000000000001/residents/other-visible.pdf'
+  ),
+  (
+    '69000000-0000-4000-8000-000000000012', 'resident-documents',
+    '20000000-0000-4000-8000-000000000001/residents/assigned-staff-only.pdf'
+  ),
+  (
+    '69000000-0000-4000-8000-000000000013', 'resident-documents',
+    '20000000-0000-4000-8000-000000000001/residents/assigned-admin-only.pdf'
+  );
 
 insert into public.medications (id, organization_id, resident_id, medication_name, name, dosage, status)
 values
@@ -361,22 +575,117 @@ values (
 
 set local role authenticated;
 select set_config('request.jwt.claim.role', 'authenticated', true);
-select set_config('request.jwt.claim.sub', '10000000-0000-4000-8000-000000000007', true);
+select set_config('request.jwt.claim.sub', '10000000-0000-4000-8000-000000000006', true);
 
-insert into public.organization_members (
-  id, organization_id, user_id, role, display_name, status
-) values (
-  '40000000-0000-4000-8000-000000000006',
-  '20000000-0000-4000-8000-000000000001',
-  '10000000-0000-4000-8000-000000000008',
-  'staff',
-  'Admin-created staff',
-  'active'
+select pg_temp.assert_write_denied(
+  $$select public.update_staff_access(
+      '60000000-0000-4000-8000-000000000001',
+      'admin',
+      '{}'::uuid[]
+    )$$,
+  'Cross-organization staff access assignment'
 );
 
-update public.organization_members
-set display_name = 'Admin-updated staff'
-where id = '40000000-0000-4000-8000-000000000006';
+reset role;
+select set_config('request.jwt.claim.role', '', true);
+select set_config('request.jwt.claim.sub', '', true);
+
+do $$
+begin
+  if not exists (
+    select 1
+    from public.staff_profiles
+    where id = '60000000-0000-4000-8000-000000000001'
+      and role = 'house_manager'
+  ) then
+    raise exception 'Cross-organization caller changed the target staff role';
+  end if;
+end $$;
+
+set local role authenticated;
+select set_config('request.jwt.claim.role', 'authenticated', true);
+select set_config('request.jwt.claim.sub', '10000000-0000-4000-8000-000000000012', true);
+
+do $$
+begin
+  if public.current_access_role('20000000-0000-4000-8000-000000000001') <> 'director' then
+    raise exception 'Director effective role was not resolved from the staff profile';
+  end if;
+  if not public.can_access_location(
+    '20000000-0000-4000-8000-000000000001',
+    '30000000-0000-4000-8000-000000000001'
+  ) or not public.can_access_location(
+    '20000000-0000-4000-8000-000000000001',
+    '30000000-0000-4000-8000-000000000002'
+  ) then
+    raise exception 'Director did not receive organization-wide house access';
+  end if;
+  if public.can_access_location(
+    '20000000-0000-4000-8000-000000000002',
+    '30000000-0000-4000-8000-000000000003'
+  ) then
+    raise exception 'Director received cross-organization house access';
+  end if;
+end $$;
+
+reset role;
+select set_config('request.jwt.claim.role', '', true);
+select set_config('request.jwt.claim.sub', '', true);
+
+set local role authenticated;
+select set_config('request.jwt.claim.role', 'authenticated', true);
+select set_config('request.jwt.claim.sub', '10000000-0000-4000-8000-000000000007', true);
+
+select pg_temp.assert_write_denied(
+  $$insert into public.organization_members (
+      id, organization_id, user_id, role, display_name, status
+    ) values (
+      '40000000-0000-4000-8000-000000000007',
+      '20000000-0000-4000-8000-000000000001',
+      '10000000-0000-4000-8000-000000000011',
+      'staff',
+      'Directly activated staff',
+      'active'
+    )$$,
+  'Membership direct active insert'
+);
+
+select pg_temp.assert_write_denied(
+  $$update public.organization_members
+    set status = 'inactive', display_name = 'Direct membership update'
+    where id = '40000000-0000-4000-8000-000000000006'$$,
+  'Membership direct status update'
+);
+
+select pg_temp.assert_write_denied(
+  $$delete from public.organization_members
+    where id = '40000000-0000-4000-8000-000000000006'$$,
+  'Membership direct delete'
+);
+
+select pg_temp.assert_write_denied(
+  $$insert into public.organization_member_locations (
+      organization_id, organization_member_id, location_id
+    ) values (
+      '20000000-0000-4000-8000-000000000001',
+      '40000000-0000-4000-8000-000000000002',
+      '30000000-0000-4000-8000-000000000002'
+    )$$,
+  'House assignment direct insert'
+);
+
+select pg_temp.assert_write_denied(
+  $$delete from public.organization_member_locations
+    where organization_member_id = '40000000-0000-4000-8000-000000000002'$$,
+  'House assignment direct delete'
+);
+
+select pg_temp.assert_write_denied(
+  $$update public.organization_member_locations
+    set location_id = '30000000-0000-4000-8000-000000000002'
+    where organization_member_id = '40000000-0000-4000-8000-000000000002'$$,
+  'House assignment direct update'
+);
 
 select pg_temp.assert_write_denied(
   $$insert into public.organization_members (
@@ -426,10 +735,106 @@ select pg_temp.assert_write_denied(
     where id = '60000000-0000-4000-8000-000000000001'$$,
   'Staff-profile admin privilege escalation'
 );
+select pg_temp.assert_write_denied(
+  $$update public.staff_profiles
+    set status = 'inactive', title = 'Direct update must not persist'
+    where id = '60000000-0000-4000-8000-000000000001'$$,
+  'Staff-profile direct update bypass'
+);
+
+select pg_temp.assert_write_denied(
+  $$insert into public.staff_profiles (
+      id, organization_id, location_ids, first_name, last_name, role, status
+    ) values (
+      '60000000-0000-4000-8000-000000000005',
+      '20000000-0000-4000-8000-000000000001',
+      '{}'::uuid[],
+      'Direct', 'Insert', 'staff', 'active'
+    )$$,
+  'Staff-profile direct insert'
+);
+
+select pg_temp.assert_write_denied(
+  $$delete from public.staff_profiles
+    where id = '60000000-0000-4000-8000-000000000004'$$,
+  'Staff-profile direct delete'
+);
+
+select pg_temp.assert_sqlstate(
+  $$select public.update_staff_access(
+      '60000000-0000-4000-8000-000000000004',
+      'owner',
+      '{}'::uuid[]
+    )$$,
+  '42501',
+  'Admin owner grant'
+);
+
+select pg_temp.assert_sqlstate(
+  $$select public.update_staff_profile_and_access(
+      '60000000-0000-4000-8000-000000000003',
+      'Organization', 'Owner', null, 'Owner', null,
+      'active', false, null, 'admin', '{}'::uuid[]
+    )$$,
+  '42501',
+  'Admin owner modification'
+);
 
 select public.update_staff_access(
   '60000000-0000-4000-8000-000000000001',
   'case_manager',
+  array['30000000-0000-4000-8000-000000000001']::uuid[]
+);
+
+select pg_temp.assert_sqlstate(
+  $$select public.update_staff_profile_and_access(
+      '60000000-0000-4000-8000-000000000001',
+      'Atomic', 'Rollback', null, 'Must not persist', null,
+      'active', false, null, 'house_manager',
+      array['30000000-0000-4000-8000-000000000003']::uuid[]
+    )$$,
+  '22023',
+  'Atomic staff update invalid house assignment'
+);
+
+do $$
+begin
+  if exists (
+    select 1 from public.staff_profiles
+    where id = '60000000-0000-4000-8000-000000000001'
+      and title = 'Must not persist'
+  ) then
+    raise exception 'Rejected staff access update partially changed the profile';
+  end if;
+end $$;
+
+select public.update_staff_profile_and_access(
+  '60000000-0000-4000-8000-000000000001',
+  'Assigned', 'Staff', null, 'House Manager', null,
+  'inactive', false, null, 'case_manager',
+  array['30000000-0000-4000-8000-000000000001']::uuid[]
+);
+
+do $$
+begin
+  if not exists (
+    select 1 from public.staff_profiles
+    where id = '60000000-0000-4000-8000-000000000001'
+      and status = 'inactive'
+      and title = 'House Manager'
+  ) or not exists (
+    select 1 from public.organization_members
+    where id = '40000000-0000-4000-8000-000000000002'
+      and status = 'inactive'
+  ) then
+    raise exception 'Atomic staff deactivation did not update profile and membership together';
+  end if;
+end $$;
+
+select public.update_staff_profile_and_access(
+  '60000000-0000-4000-8000-000000000001',
+  'Assigned', 'Staff', null, 'House Manager', null,
+  'active', false, null, 'case_manager',
   array['30000000-0000-4000-8000-000000000001']::uuid[]
 );
 
@@ -451,14 +856,33 @@ begin
   end if;
 end $$;
 
-select pg_temp.assert_write_denied(
-  $$select public.update_staff_access(
-      '60000000-0000-4000-8000-000000000001',
-      'admin',
-      array[]::uuid[]
-    )$$,
-  'Admin RPC privilege escalation'
+select public.update_staff_access(
+  '60000000-0000-4000-8000-000000000001',
+  'admin',
+  array[]::uuid[]
 );
+
+do $$
+begin
+  if not exists (
+    select 1 from public.staff_profiles
+    where id = '60000000-0000-4000-8000-000000000001'
+      and role = 'admin'
+  ) or not exists (
+    select 1 from public.organization_members
+    where id = '40000000-0000-4000-8000-000000000002'
+      and role = 'admin'
+  ) or not exists (
+    select 1 from public.audit_logs
+    where organization_id = '20000000-0000-4000-8000-000000000001'
+      and performed_by_id = '10000000-0000-4000-8000-000000000007'
+      and action = 'staff_access_updated'
+      and resource_type = 'staff_profiles'
+      and resource_id = '60000000-0000-4000-8000-000000000001'
+  ) then
+    raise exception 'Admin peer-administrator assignment was not updated and audited';
+  end if;
+end $$;
 
 select public.update_staff_access(
   '60000000-0000-4000-8000-000000000001',
@@ -472,20 +896,141 @@ select set_config('request.jwt.claim.sub', '', true);
 
 set local role authenticated;
 select set_config('request.jwt.claim.role', 'authenticated', true);
+select set_config('request.jwt.claim.sub', '10000000-0000-4000-8000-000000000002', true);
+
+select pg_temp.assert_write_denied(
+  $$update public.organization_members
+    set display_name = 'Staff direct membership update'
+    where id = '40000000-0000-4000-8000-000000000002'$$,
+  'Staff direct membership update'
+);
+select pg_temp.assert_write_denied(
+  $$delete from public.organization_member_locations
+    where organization_member_id = '40000000-0000-4000-8000-000000000002'$$,
+  'Staff direct house-assignment delete'
+);
+select pg_temp.assert_write_denied(
+  $$update public.staff_profiles
+    set title = 'Staff direct profile update'
+    where id = '60000000-0000-4000-8000-000000000001'$$,
+  'Staff direct profile update'
+);
+select pg_temp.assert_sqlstate(
+  $$select public.update_staff_access(
+      '60000000-0000-4000-8000-000000000001',
+      'admin',
+      '{}'::uuid[]
+    )$$,
+  '42501',
+  'Staff access RPC authorization'
+);
+select pg_temp.assert_sqlstate(
+  $$select public.update_staff_profile_and_access(
+      '60000000-0000-4000-8000-000000000001',
+      'Assigned', 'Staff', null, 'Denied', null,
+      'active', false, null, 'house_manager',
+      array['30000000-0000-4000-8000-000000000001']::uuid[]
+    )$$,
+  '42501',
+  'Staff profile RPC authorization'
+);
+
+reset role;
+select set_config('request.jwt.claim.role', '', true);
+select set_config('request.jwt.claim.sub', '', true);
+
+set local role authenticated;
+select set_config('request.jwt.claim.role', 'authenticated', true);
+select set_config('request.jwt.claim.sub', '10000000-0000-4000-8000-000000000003', true);
+
+select pg_temp.assert_write_denied(
+  $$update public.organization_members
+    set display_name = 'Resident direct membership update'
+    where id = '40000000-0000-4000-8000-000000000003'$$,
+  'Resident direct membership update'
+);
+select pg_temp.assert_write_denied(
+  $$insert into public.staff_profiles (
+      id, organization_id, location_ids, first_name, last_name, role, status
+    ) values (
+      '60000000-0000-4000-8000-000000000005',
+      '20000000-0000-4000-8000-000000000001',
+      '{}'::uuid[],
+      'Resident', 'Insert', 'staff', 'active'
+    )$$,
+  'Resident direct staff-profile insert'
+);
+select pg_temp.assert_sqlstate(
+  $$select public.update_staff_access(
+      '60000000-0000-4000-8000-000000000001',
+      'admin',
+      '{}'::uuid[]
+    )$$,
+  '42501',
+  'Resident access RPC authorization'
+);
+select pg_temp.assert_sqlstate(
+  $$select public.update_staff_profile_and_access(
+      '60000000-0000-4000-8000-000000000001',
+      'Assigned', 'Staff', null, 'Denied', null,
+      'active', false, null, 'house_manager',
+      array['30000000-0000-4000-8000-000000000001']::uuid[]
+    )$$,
+  '42501',
+  'Resident profile RPC authorization'
+);
+
+reset role;
+select set_config('request.jwt.claim.role', '', true);
+select set_config('request.jwt.claim.sub', '', true);
+
+set local role authenticated;
+select set_config('request.jwt.claim.role', 'authenticated', true);
 select set_config('request.jwt.claim.sub', '10000000-0000-4000-8000-000000000001', true);
 
-update public.organization_members
-set role = 'owner'
-where id = '40000000-0000-4000-8000-000000000006';
+select pg_temp.assert_sqlstate(
+  $$select public.update_staff_profile_and_access(
+      '60000000-0000-4000-8000-000000000003',
+      'Organization', 'Owner', null, 'Should not persist', null,
+      'inactive', false, null, 'owner', '{}'::uuid[]
+    )$$,
+  '23514',
+  'Atomic deactivation of last active owner'
+);
 
-insert into public.organization_members (
-  id, organization_id, user_id, role, status
-) values (
-  '40000000-0000-4000-8000-000000000008',
-  '20000000-0000-4000-8000-000000000001',
-  '10000000-0000-4000-8000-000000000009',
+do $$
+begin
+  if not exists (
+    select 1 from public.organization_members
+    where id = '40000000-0000-4000-8000-000000000001'
+      and role = 'owner'
+      and status = 'active'
+  ) or exists (
+    select 1 from public.staff_profiles
+    where id = '60000000-0000-4000-8000-000000000003'
+      and title = 'Should not persist'
+  ) then
+    raise exception 'Rejected owner deactivation partially changed owner records';
+  end if;
+end $$;
+
+select public.update_staff_access(
+  '60000000-0000-4000-8000-000000000004',
   'owner',
-  'active'
+  '{}'::uuid[]
+);
+
+select pg_temp.assert_write_denied(
+  $$insert into public.organization_members (
+      id, organization_id, user_id, role, status
+    ) values (
+      '40000000-0000-4000-8000-000000000008',
+      '20000000-0000-4000-8000-000000000001',
+      '10000000-0000-4000-8000-000000000009',
+      'owner',
+      'active'
+    )$$,
+  'Owner direct membership insert'
 );
 
 reset role;
@@ -684,7 +1229,7 @@ begin
     raise exception 'Assigned staff must see only assigned-house signature requests';
   end if;
   if (select count(*) from public.bed_assignments) <> 1
-     or (select count(*) from public.resident_documents) <> 1
+     or (select count(*) from public.resident_documents) <> 2
      or (select count(*) from public.secure_documents) <> 1
      or (select count(*) from public.resident_contacts) <> 1
      or (select count(*) from public.medications) <> 1
@@ -712,8 +1257,21 @@ begin
      or (select count(*) from public.chore_assignments) <> 1 then
     raise exception 'Assigned staff crossed a chore house boundary';
   end if;
-  if (select count(*) from storage.objects where bucket_id = 'secure-documents') <> 1 then
-    raise exception 'Assigned staff must see only the assigned-house signature file';
+  if exists (
+    select 1 from storage.objects
+    where bucket_id in ('resident-documents', 'secure-documents', 'intake-attachments')
+  ) then
+    raise exception 'Assigned staff bypassed audited protected-document access';
+  end if;
+  if exists (
+    select 1 from public.resident_documents
+    where id = '62000000-0000-4000-8000-000000000004'
+  ) or exists (
+    select 1 from storage.objects
+    where bucket_id = 'resident-documents'
+      and name = '20000000-0000-4000-8000-000000000001/residents/assigned-admin-only.pdf'
+  ) then
+    raise exception 'Assigned staff accessed an administrator-only resident document';
   end if;
 end $$;
 
@@ -762,6 +1320,11 @@ select public.record_document_access(
   '20000000-0000-4000-8000-000000000001/signatures/other-house.pdf'
 );
 
+select public.record_document_access(
+  'resident-documents',
+  '20000000-0000-4000-8000-000000000001/residents/assigned-admin-only.pdf'
+);
+
 do $$
 begin
   perform public.record_document_access(
@@ -800,8 +1363,11 @@ begin
   ) then
     raise exception 'Privacy-minimized application error was not recorded';
   end if;
-  if (select count(*) from storage.objects where bucket_id = 'secure-documents') <> 2 then
-    raise exception 'Owner must see both in-organization signature files only';
+  if exists (
+    select 1 from storage.objects
+    where bucket_id in ('resident-documents', 'secure-documents', 'intake-attachments')
+  ) then
+    raise exception 'Owner bypassed audited protected-document access';
   end if;
   if (select count(*) from public.chat_channels) <> 7
      or (select count(*) from public.chat_messages) <> 4 then
@@ -813,7 +1379,7 @@ begin
   end if;
   if not exists (
     select 1 from public.audit_logs
-    where action = 'viewed_document'
+    where action = 'document_access_authorized'
       and resource_type = 'signature_requests'
       and resource_id = '68000000-0000-4000-8000-000000000001'
       and resident_id = '50000000-0000-4000-8000-000000000001'
@@ -823,13 +1389,22 @@ begin
   end if;
   if not exists (
     select 1 from public.audit_logs
-    where action = 'viewed_document'
+    where action = 'document_access_authorized'
       and resource_type = 'signature_requests'
       and resource_id = '68000000-0000-4000-8000-000000000002'
       and resident_id = '50000000-0000-4000-8000-000000000002'
       and performed_by_id = '10000000-0000-4000-8000-000000000001'
   ) then
     raise exception 'Owner signature file access was not audited';
+  end if;
+  if not exists (
+    select 1 from public.audit_logs
+    where action = 'document_access_authorized'
+      and resource_type = 'resident_documents'
+      and resource_id = '62000000-0000-4000-8000-000000000004'
+      and performed_by_id = '10000000-0000-4000-8000-000000000001'
+  ) then
+    raise exception 'Owner administrator-only document access was not audited';
   end if;
 end $$;
 
@@ -975,8 +1550,25 @@ begin
   if (select count(*) from public.residents) <> 1 then
     raise exception 'Resident must see only their own resident record';
   end if;
-  if exists (select 1 from public.locations) then
-    raise exception 'Resident must not list internal house records';
+  if (select count(*) from public.locations) <> 1
+    or not exists (
+      select 1 from public.locations
+      where id = '30000000-0000-4000-8000-000000000001'
+    ) then
+    raise exception 'Resident must see only their own active home location';
+  end if;
+  if public.can_access_location(
+      '20000000-0000-4000-8000-000000000001',
+      '30000000-0000-4000-8000-000000000001'
+    ) then
+    raise exception 'Resident inherited staff capabilities for their home location';
+  end if;
+  if (select count(*) from public.shifts) <> 1
+    or not exists (
+      select 1 from public.shifts
+      where id = '66000000-0000-4000-8000-000000000001'
+    ) then
+    raise exception 'Resident must see only the schedule for their active home location';
   end if;
   if (select count(*) from public.resident_documents) <> 1
      or (select count(*) from public.medications) <> 1
@@ -985,8 +1577,18 @@ begin
      or (select count(*) from public.signature_requests) <> 1 then
     raise exception 'Resident must see only their own resident-linked workflow records';
   end if;
-  if (select count(*) from storage.objects where bucket_id = 'secure-documents') <> 1 then
-    raise exception 'Resident must see only their own signature file';
+  if not exists (
+    select 1 from public.resident_documents
+    where id = '62000000-0000-4000-8000-000000000001'
+      and visibility_scope = 'resident_and_staff'
+  ) then
+    raise exception 'Resident document visibility did not fail closed';
+  end if;
+  if exists (
+    select 1 from storage.objects
+    where bucket_id in ('resident-documents', 'secure-documents', 'intake-attachments')
+  ) then
+    raise exception 'Resident bypassed audited protected-document access';
   end if;
   if exists (select 1 from public.incident_reports)
      or exists (select 1 from public.secure_documents)
@@ -1179,6 +1781,28 @@ set status = 'completed', completed_at = now()
 where id = '7f000000-0000-4000-8000-000000000001';
 
 select pg_temp.assert_write_denied(
+  $$update public.locations
+    set name = 'Resident changed home'
+    where id = '30000000-0000-4000-8000-000000000001'$$,
+  'Resident home-location update'
+);
+
+select pg_temp.assert_write_denied(
+  $$update public.shifts
+    set notes = 'Resident changed schedule'
+    where id = '66000000-0000-4000-8000-000000000001'$$,
+  'Resident home-schedule update'
+);
+
+select pg_temp.assert_write_denied(
+  $$update storage.objects
+    set metadata = '{"tampered":true}'::jsonb
+    where bucket_id = 'resident-documents'
+      and name = '20000000-0000-4000-8000-000000000001/residents/assigned-visible.pdf'$$,
+  'Resident protected-object overwrite'
+);
+
+select pg_temp.assert_write_denied(
   $$update public.chore_assignments
     set status = 'verified', verified_by_name = 'Resident spoof'
     where id = '7f000000-0000-4000-8000-000000000001'$$,
@@ -1197,11 +1821,16 @@ select public.record_document_access(
   '20000000-0000-4000-8000-000000000001/signatures/assigned.pdf'
 );
 
+select public.record_document_access(
+  'resident-documents',
+  '20000000-0000-4000-8000-000000000001/residents/assigned-visible.pdf'
+);
+
 do $$
 begin
   if not exists (
     select 1 from public.audit_logs
-    where action = 'viewed_document'
+    where action = 'document_access_authorized'
       and resource_type = 'signature_requests'
       and resource_id = '68000000-0000-4000-8000-000000000001'
       and resident_id = '50000000-0000-4000-8000-000000000001'
@@ -1209,6 +1838,30 @@ begin
   ) then
     raise exception 'Resident signature file access was not audited';
   end if;
+  if not exists (
+    select 1 from public.audit_logs
+    where action = 'document_access_authorized'
+      and resource_type = 'resident_documents'
+      and resource_id = '62000000-0000-4000-8000-000000000001'
+      and resident_id = '50000000-0000-4000-8000-000000000001'
+      and performed_by_id = '10000000-0000-4000-8000-000000000003'
+  ) then
+    raise exception 'Resident wallet document access was not audited';
+  end if;
+end $$;
+
+do $$
+begin
+  perform public.record_document_access(
+    'resident-documents',
+    '20000000-0000-4000-8000-000000000001/residents/assigned-staff-only.pdf'
+  );
+  raise exception 'Resident unexpectedly accessed a staff-only wallet document';
+exception
+  when others then
+    if sqlerrm <> 'Document access denied' then
+      raise;
+    end if;
 end $$;
 
 do $$
@@ -1235,11 +1888,11 @@ begin
      or has_table_privilege('anon', 'public.locations', 'select') then
     raise exception 'Anonymous role received internal table privileges';
   end if;
-  if has_function_privilege(
+  if coalesce(has_function_privilege(
     'anon',
-    'public.can_read_protected_storage_object(text,text)',
+    to_regprocedure('public.can_read_protected_storage_object(text,text)'),
     'EXECUTE'
-  ) then
+  ), false) then
     raise exception 'Anonymous role can execute protected storage authorization';
   end if;
 end $$;

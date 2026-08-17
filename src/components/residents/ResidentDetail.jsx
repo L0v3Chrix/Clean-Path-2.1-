@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { X, Edit, FileText, GitBranch, ClipboardList, Pill, Activity, CalendarDays, Mic, FilePen } from 'lucide-react';
+import { X, Edit, FileText, GitBranch, ClipboardList, Pill, Activity, CalendarDays, Mic, FilePen, UserPlus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { appClient } from '@/services/appClient';
@@ -12,6 +12,8 @@ import ResidentTasks from '../tasks/ResidentTasks';
 import InterviewModal from './InterviewModal';
 import InterviewHistory from './InterviewHistory';
 import ESignatureManager from '../esignature/ESignatureManager';
+import ResidentInviteDialog from './ResidentInviteDialog';
+import { getResidentInvitationEligibility } from '@/lib/residentAccess';
 
 const statusColors = {
   applicant: 'bg-blue-100 text-blue-700',
@@ -21,10 +23,21 @@ const statusColors = {
   alumni: 'bg-purple-100 text-purple-700',
 };
 
-export default function ResidentDetail({ resident: r, locations, onEdit, onClose, onRefresh }) {
+export default function ResidentDetail({
+  resident: r,
+  locations,
+  onEdit,
+  onClose,
+  onRefresh,
+  onResidentInvited,
+  currentUserRole,
+}) {
   const [tab, setTab] = useState('profile');
   const [showInterview, setShowInterview] = useState(false);
+  const [showAccountInvite, setShowAccountInvite] = useState(false);
   const location = locations.find(l => l.id === r.location_id);
+  const invitationEligibility = getResidentInvitationEligibility(currentUserRole, r);
+  const canManageResidentAccounts = ['owner', 'admin'].includes(currentUserRole);
 
   const handleDelete = async () => {
     if (!confirm(`Remove ${r.first_name} ${r.last_name} from the system?`)) return;
@@ -129,6 +142,30 @@ export default function ResidentDetail({ resident: r, locations, onEdit, onClose
               <span className="text-xs text-slate-500">Agreement {r.resident_agreement_signed ? 'signed' : 'not signed'}</span>
             </div>
 
+            {canManageResidentAccounts && (
+              <div className="space-y-3 border-t pt-4">
+                <div>
+                  <p className="text-xs font-semibold text-slate-500">RESIDENT ACCOUNT</p>
+                  <p className="mt-1 text-sm text-slate-700">
+                    {r.user_id ? 'Account linked' : invitationEligibility.reason || 'No account linked'}
+                  </p>
+                </div>
+                {!r.user_id && (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="w-full gap-2"
+                    onClick={() => setShowAccountInvite(true)}
+                    disabled={!invitationEligibility.eligible}
+                    title={invitationEligibility.reason || 'Invite resident account'}
+                  >
+                    <UserPlus className="h-4 w-4" />
+                    Invite resident account
+                  </Button>
+                )}
+              </div>
+            )}
+
             <Button variant="ghost" className="text-red-500 hover:text-red-700 hover:bg-red-50 w-full text-sm" onClick={handleDelete}>
               Remove Resident
             </Button>
@@ -197,6 +234,12 @@ export default function ResidentDetail({ resident: r, locations, onEdit, onClose
           onSaved={() => { setShowInterview(false); onRefresh?.(); }}
         />
       )}
+      <ResidentInviteDialog
+        resident={r}
+        open={showAccountInvite}
+        onOpenChange={setShowAccountInvite}
+        onInvited={onResidentInvited}
+      />
     </div>
   );
 }

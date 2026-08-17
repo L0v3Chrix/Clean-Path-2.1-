@@ -7,9 +7,9 @@ vi.hoisted(() => {
 vi.mock('@/services/appClient', () => ({ appClient: {} }));
 import {
   canManageStaffAssignments,
+  buildStaffEditPayload,
   getAssignableStaffRoles,
   normalizeStaffFormRole,
-  splitStaffEditPayload,
 } from './Staff';
 
 const nonPrivilegedRoles = [
@@ -29,8 +29,9 @@ describe('staff role assignment options', () => {
     ]);
   });
 
-  it('limits admins to non-privileged roles', () => {
-    expect(getAssignableStaffRoles('admin')).toEqual(nonPrivilegedRoles);
+  it('lets admins build the management team without granting owner access', () => {
+    expect(getAssignableStaffRoles('admin')).toEqual(['admin', ...nonPrivilegedRoles]);
+    expect(getAssignableStaffRoles('admin')).not.toContain('owner');
   });
 
   it('keeps staff assignment controls limited to owners and admins', () => {
@@ -58,25 +59,28 @@ describe('staff edit payloads', () => {
     expect(normalizeStaffFormRole('director')).toBe('director');
   });
 
-  it('keeps role and house access out of the ordinary profile update', () => {
-    expect(splitStaffEditPayload({
+  it('whitelists the fields accepted by the atomic staff update', () => {
+    expect(buildStaffEditPayload({
       id: 'profile-1',
       organization_id: 'organization-1',
       user_id: 'user-1',
       first_name: 'Riley',
+      last_name: 'Morgan',
+      email: 'immutable@example.test',
       role: 'house_manager',
       location_ids: ['house-1'],
     })).toEqual({
-      profileFields: {
-        organization_id: 'organization-1',
-        user_id: 'user-1',
-        first_name: 'Riley',
-      },
-      access: {
-        id: 'profile-1',
-        role: 'house_manager',
-        location_ids: ['house-1'],
-      },
+      id: 'profile-1',
+      first_name: 'Riley',
+      last_name: 'Morgan',
+      phone: null,
+      title: null,
+      hire_date: null,
+      status: undefined,
+      lived_experience: false,
+      notes: null,
+      role: 'house_manager',
+      location_ids: ['house-1'],
     });
   });
 });

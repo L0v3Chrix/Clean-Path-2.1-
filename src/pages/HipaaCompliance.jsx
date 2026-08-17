@@ -8,6 +8,7 @@ import { format } from 'date-fns';
 const ACTION_LABELS = {
   viewed_record: 'Viewed Record',
   viewed_document: 'Viewed Document',
+  document_access_authorized: 'Document Access Authorized',
   insert: 'Created Record',
   update: 'Updated Record',
   delete: 'Deleted Record',

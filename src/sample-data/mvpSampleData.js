@@ -504,7 +504,7 @@ export function buildSampleDataset({ authUserIds = {} } = {}) {
         expires_at: timestampOffset(60),
         expiry_date: dateOffset(60),
         status: 'current',
-        visibility_scope: 'staff_and_admin',
+        visibility_scope: 'resident_and_staff',
         metadata: { sample: true, workflow: 'resident_documents' },
         notes: 'SAMPLE: Fake document metadata for UI testing only.',
       }),

@@ -46,6 +46,8 @@ jobs:
             echo "VITE_AUTH_BYPASS=false"
             echo "VITE_CLEARPATH_DEMO_MODE=false"
             echo "SAMPLE_AUTH_PASSWORD=ClearPath-test-only-2026!"
+            echo "USER_INVITE_REDIRECT_URL=http://127.0.0.1:4176/accept-invite"
+            echo "CLEARPATH_SUPABASE_PUBLIC_URL=$API_URL"
           } >> "$GITHUB_ENV"
       - run: npm run test:db
       - run: npm run sample:seed

@@ -66,6 +66,40 @@ describe('staff access assignments', () => {
       p_location_ids: [],
     });
   });
+
+  it('updates profile fields, role, status, and houses through one RPC', async () => {
+    const result = { ok: true, profileId: 'profile-1', status: 'inactive' };
+    supabase.rpc.mockResolvedValue({ data: result, error: null });
+
+    await expect(appClient.staffAccess.updateProfileAndAssignments({
+      id: 'profile-1',
+      first_name: 'Riley',
+      last_name: 'Morgan',
+      phone: '',
+      title: 'House Manager',
+      hire_date: '',
+      status: 'inactive',
+      lived_experience: true,
+      notes: '',
+      role: 'house_manager',
+      location_ids: ['house-1'],
+    })).resolves.toEqual(result);
+
+    expect(supabase.rpc).toHaveBeenCalledWith('update_staff_profile_and_access', {
+      p_profile_id: 'profile-1',
+      p_first_name: 'Riley',
+      p_last_name: 'Morgan',
+      p_phone: null,
+      p_title: 'House Manager',
+      p_hire_date: null,
+      p_status: 'inactive',
+      p_lived_experience: true,
+      p_notes: null,
+      p_role: 'house_manager',
+      p_location_ids: ['house-1'],
+    });
+    expect(supabase.from).not.toHaveBeenCalled();
+  });
 });
 
 describe('authenticated staff role normalization', () => {

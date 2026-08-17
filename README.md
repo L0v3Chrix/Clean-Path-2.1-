@@ -10,7 +10,7 @@ This project is a compliance-ready foundation, not a HIPAA-compliant finished sy
 - Backend: business-owned Vercel-managed Supabase Postgres, Auth, private Storage, and Edge Functions.
 - Data access: browser-safe Supabase client in `src/lib/supabaseClient.js`.
 - Domain services: `src/services/*`.
-- Database schema: 12 tracked migrations under `supabase/migrations/`, applied through `20260816160000_security_invariants.sql`.
+- Database schema: 15 tracked migrations under `supabase/migrations/`, including account onboarding, peer-Admin assignment, and resident portal hardening through `20260817120000_resident_portal_access_hardening.sql`.
 - Removable MVP sample data: `scripts/sample-data/*` and `docs/sample-data.md`.
 - Controlled Oath Track migration tooling: `scripts/migration/*` and `docs/migration.md`.
 - Public intake: opaque token, Supabase Edge Function validation, and private attachment storage.
@@ -129,7 +129,23 @@ Open the printed Vite URL in a browser, usually:
 open http://localhost:5173
 ```
 
-Do not use open self-registration to establish a production owner. The legacy `bootstrap_organization_owner` RPC is one-time but is not pre-authorized to a named account, so secure first-owner onboarding remains a cutover blocker. After an approved Owner is provisioned through the account-claim flow, use the Staff screen to invite later users, assign their operational role and houses, or request password recovery.
+Open self-registration is disabled. Provision a new organization's first account through a single-use, pre-authorized claim; the first account receives the `admin` role by default. The command is read-only unless `--send` is present, requires a server-side Supabase key at runtime, and never prints the invite email, raw claim token, or credential:
+
+```bash
+# Preflight only
+npm run account:invite-first-admin -- \
+  --organization-id '[FILL: organization UUID]' \
+  --email '[FILL: approved administrator email]'
+
+# External mutation: run only after the exact recipient and organization are approved
+npm run account:invite-first-admin -- \
+  --organization-id '[FILL: organization UUID]' \
+  --email '[FILL: approved administrator email]' \
+  --display-name '[FILL: administrator name]' \
+  --send
+```
+
+Set `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY` (or `SUPABASE_SECRET_KEY`), and an exact `FIRST_ADMIN_INVITE_REDIRECT_URL` ending in `/accept-invite` in the operator environment. An administrator can then use the Staff screen to invite the management team, assign peer administrators and operational roles, assign houses to location-scoped roles, or request password recovery. Only an Owner can create or manage another Owner.
 
 Check that Vite is responding:
 
@@ -158,7 +174,7 @@ npm run sample:validate
 
 Run a final dependency scan for any legacy backend provider names before release. Expected result: no matches.
 
-`npm run verify` is also enforced on pull requests by `.github/workflows/verify.yml`. The database-and-browser job starts a clean Supabase stack, applies every migration, runs the role/house/core-workflow acceptance matrix, seeds deterministic sample users, and runs Playwright with demo and auth bypasses disabled. Browser acceptance covers resident/contact creation, tenant-owned house creation and editing, shift creation and editing, care-plan goal/task creation and updates, bed assignment, medication logging, incident handling, private document access, anonymous public-intake submission with a private attachment and signature, audited exports, staff invitation, and logout, and rejects console or page errors. A standalone local `npm run test:e2e` expects that same seeded Supabase stack and its Edge Functions to be running.
+`npm run verify` is also enforced on pull requests by `.github/workflows/verify.yml`. The database-and-browser job starts a clean Supabase stack, applies every migration, runs the role/house/core-workflow acceptance matrix, seeds deterministic sample users, and runs Playwright with demo and auth bypasses disabled. Browser acceptance covers invitation-only entry, resumable desktop/mobile walkthroughs, resident/contact creation, tenant-owned house creation and editing, shift creation and editing, care-plan goal/task creation and updates, bed assignment, medication logging, incident handling, private staff and resident document access, anonymous public-intake submission with a private attachment and signature, audited exports, emailed resident and management account acceptance, staff password recovery, resident route boundaries, and logout, and rejects console or page errors. A standalone local `npm run test:e2e` expects that same seeded Supabase stack and its Edge Functions to be running.
 
 ## Dependency Map
 
@@ -183,13 +199,13 @@ What is real now:
 - Security rules enforced and tested at the database level.
 - Four deployed private file buckets for sensitive documents, intake attachments, and medication photos.
 - Service files in the app that talk to Supabase instead of the old generated backend.
+- Invitation-only account acceptance, a pre-authorized first-administrator claim, management and resident invitations, and role-specific resumable walkthroughs in the release candidate.
 - Placeholder areas for future integrations without buying or wiring them too early.
 
-What Slade still needs before production:
+What Slade still needs before the six-house cutover:
 
-- The first approved owner account and organization-owner bootstrap.
-- Approval and implementation of the pre-authorized first-owner onboarding and guided walkthrough.
-- A resident invitation flow that binds each resident login to exactly one approved resident record.
+- Deployment and live verification of the release candidate's account-claim, onboarding, role, and resident-access migrations and Edge Functions.
+- Completion of the first approved administrator's guided setup and the management access review.
 - The approved staff user roster, roles, and house assignments.
 - The complete six-house roster, source exports, data dictionary, source counts, attachments, user roster, and cutoff decision described in `docs/migration.md`.
 - A privacy/security review before storing sensitive health or resident information.

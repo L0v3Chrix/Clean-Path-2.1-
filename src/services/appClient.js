@@ -18,6 +18,15 @@ function normalizeOperationalRole(role) {
   return legacyStaffRoles.has(role) ? 'staff' : role;
 }
 
+const onboardingStatuses = new Set(['pending', 'in_progress', 'dismissed', 'completed']);
+
+function requireValue(value, message) {
+  if (value === undefined || value === null || value === '') {
+    throw new Error(message);
+  }
+  return value;
+}
+
 function isExternalUrl(value) {
   return /^https?:\/\//i.test(value || '') || /^data:/i.test(value || '');
 }
@@ -69,13 +78,12 @@ async function createSignedStorageUrl(input, expiresIn = 300) {
     return path;
   }
 
-  const { data, error } = await supabase.storage.from(bucket).createSignedUrl(path, expiresIn);
-  if (error) throw new Error(error.message);
-  const { error: auditError } = await supabase.rpc('record_document_access', {
-    p_bucket: bucket,
-    p_path: path,
+  const { data, error } = await supabase.functions.invoke('document-access', {
+    body: { bucket, path, expires: expiresIn },
   });
-  if (auditError) throw new Error(auditError.message);
+  if (error || !data?.signedUrl) {
+    throw new Error('Unable to access this secure document.');
+  }
   return data.signedUrl;
 }
 
@@ -192,25 +200,32 @@ export const appClient = {
         role: operationalRole || membership?.role || data.user.user_metadata?.role,
       };
     },
-    async bootstrapOrganizationOwner(displayName) {
-      const { data: userResult, error: userError } = await supabase.auth.getUser();
-      if (userError || !userResult.user) {
-        throw new Error(userError?.message || 'Sign in before bootstrapping the organization.');
-      }
-
-      const { data, error } = await supabase.rpc('bootstrap_organization_owner', {
-        p_organization_id: demoOrganizationId,
-        p_display_name: displayName || userResult.user.email,
-        p_email: userResult.user.email,
+    async completeInvite(password) {
+      requireValue(password, 'A password is required to complete the invitation.');
+      const { data, error } = await supabase.auth.updateUser({ password });
+      if (error) throw new Error(error.message);
+      if (!data?.user) throw new Error('Unable to complete the invitation.');
+      return data.user;
+    },
+    async acceptInvitation(activationToken) {
+      requireValue(activationToken, 'An invitation activation secret is required.');
+      const { data, error } = await supabase.rpc('accept_pre_authorized_invitation', {
+        p_activation_token: activationToken,
       });
-      if (error) {
-        const bootstrapError = new Error(error.message);
-        bootstrapError.code = error.code;
-        bootstrapError.details = error.details;
-        bootstrapError.hint = error.hint;
-        throw bootstrapError;
-      }
+      if (error) throw new Error(error.message);
       return data;
+    },
+    async establishEmailLinkSession(session) {
+      requireValue(session?.access_token, 'A valid email-link session is required.');
+      requireValue(session?.refresh_token, 'A valid email-link session is required.');
+      const { data, error } = await supabase.auth.setSession({
+        access_token: session.access_token,
+        refresh_token: session.refresh_token,
+      });
+      if (error || !data?.user) {
+        throw new Error(error?.message || 'Unable to validate the email link.');
+      }
+      return data.user;
     },
     async logout() {
       if (authBypassEnabled) {
@@ -248,6 +263,72 @@ export const appClient = {
       return data;
     },
   },
+  accountClaims: {
+    async claim({ token, displayName } = {}) {
+      requireValue(token, 'A pre-authorized account claim is required.');
+      const { data, error } = await supabase.rpc('claim_pre_authorized_account', {
+        p_token: token,
+        p_display_name: displayName || null,
+      });
+      if (error) throw new Error(error.message);
+      return data;
+    },
+  },
+  onboarding: {
+    async get({ organizationId, userId, flow, version } = {}) {
+      requireValue(organizationId, 'An organization is required to load onboarding progress.');
+      requireValue(userId, 'A user is required to load onboarding progress.');
+      requireValue(flow, 'An onboarding flow is required.');
+      requireValue(version, 'An onboarding flow version is required.');
+
+      const { data, error } = await supabase
+        .from('user_onboarding_progress')
+        .select('*')
+        .eq('organization_id', organizationId)
+        .eq('user_id', userId)
+        .eq('flow', flow)
+        .eq('version', version)
+        .maybeSingle();
+      if (error) throw new Error(error.message);
+      return data;
+    },
+    async save({
+      organizationId,
+      userId,
+      flow,
+      version,
+      currentStep = null,
+      completedSteps = [],
+      status = 'in_progress',
+    } = {}) {
+      requireValue(organizationId, 'An organization is required to save onboarding progress.');
+      requireValue(userId, 'A user is required to save onboarding progress.');
+      requireValue(flow, 'An onboarding flow is required.');
+      requireValue(version, 'An onboarding flow version is required.');
+      if (!onboardingStatuses.has(status)) {
+        throw new Error('Invalid onboarding status.');
+      }
+
+      const normalizedSteps = [...new Set(completedSteps.filter(Boolean))];
+      const payload = {
+        organization_id: organizationId,
+        user_id: userId,
+        flow,
+        version,
+        current_step: currentStep,
+        completed_steps: normalizedSteps,
+        status,
+        completed_at: status === 'completed' ? new Date().toISOString() : null,
+      };
+      const { data, error } = await supabase
+        .from('user_onboarding_progress')
+        .upsert(payload, { onConflict: 'organization_id,user_id,flow,version' })
+        .select('*')
+        .single();
+      if (error) throw new Error(error.message);
+      return data;
+    },
+  },
   staffAccess: {
     async invite(payload) {
       const { data, error } = await supabase.functions.invoke('invite-staff', { body: payload });
@@ -265,11 +346,54 @@ export const appClient = {
       if (error) throw new Error(error.message);
       return data;
     },
-    async sendPasswordReset(email) {
-      const { error } = await supabase.auth.resetPasswordForEmail(email, {
-        redirectTo: `${window.location.origin}/login`,
+    async updateProfileAndAssignments(profile) {
+      if (!profile?.id) throw new Error('A staff profile is required to update access.');
+      const { data, error } = await supabase.rpc('update_staff_profile_and_access', {
+        p_profile_id: profile.id,
+        p_first_name: profile.first_name,
+        p_last_name: profile.last_name,
+        p_phone: profile.phone || null,
+        p_title: profile.title || null,
+        p_hire_date: profile.hire_date || null,
+        p_status: profile.status,
+        p_lived_experience: Boolean(profile.lived_experience),
+        p_notes: profile.notes || null,
+        p_role: profile.role,
+        p_location_ids: profile.location_ids || [],
       });
       if (error) throw new Error(error.message);
+      return data;
+    },
+    async sendPasswordReset(email) {
+      const { error } = await supabase.auth.resetPasswordForEmail(email, {
+        redirectTo: `${window.location.origin}/accept-invite?mode=recovery`,
+      });
+      if (error) throw new Error(error.message);
+    },
+  },
+  residentAccess: {
+    async invite(payload) {
+      requireValue(payload?.resident_id, 'A resident is required to send an invitation.');
+      const { data, error } = await supabase.functions.invoke('invite-resident', {
+        body: { resident_id: payload.resident_id },
+      });
+      if (error) throw new Error(error.message);
+      if (!data?.ok) throw new Error(data?.error || 'Unable to invite resident.');
+      return data;
+    },
+    async me() {
+      const { data: userResult, error: userError } = await supabase.auth.getUser();
+      if (userError || !userResult.user) {
+        throw new Error(userError?.message || 'Sign in to load the resident profile.');
+      }
+      const { data, error } = await supabase
+        .from('residents')
+        .select('*')
+        .eq('user_id', userResult.user.id)
+        .eq('status', 'active')
+        .maybeSingle();
+      if (error) throw new Error(error.message);
+      return data;
     },
   },
   operations: {

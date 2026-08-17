@@ -12,6 +12,7 @@ import ResidentDetail from '@/components/residents/ResidentDetail';
 import ResidentAlertBadge from '@/components/residents/ResidentAlertBadge';
 import DocumentAlertPanel from '@/components/residents/DocumentAlertPanel';
 import { getResidentAlerts } from '@/lib/residentAlerts';
+import { applyResidentAccountLink } from '@/lib/residentAccess';
 
 const statusColors = {
   applicant: 'bg-blue-100 text-blue-700',
@@ -27,6 +28,7 @@ export default function Residents() {
   const [documents, setDocuments] = useState([]);
   const [contacts, setContacts] = useState([]);
   const [organizationId, setOrganizationId] = useState(null);
+  const [currentUser, setCurrentUser] = useState(null);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
@@ -54,6 +56,7 @@ export default function Residents() {
       setLocations(l);
       setDocuments(d);
       setContacts(c);
+      setCurrentUser(me);
       setOrganizationId(me.organization_id || r[0]?.organization_id || l[0]?.organization_id || null);
     } catch (e) {
       console.error(e);
@@ -116,6 +119,12 @@ export default function Residents() {
     }
     setShowForm(false);
     setSelectedResident(null);
+    await loadData();
+  };
+
+  const handleResidentInvited = async (result) => {
+    setResidents(previous => previous.map(resident => applyResidentAccountLink(resident, result)));
+    setSelectedResident(previous => applyResidentAccountLink(previous, result));
     await loadData();
   };
 
@@ -250,6 +259,8 @@ export default function Residents() {
           onEdit={() => setShowForm(true)}
           onClose={() => setSelectedResident(null)}
           onRefresh={loadData}
+          onResidentInvited={handleResidentInvited}
+          currentUserRole={currentUser?.role}
         />
       )}
     </div>

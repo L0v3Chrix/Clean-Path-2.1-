@@ -37,6 +37,11 @@ export function getDeepLinkedIncident(search, authorizedIncidents) {
   return authorizedIncidents.find(incident => incident.id?.toLowerCase() === requestedId) || null;
 }
 
+export function resolveIncidentViewAfterLoad(currentViewing, search, authorizedIncidents) {
+  if (!new URLSearchParams(search).has('view')) return currentViewing;
+  return getDeepLinkedIncident(search, authorizedIncidents);
+}
+
 export function buildCriticalIncidentRecord(data, saved) {
   return {
     id: typeof saved === 'object' && saved ? saved.id : saved,
@@ -79,7 +84,7 @@ export default function Incidents() {
     setLocations(loc);
     setStaff(st);
     setOrganizationId(me.organization_id || inc[0]?.organization_id || loc[0]?.organization_id || null);
-    setViewing(getDeepLinkedIncident(window.location.search, inc));
+    setViewing(current => resolveIncidentViewAfterLoad(current, window.location.search, inc));
     setLoading(false);
   };
 

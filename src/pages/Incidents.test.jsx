@@ -7,7 +7,11 @@ vi.hoisted(() => {
 vi.mock('@/services/appClient', () => ({ appClient: {} }));
 vi.mock('@/lib/criticalIncidentNotifier', () => ({ notifyCriticalIncident: vi.fn() }));
 
-import { buildCriticalIncidentRecord, getDeepLinkedIncident } from './Incidents';
+import {
+  buildCriticalIncidentRecord,
+  getDeepLinkedIncident,
+  resolveIncidentViewAfterLoad,
+} from './Incidents';
 
 const authorizedIncidents = [
   { id: '11111111-1111-4111-8111-111111111111', type: 'medical' },
@@ -15,6 +19,14 @@ const authorizedIncidents = [
 ];
 
 describe('incident deep links', () => {
+  it('preserves an intentional selection when a background refresh has no deep link', () => {
+    expect(resolveIncidentViewAfterLoad(
+      authorizedIncidents[0],
+      '',
+      authorizedIncidents,
+    )).toBe(authorizedIncidents[0]);
+  });
+
   it('opens the exact authorized incident from a valid view parameter', () => {
     expect(getDeepLinkedIncident(
       '?view=22222222-2222-4222-8222-222222222222',
