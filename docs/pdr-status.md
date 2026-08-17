@@ -28,7 +28,7 @@ This file separates repository completion from cutover completion. A green build
 - [x] Owner/Admin privilege tiers, operational roles, house assignments, resident routes, resident self-service capabilities, chat, chores, and audit immutability have database allow/deny coverage in the local candidate.
 - [x] Exited or deactivated residents lose linked read/write access, one Auth user cannot bind to multiple residents, and terminal signature responses cannot be rewritten.
 - [x] Only an Owner may grant Owner access; Admins may grant peer Admin access, and operational role and house changes use one transactional server operation.
-- [x] Pre-authorized first-administrator account claim plus versioned, resumable role-specific walkthrough UI and progress persistence are implemented in the local candidate; completing the underlying setup actions remains an external acceptance gate.
+- [x] Pre-authorized first-administrator account claim for a new empty organization plus versioned, resumable role-specific walkthrough UI and progress persistence are implemented in the local candidate; completing the underlying setup actions remains an external acceptance gate.
 - [x] Resident invitations bind one login to one approved resident record and start a resident-specific walkthrough in the local candidate.
 - [x] Public intake uses an opaque token, server-side validation, private attachments, and truthful background-check status.
 - [x] Oath Track migration commands support inspect, validate, dry run, import, reconciliation, rerun idempotency, attachment lineage, and rollback.
@@ -59,11 +59,11 @@ This file separates repository completion from cutover completion. A green build
 - [ ] Staff roster with roles and house assignments is approved.
 - [x] Business-owned Vercel-managed Supabase project is provisioned; all 15 repository migrations, Auth, private Storage, and six Edge Functions are deployed and structurally verified.
 - [x] Production tenant, migration ledger, and authentication URL allow list are verified.
-- [x] The release candidate's pre-authorized first-administrator claim, onboarding progress, peer-Admin, resident-access, and audited document-access migrations/functions are deployed and verified live without sending an invitation.
+- [x] The release candidate's empty-account first-administrator claim, onboarding progress, peer-Admin, resident-access, and audited document-access migrations/functions are deployed and verified live without sending an invitation. The current production organization already has an Owner, so its empty-account claim path is intentionally ineligible.
 - [x] Accepted preview compiles `VITE_AUTH_BYPASS=false` and `VITE_CLEARPATH_DEMO_MODE=false` against the new Supabase project.
 - [ ] Production is promoted from the accepted Git commit and both bypass flags are re-observed on that deployment.
 - [ ] A fresh technical verification artifact for the exact accepted 40-character commit, production Supabase project, and final source-package SHA-256 records all five required checks passing in order.
-- [ ] The first approved Account Admin completes claim and onboarding, then invites the approved management team with accepted roles and house assignments.
+- [ ] The existing approved Owner completes Owner onboarding, invites the first approved Account Admin through the staff invitation flow, and that Admin completes onboarding before either account invites the remaining approved management team with accepted roles and house assignments.
 - [ ] Approved residents receive separately bound portal invitations and pass resident capability acceptance.
 - [ ] Scrubbed rehearsal using the final Oath Track package passes reconciliation and operator acceptance.
 - [ ] Provider backup plus logical dump is restored into an isolated database and reconciled.

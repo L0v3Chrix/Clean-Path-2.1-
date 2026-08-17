@@ -54,7 +54,7 @@ Resident capability is limited to the resident portal, the home-house schedule, 
 | Staff | Standard operational access for explicitly assigned houses |
 | Resident | One linked resident record and the bounded resident-facing capabilities above |
 
-The required first-account operating sequence is:
+For a new organization with no active members, the required first-account operating sequence is:
 
 1. Validate a single-use, expiring, pre-authorized account claim for the named organization and email address; create the first membership as `admin` only after the claim succeeds.
 2. Capture the organization profile and require the six approved houses, including names, addresses, status, and room/bed structure.
@@ -62,12 +62,17 @@ The required first-account operating sequence is:
 4. Review organization-wide users, house-scoped users, pending invitations, and the capabilities each role receives; record the first administrator's confirmation in the cutover acceptance evidence.
 5. Use the versioned, resumable guided walkthrough tailored to the signed-in role. Progress is stored per user, can be dismissed and replayed, and never grants access or reports an action merely because a walkthrough step was viewed.
 
+The current production organization is not empty: it already has one active Owner. Its accepted sequence therefore starts with that Owner completing the Owner walkthrough and using the staff invitation flow to invite the first approved Admin. The empty-account claim must not be issued or reused for this tenant.
+
 The implemented versioned walkthroughs are:
 
-- Owner/Admin: organization and houses, bed capacity, team invitations and access review, resident intake, medication/document/incident safeguards, exports, and audit review.
-- Director: organization-wide operational dashboard, houses, residents, staffing, compliance, incidents, outcomes, and exports without identity-administration authority.
-- House Manager/Case Manager/Peer Support/Staff: assigned-house dashboard, shift handoff, resident workflow, chores, care plans, medications, incidents, and document boundaries according to role.
-- Resident: personal portal, assigned chores, permitted house chat, reflections, signatures, and the boundary between self-service and staff-managed records.
+- Owner/Admin: organization settings, six-house structure, bed capacity, team invitations and access review, incident response, compliance, and reporting review.
+- Director: organization-wide operating overview, bed capacity, staff coordination, safety trends, and reporting without identity-administration authority.
+- House Manager: assigned-house overview, resident roster, scheduling, chores, incidents, and house communication.
+- Case Manager: care overview, resident records, incident follow-up, care-team chat, and protected documents.
+- Peer Support: support overview, permitted resident context, support chat, and role training.
+- Staff: daily overview, permitted resident context, team chat, protected documents, and role training.
+- Resident: personal profile, assigned chores, permitted house chat, reflections, and signature requests.
 
 The walkthrough implementation is accepted only when the claim is auditable, refresh/resume works, invitation and role changes pass database allow/deny tests, no open signup can create or seize an organization, and each role's walkthrough is browser-tested at desktop and mobile widths. The six-house setup and management access review remain separate human cutover gates.
 
