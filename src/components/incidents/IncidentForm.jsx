@@ -29,6 +29,7 @@ export default function IncidentForm({ incident, residents, locations, staff, on
     confidential: true,
   });
   const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState('');
   const [autoAttrib, setAutoAttrib] = useState(null); // staff auto-detected from schedule
   const set = (k, v) => setForm(p => ({ ...p, [k]: v }));
 
@@ -62,7 +63,18 @@ export default function IncidentForm({ incident, residents, locations, staff, on
         </div>
 
         <form
-          onSubmit={async e => { e.preventDefault(); setSaving(true); await onSave(form); setSaving(false); }}
+          onSubmit={async e => {
+            e.preventDefault();
+            setSaving(true);
+            setSaveError('');
+            try {
+              await onSave(form);
+            } catch (error) {
+              setSaveError(error.message || 'Unable to save this incident report.');
+            } finally {
+              setSaving(false);
+            }
+          }}
           className="p-5 space-y-4 overflow-y-auto"
         >
           {/* Section: When & Where */}
@@ -223,6 +235,7 @@ export default function IncidentForm({ incident, residents, locations, staff, on
             </Select>
           </div>
 
+          {saveError && <p role="alert" className="text-sm text-red-700">{saveError}</p>}
           <div className="flex justify-end gap-3 pt-2">
             <Button type="button" variant="outline" onClick={onClose}>Cancel</Button>
             <Button type="submit" disabled={saving} style={{ background: '#B45309', color: '#fff' }}>

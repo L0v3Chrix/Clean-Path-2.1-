@@ -13,7 +13,64 @@ const statusConfig = {
   declined: { label: 'Declined', color: 'bg-red-100 text-red-700', icon: XCircle },
 };
 
-function SignModal({ request, onClose, onComplete }) {
+export const ESIGNATURE_SIGNED_URL_TTL_SECONDS = 600;
+const DOCUMENT_UNAVAILABLE_MESSAGE = 'Unable to open this secure document.';
+
+export async function resolveESignatureDocumentUrl(request) {
+  try {
+    const url = await appClient.integrations.Core.CreateSignedUrl(
+      request,
+      ESIGNATURE_SIGNED_URL_TTL_SECONDS,
+    );
+    if (!url) throw new Error('Signed URL was empty.');
+    return url;
+  } catch {
+    throw new Error(DOCUMENT_UNAVAILABLE_MESSAGE);
+  }
+}
+
+export async function authorizeSignatureDocument(request) {
+  const url = await resolveESignatureDocumentUrl(request);
+  if (request.status === 'pending') {
+    await appClient.entities.SignatureRequest.update(request.id, {
+      status: 'viewed',
+      viewed_at: new Date().toISOString(),
+    });
+  }
+  return url;
+}
+
+export function ESignatureDocumentLink({ request, className, label = 'View document' }) {
+  const [access, setAccess] = useState({ loading: false, error: '' });
+
+  const openDocument = async () => {
+    setAccess({ loading: true, error: '' });
+    try {
+      const url = await resolveESignatureDocumentUrl(request);
+      window.open(url, '_blank', 'noopener,noreferrer');
+      setAccess({ loading: false, error: '' });
+    } catch {
+      setAccess({ loading: false, error: DOCUMENT_UNAVAILABLE_MESSAGE });
+    }
+  };
+
+  if (access.loading) return <span className="text-xs text-slate-400 mt-1 inline-block">Preparing document...</span>;
+  if (access.error) {
+    return (
+      <button type="button" onClick={openDocument} className="text-xs text-red-600 hover:underline mt-1 inline-flex items-center gap-1">
+        <AlertCircle className="w-3 h-3" /> Document unavailable. Retry
+      </button>
+    );
+  }
+
+  return (
+    <button type="button" onClick={openDocument} className={className}>
+      {label}
+    </button>
+  );
+}
+
+function SignModal({ request, documentUrl, onClose, onComplete }) {
   const canvasRef = useRef(null);
   const [drawing, setDrawing] = useState(false);
   const [hasSignature, setHasSignature] = useState(false);
@@ -22,12 +79,6 @@ function SignModal({ request, onClose, onComplete }) {
   const [submitting, setSubmitting] = useState(false);
   const [declining, setDeclining] = useState(false);
   const [declineReason, setDeclineReason] = useState('');
-
-  useEffect(() => {
-    if (request.status === 'pending') {
-      appClient.entities.SignatureRequest.update(request.id, { status: 'viewed', viewed_at: new Date().toISOString() });
-    }
-  }, []);
 
   const startDraw = (e) => {
     const canvas = canvasRef.current;
@@ -65,7 +116,7 @@ function SignModal({ request, onClose, onComplete }) {
   };
 
   const handleSign = async () => {
-    if (!hasSignature || !name.trim()) return;
+    if (!documentUrl || !hasSignature || !name.trim()) return;
     setSubmitting(true);
     const signatureData = canvasRef.current.toDataURL('image/png');
     await appClient.entities.SignatureRequest.update(request.id, {
@@ -111,15 +162,15 @@ function SignModal({ request, onClose, onComplete }) {
             <div className="border rounded-xl overflow-hidden">
               <div className="bg-slate-50 px-4 py-2 border-b flex items-center justify-between">
                 <span className="text-sm font-medium text-slate-700">{request.file_name || 'Document'}</span>
-                <a href={request.file_url} target="_blank" rel="noopener noreferrer"
+                <a href={documentUrl} target="_blank" rel="noopener noreferrer"
                   className="flex items-center gap-1 text-xs text-teal-600 hover:underline">
                   <ExternalLink className="w-3 h-3" /> Open
                 </a>
               </div>
-              {request.file_url?.match(/\.(png|jpg|jpeg)$/i) ? (
-                <img src={request.file_url} alt="Document" className="w-full" />
+              {request.file_name?.match(/\.(png|jpg|jpeg)$/i) || documentUrl.match(/\.(png|jpg|jpeg)(?:\?|$)/i) ? (
+                <img src={documentUrl} alt="Document" className="w-full" />
               ) : (
-                <iframe src={request.file_url} title="Document" className="w-full h-80" />
+                <iframe src={documentUrl} title="Document" className="w-full h-80" />
               )}
             </div>
 
@@ -131,7 +182,10 @@ function SignModal({ request, onClose, onComplete }) {
             )}
 
             <div className="flex gap-3">
-              <Button className="flex-1 bg-amber-600 hover:bg-amber-700 text-white gap-2" onClick={() => setStep('sign')}>
+              <Button
+                className="flex-1 bg-amber-600 hover:bg-amber-700 text-white gap-2"
+                onClick={() => setStep('sign')}
+              >
                 <Pen className="w-4 h-4" /> Proceed to Sign
               </Button>
               <Button variant="outline" className="flex-1 text-red-600 border-red-200 hover:bg-red-50" onClick={() => setStep('decline')}>
@@ -190,7 +244,7 @@ function SignModal({ request, onClose, onComplete }) {
               <Button variant="outline" onClick={() => setStep('review')} className="flex-1">← Back</Button>
               <Button
                 className="flex-1 bg-green-600 hover:bg-green-700 text-white gap-2"
-                disabled={!hasSignature || !name.trim() || submitting}
+                disabled={!documentUrl || !hasSignature || !name.trim() || submitting}
                 onClick={handleSign}
               >
                 {submitting ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCircle2 className="w-4 h-4" />}
@@ -232,6 +286,8 @@ export default function ESignaturePanel({ resident }) {
   const [requests, setRequests] = useState([]);
   const [loading, setLoading] = useState(true);
   const [selected, setSelected] = useState(null);
+  const [openingId, setOpeningId] = useState(null);
+  const [openErrorId, setOpenErrorId] = useState(null);
 
   const load = async () => {
     setLoading(true);
@@ -243,6 +299,19 @@ export default function ESignaturePanel({ resident }) {
   useEffect(() => { load(); }, [resident?.id]);
 
   const pending = requests.filter(r => r.status === 'pending' || r.status === 'viewed');
+
+  const handleReview = async (request) => {
+    setOpeningId(request.id);
+    setOpenErrorId(null);
+    try {
+      const documentUrl = await authorizeSignatureDocument(request);
+      setSelected({ request, documentUrl });
+    } catch {
+      setOpenErrorId(request.id);
+    } finally {
+      setOpeningId(null);
+    }
+  };
 
   if (loading) return <div className="py-6 text-center text-slate-400 text-sm">Loading...</div>;
 
@@ -267,8 +336,10 @@ export default function ESignaturePanel({ resident }) {
                   {req.due_date && <p className="text-xs text-red-500">Due: {req.due_date}</p>}
                 </div>
                 <Button size="sm" className="bg-amber-600 hover:bg-amber-700 text-white gap-1 flex-shrink-0"
-                  onClick={() => setSelected(req)}>
-                  <Pen className="w-3.5 h-3.5" /> Review & Sign
+                  disabled={openingId === req.id}
+                  onClick={() => handleReview(req)}>
+                  {openingId === req.id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Pen className="w-3.5 h-3.5" />}
+                  {openingId === req.id ? 'Opening...' : openErrorId === req.id ? 'Retry Review' : 'Review & Sign'}
                 </Button>
               </div>
             ))}
@@ -291,10 +362,11 @@ export default function ESignaturePanel({ resident }) {
                     {req.signed_at && ` · ${format(new Date(req.signed_at), 'MMM d, yyyy')}`}
                   </Badge>
                 </div>
-                <a href={req.file_url} target="_blank" rel="noopener noreferrer"
-                  className="text-xs text-teal-600 hover:underline flex items-center gap-1">
-                  <ExternalLink className="w-3 h-3" /> View
-                </a>
+                <ESignatureDocumentLink
+                  request={req}
+                  className="text-xs text-teal-600 hover:underline flex items-center gap-1"
+                  label={<><ExternalLink className="w-3 h-3" /> View</>}
+                />
               </div>
             );
           })}
@@ -303,7 +375,8 @@ export default function ESignaturePanel({ resident }) {
 
       {selected && (
         <SignModal
-          request={selected}
+          request={selected.request}
+          documentUrl={selected.documentUrl}
           onClose={() => setSelected(null)}
           onComplete={() => { setSelected(null); load(); }}
         />

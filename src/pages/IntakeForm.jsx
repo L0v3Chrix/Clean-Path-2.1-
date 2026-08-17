@@ -1,6 +1,9 @@
 import { useState, useEffect, useRef } from 'react';
 import { appClient } from '@/services/appClient';
 import {
+  buildPublicIntakePayload, fileToDataUrl, loadPublicIntake, publicIntakeToken, submitPublicIntake,
+} from '@/services/publicIntake';
+import {
   CheckCircle, ChevronRight, ChevronLeft, Shield, PenLine,
   RotateCcw, Loader2, Upload, FileText, X, AlertCircle, Search
 } from 'lucide-react';
@@ -64,6 +67,9 @@ export default function IntakeForm() {
   const [submitting, setSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
   const [createdName, setCreatedName] = useState('');
+  const [formError, setFormError] = useState('');
+  const token = publicIntakeToken();
+  const isPublicIntake = Boolean(token);
 
   // Signature
   const canvasRef = useRef(null);
@@ -99,12 +105,17 @@ export default function IntakeForm() {
   const [orgName, setOrgName] = useState('ClearPath');
 
   useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    const paramOrgId = params.get('org');
+    if (isPublicIntake) {
+      loadPublicIntake(token).then(({ organization, locations: publicLocations }) => {
+        setOrgName(organization.name || 'ClearPath');
+        if (organization.house_rules) setHouseRules(organization.house_rules);
+        setLocations(publicLocations || []);
+      }).catch((error) => setFormError(error.message));
+      return;
+    }
 
     appClient.entities.Organization.list().then(orgs => {
-      // Use org from URL param if provided, otherwise fall back to first org
-      const org = paramOrgId ? orgs.find(o => o.id === paramOrgId) : orgs[0];
+      const org = orgs[0];
       if (org) {
         setOrgId(org.id);
         setOrgName(org.name || 'ClearPath');
@@ -113,18 +124,30 @@ export default function IntakeForm() {
     }).catch(() => {});
 
     appClient.entities.Location.filter({ status: 'active' }).then(locs => {
-      // If org param given, filter locations to that org
-      setLocations(paramOrgId ? locs.filter(l => l.organization_id === paramOrgId) : locs);
+      setLocations(locs);
     }).catch(() => {});
-  }, []);
+  }, [isPublicIntake, token]);
 
   // ── File upload ──────────────────────────────────────────────────────────
   const handleFileUpload = async (docKey, file) => {
     if (!file) return;
     setUploading(p => ({ ...p, [docKey]: true }));
-    const { file_url } = await appClient.integrations.Core.UploadFile({ file });
-    setUploadedDocs(p => ({ ...p, [docKey]: { file_url, name: file.name } }));
-    setUploading(p => ({ ...p, [docKey]: false }));
+    try {
+      if (file.size > 10_000_000) throw new Error('Files must be 10 MB or smaller.');
+      if (isPublicIntake) {
+        const data_url = await fileToDataUrl(file);
+        setUploadedDocs(p => ({ ...p, [docKey]: { data_url, name: file.name } }));
+      } else {
+        const upload = await appClient.integrations.Core.UploadFile({
+          file, bucket: 'intake-attachments', pathPrefix: 'staff-intake',
+        });
+        setUploadedDocs(p => ({ ...p, [docKey]: { ...upload, name: file.name } }));
+      }
+    } catch (error) {
+      setFormError(error.message);
+    } finally {
+      setUploading(p => ({ ...p, [docKey]: false }));
+    }
   };
 
   const removeDoc = (docKey) => {
@@ -177,36 +200,74 @@ export default function IntakeForm() {
   // ── Submit ───────────────────────────────────────────────────────────────
   const handleSubmit = async () => {
     setSubmitting(true);
+    setFormError('');
 
-    const sigDataUrl = canvasRef.current.toDataURL('image/png');
-    const residentName = `${form.first_name} ${form.last_name}`;
+    try {
+      const sigDataUrl = canvasRef.current.toDataURL('image/png');
+      const residentName = `${form.first_name} ${form.last_name}`;
 
-    const residentData = {
-      ...form,
+      if (isPublicIntake) {
+        await submitPublicIntake(buildPublicIntakePayload({
+          token,
+          form,
+          signatureDataUrl: sigDataUrl,
+          documents: uploadedDocs,
+        }));
+        setCreatedName(residentName);
+        setSubmitted(true);
+        return;
+      }
+
+      const {
+        emergency_contact_name, emergency_contact_phone, emergency_contact_relationship,
+        substances_used, treatment_history, mat_medications, ...residentFields
+      } = form;
+      const residentData = {
+      ...residentFields,
       organization_id: orgId || undefined,
       status: 'applicant',
       consent_signed: true,
       resident_agreement_signed: true,
       background_check_consent: bgConsent,
-      background_check_status: 'pending',
+      background_check_status: 'not_started',
       background_check_date: new Date().toISOString().split('T')[0],
       notes: [
         form.notes ? `[Intake Form]\n${form.notes}` : '[Intake Form — submitted digitally]',
-        form.substances_used ? `Substances: ${form.substances_used}` : '',
-        form.treatment_history ? `Treatment history: ${form.treatment_history}` : '',
-        form.mat_medications ? `MAT medications: ${form.mat_medications}` : '',
+        substances_used ? `Substances: ${substances_used}` : '',
+        treatment_history ? `Treatment history: ${treatment_history}` : '',
+        mat_medications ? `MAT medications: ${mat_medications}` : '',
       ].filter(Boolean).join('\n'),
-    };
+      };
 
     const created = await appClient.entities.Resident.create(residentData);
     const residentId = created?.id || created;
 
+    if (emergency_contact_name) {
+      await appClient.entities.ResidentContact.create({
+        organization_id: orgId,
+        resident_id: residentId,
+        name: emergency_contact_name,
+        phone: emergency_contact_phone,
+        relationship: emergency_contact_relationship,
+        is_emergency_contact: true,
+      });
+    }
+
     // Save e-signature document
+    const signatureBlob = await (await fetch(sigDataUrl)).blob();
+    const signatureUpload = await appClient.integrations.Core.UploadFile({
+      file: new File([signatureBlob], 'resident-agreement-signature.png', { type: 'image/png' }),
+      bucket: 'intake-attachments',
+      pathPrefix: 'staff-intake',
+      organizationId: orgId,
+    });
     await appClient.entities.ResidentDocument.create({
+      organization_id: orgId,
       resident_id: residentId,
+      location_id: form.location_id || null,
       document_type: 'resident_agreement',
       label: 'House Rules E-Signature',
-      file_url: sigDataUrl,
+      ...signatureUpload,
       signed_date: new Date().toISOString().split('T')[0],
       status: 'current',
       notes: `Digitally signed via intake form at ${signedAt}.`,
@@ -217,56 +278,26 @@ export default function IntakeForm() {
       REQUIRED_DOCS.filter(d => uploadedDocs[d.key]).map(d =>
         appClient.entities.ResidentDocument.create({
           resident_id: residentId,
+          organization_id: orgId,
+          location_id: form.location_id || null,
           document_type: d.doc_type,
           label: d.label,
-          file_url: uploadedDocs[d.key].file_url,
+          file_url: uploadedDocs[d.key].file_url || null,
+          storage_bucket: uploadedDocs[d.key].storage_bucket,
+          storage_path: uploadedDocs[d.key].storage_path,
           signed_date: new Date().toISOString().split('T')[0],
           status: 'current',
         })
       )
     );
 
-    // Notify all active staff
-    const allStaff = await appClient.entities.StaffMember.filter({ status: 'active' }).catch(() => []);
-    const staffToNotify = allStaff.filter(s => s.email);
-    const preferredLocation = locations.find(l => l.id === form.location_id);
-    const locationName = preferredLocation?.name || 'No preference';
-    const reviewUrl = `${window.location.origin}/residents`;
-    const submittedAt = new Date().toLocaleString();
-    const docList = REQUIRED_DOCS.filter(d => uploadedDocs[d.key]).map(d => `• ${d.label}`).join('<br/>');
-
-    await Promise.allSettled(staffToNotify.map(staff =>
-      appClient.integrations.Core.SendEmail({
-        to: staff.email,
-        subject: `🚨 New Application Pending — ${residentName} | Background Check Initiated`,
-        body: `
-<div style="font-family:sans-serif;max-width:600px;margin:0 auto;padding:24px;background:#FAF6EF;border-radius:12px;">
-  <div style="background:#FEE2E2;border:2px solid #FCA5A5;border-radius:10px;padding:14px 18px;margin-bottom:20px;">
-    <p style="margin:0;font-size:16px;font-weight:700;color:#991B1B;">🚨 New Applicant — Action Required</p>
-    <p style="margin:6px 0 0;font-size:13px;color:#B91C1C;">Review their application and follow up within the hour for best placement outcomes.</p>
-  </div>
-  <table style="width:100%;font-size:14px;color:#1C1917;border-collapse:collapse;margin-bottom:16px;">
-    <tr style="border-bottom:1px solid #E0D5C5;"><td style="padding:10px 4px;font-weight:600;color:#78716C;width:38%;">Applicant</td><td style="padding:10px 4px;font-weight:700;">${residentName}</td></tr>
-    <tr style="border-bottom:1px solid #E0D5C5;"><td style="padding:10px 4px;font-weight:600;color:#78716C;">Phone</td><td style="padding:10px 4px;">${form.phone || '—'}</td></tr>
-    <tr style="border-bottom:1px solid #E0D5C5;"><td style="padding:10px 4px;font-weight:600;color:#78716C;">Email</td><td style="padding:10px 4px;">${form.email || '—'}</td></tr>
-    <tr style="border-bottom:1px solid #E0D5C5;"><td style="padding:10px 4px;font-weight:600;color:#78716C;">Preferred Location</td><td style="padding:10px 4px;">${locationName}</td></tr>
-    <tr style="border-bottom:1px solid #E0D5C5;"><td style="padding:10px 4px;font-weight:600;color:#78716C;">Requested Move-in</td><td style="padding:10px 4px;">${form.intake_date}</td></tr>
-    <tr style="border-bottom:1px solid #E0D5C5;"><td style="padding:10px 4px;font-weight:600;color:#78716C;">Recovery Pathway</td><td style="padding:10px 4px;text-transform:capitalize;">${form.recovery_pathway?.replace(/_/g,' ') || '—'}</td></tr>
-    <tr style="border-bottom:1px solid #E0D5C5;"><td style="padding:10px 4px;font-weight:600;color:#78716C;">Background Check</td><td style="padding:10px 4px;color:#B45309;font-weight:600;">⏳ Pending — consent given</td></tr>
-    <tr style="border-bottom:1px solid #E0D5C5;"><td style="padding:10px 4px;font-weight:600;color:#78716C;">Documents Uploaded</td><td style="padding:10px 4px;">${docList || '—'}</td></tr>
-    <tr><td style="padding:10px 4px;font-weight:600;color:#78716C;">Submitted At</td><td style="padding:10px 4px;color:#065F46;font-weight:600;">${submittedAt}</td></tr>
-  </table>
-  <div style="text-align:center;margin:20px 0;">
-    <a href="${reviewUrl}" style="display:inline-block;background:#B45309;color:#fff;text-decoration:none;padding:12px 28px;border-radius:8px;font-weight:600;font-size:14px;">Review Full Application →</a>
-  </div>
-  <p style="font-size:12px;color:#A09080;text-align:center;">ClearPath — All staff are notified instantly when a new application arrives.</p>
-</div>`.trim(),
-      }).catch(() => {})
-    ));
-
-    setCreatedName(residentName);
-    setSubmitted(true);
-    setSubmitting(false);
+      setCreatedName(residentName);
+      setSubmitted(true);
+    } catch (error) {
+      setFormError(error.message || 'The application could not be submitted.');
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   // ── Success screen ───────────────────────────────────────────────────────
@@ -279,14 +310,14 @@ export default function IntakeForm() {
           </div>
           <h1 className="text-2xl font-bold" style={{ color: '#1C1917' }}>Application Submitted!</h1>
           <p style={{ color: '#78716C' }}>
-            Thank you, <strong>{createdName}</strong>. Your application has been received, your documents are on file, and a background check has been initiated. Staff have been notified and will be in touch shortly.
+            Thank you, <strong>{createdName}</strong>. Your application and documents have been received. Your background-check consent is recorded; staff will review the application and contact you about next steps.
           </p>
           <div className="rounded-xl p-4 text-left" style={{ background: '#F0E9DC', border: '1px solid #E0D5C5' }}>
             <p className="text-sm font-semibold mb-2" style={{ color: '#B45309' }}>What happens next?</p>
             <ul className="text-sm space-y-1.5" style={{ color: '#78716C' }}>
               <li>✅ Your applicant profile has been created</li>
               <li>✅ Uploaded documents are securely stored</li>
-              <li>🔍 Background check is <strong>pending</strong> — staff will update you</li>
+              <li>🔍 Background-check consent is recorded; no screening has been started by ClearPath</li>
               <li>📋 A house manager will review and contact you</li>
               <li>🏠 Housing placement will be confirmed upon approval</li>
             </ul>
@@ -300,6 +331,11 @@ export default function IntakeForm() {
   return (
     <div className="min-h-screen p-4 sm:p-6" style={{ background: '#FAF6EF' }}>
       <div className="max-w-2xl mx-auto">
+        {formError && (
+          <div className="mb-4 rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-800" role="alert">
+            {formError}
+          </div>
+        )}
         {/* Header */}
         <div className="flex items-center gap-3 mb-6">
           <div className="w-10 h-10 rounded-xl flex items-center justify-center" style={{ background: '#B45309' }}>

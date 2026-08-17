@@ -71,7 +71,7 @@ function ProgressBar({ goals }) {
 
 // ─── Goal Form ────────────────────────────────────────────────────────────────
 function GoalForm({ resident, editing, onSave, onClose }) {
-  const [form, setForm] = useState(editing || {
+  const [form, setForm] = useState(() => ({
     resident_id: resident.id,
     organization_id: resident.organization_id,
     term: 'short_term',
@@ -81,8 +81,13 @@ function GoalForm({ resident, editing, onSave, onClose }) {
     target_date: '',
     status: 'not_started',
     progress_notes: '',
-  });
+    ...editing,
+    description: editing?.description || '',
+    target_date: editing?.target_date || '',
+    progress_notes: editing?.progress_notes || '',
+  }));
   const [saving, setSaving] = useState(false);
+  const [error, setError] = useState('');
   const set = (k, v) => setForm(p => ({ ...p, [k]: v }));
 
   return (
@@ -92,7 +97,13 @@ function GoalForm({ resident, editing, onSave, onClose }) {
           <h3 className="font-bold" style={{ color: '#1C1917' }}>{editing ? 'Edit Goal' : 'Add Recovery Goal'}</h3>
           <button onClick={onClose}><X className="w-5 h-5" style={{ color: '#78716C' }} /></button>
         </div>
-        <form onSubmit={async e => { e.preventDefault(); setSaving(true); await onSave(form); setSaving(false); }} className="p-5 space-y-4">
+        <form onSubmit={async e => {
+          e.preventDefault();
+          setSaving(true);
+          setError('');
+          try { await onSave(form); } catch (saveError) { setError(saveError.message); }
+          finally { setSaving(false); }
+        }} className="p-5 space-y-4">
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-1.5">
               <Label>Term *</Label>
@@ -153,6 +164,7 @@ function GoalForm({ resident, editing, onSave, onClose }) {
               {saving ? 'Saving…' : 'Save Goal'}
             </Button>
           </div>
+          {error && <p role="alert" className="text-sm text-red-700">{error}</p>}
         </form>
       </div>
     </div>
@@ -160,11 +172,11 @@ function GoalForm({ resident, editing, onSave, onClose }) {
 }
 
 // ─── Task Form ────────────────────────────────────────────────────────────────
-function TaskForm({ resident, goals, editing, onSave, onClose }) {
-  const [form, setForm] = useState(editing || {
+function TaskForm({ resident, goals, editing, presetGoalId, onSave, onClose }) {
+  const [form, setForm] = useState(() => ({
     resident_id: resident.id,
     organization_id: resident.organization_id,
-    goal_id: '',
+    goal_id: presetGoalId || '',
     title: '',
     description: '',
     recurrence: 'once',
@@ -172,8 +184,15 @@ function TaskForm({ resident, goals, editing, onSave, onClose }) {
     assigned_to_name: '',
     status: 'pending',
     notes: '',
-  });
+    ...editing,
+    goal_id: editing?.goal_id || presetGoalId || '',
+    description: editing?.description || '',
+    due_date: editing?.due_date || '',
+    assigned_to_name: editing?.assigned_to_name || '',
+    notes: editing?.notes || '',
+  }));
   const [saving, setSaving] = useState(false);
+  const [error, setError] = useState('');
   const set = (k, v) => setForm(p => ({ ...p, [k]: v }));
 
   return (
@@ -183,7 +202,13 @@ function TaskForm({ resident, goals, editing, onSave, onClose }) {
           <h3 className="font-bold" style={{ color: '#1C1917' }}>{editing ? 'Edit Task' : 'Add Follow-Up Task'}</h3>
           <button onClick={onClose}><X className="w-5 h-5" style={{ color: '#78716C' }} /></button>
         </div>
-        <form onSubmit={async e => { e.preventDefault(); setSaving(true); await onSave(form); setSaving(false); }} className="p-5 space-y-4">
+        <form onSubmit={async e => {
+          e.preventDefault();
+          setSaving(true);
+          setError('');
+          try { await onSave(form); } catch (saveError) { setError(saveError.message); }
+          finally { setSaving(false); }
+        }} className="p-5 space-y-4">
           <div className="space-y-1.5">
             <Label>Task Title *</Label>
             <Input placeholder="e.g. Weekly check-in call" value={form.title} onChange={e => set('title', e.target.value)} required />
@@ -233,6 +258,7 @@ function TaskForm({ resident, goals, editing, onSave, onClose }) {
               {saving ? 'Saving…' : 'Save Task'}
             </Button>
           </div>
+          {error && <p role="alert" className="text-sm text-red-700">{error}</p>}
         </form>
       </div>
     </div>
@@ -247,7 +273,7 @@ function GoalCard({ goal, tasks, onEditGoal, onDeleteGoal, onAddTask, onEditTask
   const catCfg = CATEGORY_CONFIG[goal.category] || CATEGORY_CONFIG.other;
 
   return (
-    <div className="rounded-2xl overflow-hidden" style={{ border: `1px solid ${goal.status === 'completed' ? '#A7F3D0' : '#E0D5C5'}`, background: goal.status === 'completed' ? '#F0FDF4' : '#FEFCF8' }}>
+    <article aria-label={`Care plan goal: ${goal.title}`} className="rounded-2xl overflow-hidden" style={{ border: `1px solid ${goal.status === 'completed' ? '#A7F3D0' : '#E0D5C5'}`, background: goal.status === 'completed' ? '#F0FDF4' : '#FEFCF8' }}>
       {/* Goal header */}
       <div className="p-4">
         <div className="flex items-start gap-3">
@@ -279,8 +305,8 @@ function GoalCard({ goal, tasks, onEditGoal, onDeleteGoal, onAddTask, onEditTask
             )}
           </div>
           <div className="flex items-center gap-1 flex-shrink-0">
-            <button onClick={() => onEditGoal(goal)} className="p-1.5 rounded-lg hover:bg-amber-100" title="Edit"><Pencil className="w-3.5 h-3.5" style={{ color: '#B45309' }} /></button>
-            <button onClick={() => onDeleteGoal(goal.id)} className="p-1.5 rounded-lg hover:bg-red-50" title="Delete"><Trash2 className="w-3.5 h-3.5" style={{ color: '#DC2626' }} /></button>
+            <button onClick={() => onEditGoal(goal)} className="p-1.5 rounded-lg hover:bg-amber-100" title="Edit goal"><Pencil className="w-3.5 h-3.5" style={{ color: '#B45309' }} /></button>
+            <button onClick={() => onDeleteGoal(goal.id)} className="p-1.5 rounded-lg hover:bg-red-50" title="Delete goal"><Trash2 className="w-3.5 h-3.5" style={{ color: '#DC2626' }} /></button>
           </div>
         </div>
       </div>
@@ -299,7 +325,7 @@ function GoalCard({ goal, tasks, onEditGoal, onDeleteGoal, onAddTask, onEditTask
           </button>
         </div>
       )}
-    </div>
+    </article>
   );
 }
 
@@ -308,8 +334,8 @@ function TaskRow({ task, onEdit, onDelete, onToggle }) {
   const done = task.status === 'completed';
   const overdue = !done && task.due_date && isPast(parseISO(task.due_date));
   return (
-    <div className="flex items-center gap-3 py-1.5 px-2 rounded-xl group hover:bg-amber-50/50 transition-colors">
-      <button onClick={() => onToggle(task)} className="flex-shrink-0">
+    <article aria-label={`Care plan task: ${task.title}`} className="flex items-center gap-3 py-1.5 px-2 rounded-xl group hover:bg-amber-50/50 transition-colors">
+      <button aria-label={`${done ? 'Reopen' : 'Complete'} task ${task.title}`} onClick={() => onToggle(task)} className="flex-shrink-0">
         {done
           ? <CheckCircle2 className="w-4 h-4" style={{ color: '#059669' }} />
           : <Circle className="w-4 h-4" style={{ color: overdue ? '#DC2626' : '#A09080' }} />
@@ -337,7 +363,7 @@ function TaskRow({ task, onEdit, onDelete, onToggle }) {
         <button onClick={() => onEdit(task)} className="p-1 rounded hover:bg-amber-100" title="Edit"><Pencil className="w-3 h-3" style={{ color: '#B45309' }} /></button>
         <button onClick={() => onDelete(task.id)} className="p-1 rounded hover:bg-red-50" title="Delete"><Trash2 className="w-3 h-3" style={{ color: '#DC2626' }} /></button>
       </div>
-    </div>
+    </article>
   );
 }
 
@@ -510,6 +536,7 @@ export default function ResidentCarePlan({ resident }) {
           resident={resident}
           goals={goals}
           editing={taskForm?.id ? taskForm : null}
+          presetGoalId={taskForm?.goalId}
           onSave={saveTask}
           onClose={() => setTaskForm(null)}
         />

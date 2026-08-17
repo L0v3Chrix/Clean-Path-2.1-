@@ -1,7 +1,7 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState } from 'react';
 import {
-  X, Mic, MicOff, ChevronLeft, ChevronRight, Star,
-  CheckCircle2, Loader2, Sparkles, Volume2, ClipboardList,
+  X, ChevronLeft, ChevronRight, Star,
+  CheckCircle2, Loader2, Sparkles, ClipboardList,
   AlertTriangle, Phone, Video, Users
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -62,6 +62,23 @@ const SCORE_COLORS = {
   5: 'text-green-600',
 };
 
+export const INTERVIEW_SPEECH_POLICY = Object.freeze({
+  enabled: false,
+  approvedProvider: null,
+  consentMechanism: null,
+});
+
+export const INTERVIEW_AI_ERROR_MESSAGE = 'AI assessment is temporarily unavailable. Continue with staff notes and recommendations.';
+
+export async function requestInterviewAssessment(invokeLLM, prompt) {
+  try {
+    const result = await invokeLLM({ prompt });
+    return { summary: result?.output || '', error: '' };
+  } catch {
+    return { summary: '', error: INTERVIEW_AI_ERROR_MESSAGE };
+  }
+}
+
 function ScoreStars({ value, onChange }) {
   return (
     <div className="flex items-center gap-1">
@@ -93,55 +110,11 @@ export default function InterviewModal({ resident, onClose, onSaved }) {
   const [scores, setScores] = useState({});      // { qId: 1-5 }
   const [summaryNotes, setSummaryNotes] = useState('');
   const [recommendation, setRecommendation] = useState('pending');
-  const [listening, setListening] = useState(false);
   const [aiLoading, setAiLoading] = useState(false);
   const [aiSummary, setAiSummary] = useState('');
+  const [aiError, setAiError] = useState('');
   const [saving, setSaving] = useState(false);
-
-  const recognitionRef = useRef(null);
-
-  // ── Speech recognition setup ──
-  const startListening = (onResult) => {
-    const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
-    if (!SR) { alert('Speech recognition is not supported in this browser. Try Chrome on desktop.'); return; }
-    const rec = new SR();
-    rec.continuous = true;
-    rec.interimResults = true;
-    rec.lang = 'en-US';
-    let finalTranscript = '';
-    rec.onresult = (e) => {
-      let interim = '';
-      for (let i = e.resultIndex; i < e.results.length; i++) {
-        if (e.results[i].isFinal) finalTranscript += e.results[i][0].transcript + ' ';
-        else interim = e.results[i][0].transcript;
-      }
-      onResult(finalTranscript + interim);
-    };
-    rec.onerror = () => { setListening(false); };
-    rec.onend = () => { setListening(false); };
-    rec.start();
-    recognitionRef.current = rec;
-    setListening(true);
-  };
-
-  const stopListening = () => {
-    recognitionRef.current?.stop();
-    setListening(false);
-  };
-
-  useEffect(() => { return () => recognitionRef.current?.stop(); }, []);
-
-  const toggleListen = () => {
-    const qId = QUESTIONS[qIndex].id;
-    if (listening) {
-      stopListening();
-    } else {
-      const base = notes[qId] || '';
-      startListening((transcript) => {
-        setNotes(n => ({ ...n, [qId]: base + transcript }));
-      });
-    }
-  };
+  const llmConfigured = appClient.integrations?.Core?.providerStatus?.llm?.configured === true;
 
   // ── Scoring ──
   const overallScore = () => {
@@ -154,7 +127,9 @@ export default function InterviewModal({ resident, onClose, onSaved }) {
 
   // ── AI Summary ──
   const generateAISummary = async () => {
+    if (!llmConfigured) return;
     setAiLoading(true);
+    setAiError('');
     const qSummary = QUESTIONS.map(q => {
       const note = notes[q.id] || '';
       const score = scores[q.id] || 'not scored';
@@ -187,9 +162,13 @@ STAFF SUMMARY NOTES: ${summaryNotes || '(none)'}
 
 Write in a professional, trauma-informed tone. Keep it concise (under 250 words).`;
 
-    const result = await appClient.integrations.Core.InvokeLLM({ prompt });
-    setAiSummary(result);
-    setAiLoading(false);
+    try {
+      const result = await requestInterviewAssessment(appClient.integrations.Core.InvokeLLM, prompt);
+      setAiSummary(result.summary);
+      setAiError(result.error);
+    } finally {
+      setAiLoading(false);
+    }
   };
 
   // ── Save ──
@@ -255,7 +234,7 @@ Write in a professional, trauma-informed tone. Keep it concise (under 250 words)
           {phase === 'setup' && (
             <div className="p-6 space-y-5">
               <div className="bg-teal-50 border border-teal-200 rounded-xl px-4 py-3 text-sm text-teal-700">
-                This tool will guide you through the 25-question resident interview. You can type or use the microphone — put the phone on speaker and the mic will transcribe the applicant's responses in real time.
+                This tool will guide you through the 25-question resident interview. Enter only the notes needed for placement review.
               </div>
 
               <div className="space-y-1.5">
@@ -291,9 +270,9 @@ Write in a professional, trauma-informed tone. Keep it concise (under 250 words)
 
               {mode === 'phone' && (
                 <div className="bg-amber-50 border border-amber-200 rounded-xl px-4 py-3 flex items-start gap-2">
-                  <Volume2 className="w-4 h-4 text-amber-600 flex-shrink-0 mt-0.5" />
+                  <Phone className="w-4 h-4 text-amber-600 flex-shrink-0 mt-0.5" />
                   <p className="text-xs text-amber-700">
-                    <strong>Phone tip:</strong> Put the call on speaker and keep the device nearby. Tap the microphone button on each question to transcribe the applicant's voice responses automatically.
+                    <strong>Phone interview:</strong> Take written notes during the call. Browser transcription is disabled for resident privacy.
                   </p>
                 </div>
               )}
@@ -392,31 +371,16 @@ Write in a professional, trauma-informed tone. Keep it concise (under 250 words)
                 <ScoreStars value={scores[qId] || 0} onChange={v => setScores(s => ({ ...s, [qId]: v }))} />
               </div>
 
-              {/* Notes + mic */}
+              {/* Notes */}
               <div className="space-y-1.5">
-                <div className="flex items-center justify-between">
-                  <p className="text-xs font-semibold text-slate-600">Response Notes</p>
-                  <button
-                    onClick={toggleListen}
-                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all
-                      ${listening ? 'bg-red-500 text-white animate-pulse' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}
-                  >
-                    {listening ? <><MicOff className="w-3.5 h-3.5" /> Stop Listening</> : <><Mic className="w-3.5 h-3.5" /> Listen</>}
-                  </button>
-                </div>
+                <p className="text-xs font-semibold text-slate-600">Response Notes</p>
                 <Textarea
                   rows={4}
-                  placeholder="Type or use the mic to capture the applicant's response…"
+                  placeholder="Enter concise notes from the applicant's response..."
                   className="text-sm"
                   value={notes[qId] || ''}
                   onChange={e => setNotes(n => ({ ...n, [qId]: e.target.value }))}
                 />
-                {listening && (
-                  <p className="text-xs text-red-500 flex items-center gap-1">
-                    <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse inline-block" />
-                    Listening — speak clearly. Transcript appears above in real time.
-                  </p>
-                )}
               </div>
 
               {/* Nav */}
@@ -503,13 +467,21 @@ Write in a professional, trauma-informed tone. Keep it concise (under 250 words)
                 <Button
                   variant="outline"
                   onClick={generateAISummary}
-                  disabled={aiLoading}
+                  disabled={aiLoading || !llmConfigured}
                   className="w-full gap-2 border-purple-200 text-purple-700 hover:bg-purple-50"
                 >
-                  {aiLoading
+                  {!llmConfigured
+                    ? <><Sparkles className="w-4 h-4" /> AI Assessment Unavailable</>
+                    : aiLoading
                     ? <><Loader2 className="w-4 h-4 animate-spin" /> Generating AI Summary…</>
                     : <><Sparkles className="w-4 h-4" /> Generate AI Assessment</>}
                 </Button>
+                {!llmConfigured && (
+                  <p className="text-xs text-slate-500">No AI provider is configured. Staff notes and recommendations remain available.</p>
+                )}
+                {aiError && (
+                  <p role="alert" className="text-xs text-red-700 bg-red-50 border border-red-200 rounded-lg px-3 py-2">{aiError}</p>
+                )}
                 {aiSummary && (
                   <div className="bg-purple-50 border border-purple-200 rounded-xl p-4 text-sm text-purple-900 whitespace-pre-wrap leading-relaxed">
                     <p className="text-xs font-bold text-purple-600 mb-2 flex items-center gap-1"><Sparkles className="w-3.5 h-3.5" /> AI Assessment</p>

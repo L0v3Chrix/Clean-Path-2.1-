@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { toLocalDateInputValue } from '@/lib/localDate';
 import { format, addDays, startOfWeek, isToday } from 'date-fns';
 
 const ROLE_CFG = {
@@ -22,7 +23,7 @@ const STATUS_CFG = {
 
 function ShiftForm({ shift, staff, locations, onSave, onClose }) {
   const [form, setForm] = useState(shift || {
-    shift_date: new Date().toISOString().split('T')[0],
+    shift_date: toLocalDateInputValue(),
     start_time: '08:00',
     end_time: '16:00',
     staff_id: '',
@@ -32,6 +33,7 @@ function ShiftForm({ shift, staff, locations, onSave, onClose }) {
     notes: '',
   });
   const [saving, setSaving] = useState(false);
+  const [error, setError] = useState('');
   const set = (k, v) => setForm(p => ({ ...p, [k]: v }));
 
   return (
@@ -43,7 +45,13 @@ function ShiftForm({ shift, staff, locations, onSave, onClose }) {
         </div>
         <form
           className="p-5 space-y-4"
-          onSubmit={async e => { e.preventDefault(); setSaving(true); await onSave(form); setSaving(false); }}
+          onSubmit={async e => {
+            e.preventDefault();
+            setSaving(true);
+            setError('');
+            try { await onSave(form); } catch (saveError) { setError(saveError.message); }
+            finally { setSaving(false); }
+          }}
         >
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-1.5">
@@ -124,6 +132,7 @@ function ShiftForm({ shift, staff, locations, onSave, onClose }) {
               {saving ? 'Saving…' : shift ? 'Update Shift' : 'Assign Shift'}
             </Button>
           </div>
+          {error && <p role="alert" className="text-sm text-red-700">{error}</p>}
         </form>
       </div>
     </div>
@@ -139,6 +148,7 @@ export default function Scheduling() {
   const [showForm, setShowForm]   = useState(false);
   const [editing, setEditing]     = useState(null);
   const [locFilter, setLocFilter] = useState('all');
+  const [user, setUser]           = useState(null);
 
   const weekDays = Array.from({ length: 7 }, (_, i) => addDays(weekStart, i));
 
@@ -146,14 +156,16 @@ export default function Scheduling() {
 
   const loadAll = async () => {
     setLoading(true);
-    const [sh, st, lc] = await Promise.all([
+    const [sh, st, lc, currentUser] = await Promise.all([
       appClient.entities.Shift.list('-shift_date', 500),
       appClient.entities.StaffMember.list(),
       appClient.entities.Location.list(),
+      appClient.auth.me(),
     ]);
     setShifts(sh);
     setStaff(st);
     setLocations(lc);
+    setUser(currentUser);
     setLoading(false);
   };
 
@@ -177,7 +189,7 @@ export default function Scheduling() {
 
   const handleSave = async (data) => {
     if (data.id) await appClient.entities.Shift.update(data.id, data);
-    else await appClient.entities.Shift.create(data);
+    else await appClient.entities.Shift.create({ ...data, organization_id: user?.organization_id });
     setShowForm(false);
     setEditing(null);
     loadAll();
@@ -310,9 +322,19 @@ export default function Scheduling() {
                     return (
                       <div
                         key={s.id}
+                        role="button"
+                        tabIndex={0}
+                        aria-label={`Edit shift for ${s.staff_name || staffName(s.staff_id)} on ${s.shift_date} from ${s.start_time} to ${s.end_time}`}
                         className="rounded-lg p-2 group relative cursor-pointer hover:shadow-sm transition-shadow"
                         style={{ background: sc.bg, border: `1px solid ${rc.color}20` }}
                         onClick={() => { setEditing(s); setShowForm(true); }}
+                        onKeyDown={event => {
+                          if (event.key === 'Enter' || event.key === ' ') {
+                            event.preventDefault();
+                            setEditing(s);
+                            setShowForm(true);
+                          }
+                        }}
                       >
                         <p className="text-xs font-semibold truncate" style={{ color: '#1C1917' }}>
                           {s.staff_name || staffName(s.staff_id)}

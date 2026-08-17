@@ -26,12 +26,35 @@ const STATUS_CFG = {
 };
 
 const TYPES = ['relapse','overdose','behavioral','medical','property_damage','rule_violation','altercation','elopement','other'];
+const INCIDENT_ID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
+export function getDeepLinkedIncident(search, authorizedIncidents) {
+  const params = new URLSearchParams(search);
+  const requestedIds = params.getAll('view');
+  if (requestedIds.length !== 1 || !INCIDENT_ID_PATTERN.test(requestedIds[0])) return null;
+
+  const requestedId = requestedIds[0].toLowerCase();
+  return authorizedIncidents.find(incident => incident.id?.toLowerCase() === requestedId) || null;
+}
+
+export function resolveIncidentViewAfterLoad(currentViewing, search, authorizedIncidents) {
+  if (!new URLSearchParams(search).has('view')) return currentViewing;
+  return getDeepLinkedIncident(search, authorizedIncidents);
+}
+
+export function buildCriticalIncidentRecord(data, saved) {
+  return {
+    id: typeof saved === 'object' && saved ? saved.id : saved,
+    severity: data.severity,
+  };
+}
 
 export default function Incidents() {
   const [incidents, setIncidents] = useState([]);
   const [residents, setResidents] = useState([]);
   const [locations, setLocations] = useState([]);
   const [staff, setStaff]         = useState([]);
+  const [organizationId, setOrganizationId] = useState(null);
   const [loading, setLoading]     = useState(true);
   const [search, setSearch]       = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
@@ -49,16 +72,19 @@ export default function Incidents() {
 
   const loadData = async () => {
     setLoading(true);
-    const [inc, res, loc, st] = await Promise.all([
+    const [inc, res, loc, st, me] = await Promise.all([
       appClient.entities.IncidentReport.list('-incident_date', 200),
       appClient.entities.Resident.list(),
       appClient.entities.Location.list(),
       appClient.entities.StaffMember.list(),
+      appClient.auth.me(),
     ]);
     setIncidents(inc);
     setResidents(res);
     setLocations(loc);
     setStaff(st);
+    setOrganizationId(me.organization_id || inc[0]?.organization_id || loc[0]?.organization_id || null);
+    setViewing(current => resolveIncidentViewAfterLoad(current, window.location.search, inc));
     setLoading(false);
   };
 
@@ -253,20 +279,22 @@ export default function Incidents() {
           staff={staff}
           onSave={async (data) => {
             const isNew = !data.id;
+            if (isNew && !organizationId) {
+              throw new Error('Unable to determine the active organization. Reload and try again.');
+            }
             const saved = data.id
               ? await appClient.entities.IncidentReport.update(data.id, data)
-              : await appClient.entities.IncidentReport.create(data);
+              : await appClient.entities.IncidentReport.create({ ...data, organization_id: organizationId });
 
             // Critical incident notifications (new reports only)
             if (isNew && data.severity === 'critical') {
-              const incidentRecord = { ...data, id: saved?.id || saved };
-              const result = await notifyCriticalIncident(incidentRecord, staff, locations);
+              const result = await notifyCriticalIncident(buildCriticalIncidentRecord(data, saved));
               const incidentUrl = result?.incidentUrl;
 
               toast.error(
                 <div className="space-y-1">
                   <p className="font-bold text-sm">🔴 Critical Incident Logged</p>
-                  <p className="text-xs opacity-90">{data.type?.replace(/_/g, ' ')} — immediate attention required</p>
+                  <p className="text-xs opacity-90">Saved in ClearPath. {data.type?.replace(/_/g, ' ')} requires immediate attention.</p>
                   {incidentUrl && (
                     <a
                       href={incidentUrl}
@@ -276,8 +304,20 @@ export default function Incidents() {
                       View Incident Report →
                     </a>
                   )}
-                  {result?.recipientCount > 0 && (
-                    <p className="text-xs opacity-75">{result.recipientCount} staff member{result.recipientCount !== 1 ? 's' : ''} notified by email</p>
+                  {result?.deliveredCount > 0 && (
+                    <p className="text-xs opacity-75">Email delivery verified for {result.deliveredCount} staff member{result.deliveredCount !== 1 ? 's' : ''}.</p>
+                  )}
+                  {!result?.providerConfigured && result?.eligibleRecipientCount > 0 && (
+                    <p className="text-xs opacity-75">Staff email alerts were not delivered because no email provider is configured.</p>
+                  )}
+                  {result?.providerConfigured && result?.failedCount > 0 && (
+                    <p className="text-xs opacity-75">Email delivery could not be verified for {result.failedCount} staff member{result.failedCount !== 1 ? 's' : ''}.</p>
+                  )}
+                  {!result?.notificationFailed && result?.eligibleRecipientCount === 0 && (
+                    <p className="text-xs opacity-75">No active staff email recipients were available.</p>
+                  )}
+                  {result?.notificationFailed && (
+                    <p className="text-xs opacity-75">The incident was saved, but staff alerting could not be completed.</p>
                   )}
                 </div>,
                 { duration: 10000, style: { background: '#7F1D1D', color: '#FEF2F2', border: '1px solid #EF4444' } }

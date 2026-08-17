@@ -1,7 +1,14 @@
 import { useState, useEffect, useRef } from 'react';
 import { appClient } from '@/services/appClient';
-import { Upload, FileText, CheckCircle2, AlertTriangle, AlertCircle, Clock, Trash2, ExternalLink, PenLine } from 'lucide-react';
+import { Upload, FileText, CheckCircle2, AlertTriangle, AlertCircle, Clock, Trash2, ExternalLink, Download, Loader2, PenLine } from 'lucide-react';
 import { REQUIRED_DOCUMENTS, getResidentAlerts } from '@/lib/residentAlerts';
+import {
+  DEFAULT_RESIDENT_DOCUMENT_VISIBILITY,
+  downloadResidentDocumentUrl,
+  openResidentDocumentUrl,
+  persistResidentDocumentUpload,
+  resolveResidentDocumentUrl,
+} from '@/lib/residentDocuments';
 import { differenceInDays, parseISO, isValid } from 'date-fns';
 import ConsentFormModal from './ConsentFormModal';
 
@@ -50,12 +57,131 @@ const statusConfig = {
   missing:       { label: 'Missing',       color: 'bg-orange-100 text-orange-700', Icon: AlertTriangle },
 };
 
+const VISIBILITY_OPTIONS = [
+  { value: 'staff_and_admin', label: 'Staff and administrators' },
+  { value: 'resident_and_staff', label: 'Resident and staff' },
+  { value: 'admin_only', label: 'Administrators only' },
+];
+
+export function ResidentDocumentVisibilitySelector({
+  value = DEFAULT_RESIDENT_DOCUMENT_VISIBILITY,
+  onChange,
+  id = 'resident-document-visibility',
+}) {
+  const helpId = `${id}-help`;
+
+  return (
+    <div>
+      <label htmlFor={id} className="text-xs font-medium text-slate-700 mb-1 block">
+        Who should this document be available to?
+      </label>
+      <select
+        id={id}
+        value={value}
+        onChange={(event) => onChange(event.target.value)}
+        aria-describedby={helpId}
+        className="w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-800 focus:border-teal-500 focus:outline-none focus:ring-2 focus:ring-teal-100"
+      >
+        {VISIBILITY_OPTIONS.map(option => (
+          <option key={option.value} value={option.value}>{option.label}</option>
+        ))}
+      </select>
+      <p id={helpId} className="mt-1 text-xs text-slate-500">
+        Account permissions and resident assignments still apply.
+      </p>
+    </div>
+  );
+}
+
+export function ResidentDocumentAccessControls({ access, onOpen, onDownload, onRetry }) {
+  if (access.loading) {
+    return (
+      <span className="inline-flex items-center gap-1 text-xs text-slate-500" role="status">
+        <Loader2 className="w-3.5 h-3.5 animate-spin" /> Preparing document...
+      </span>
+    );
+  }
+
+  if (access.error) {
+    return (
+      <button
+        type="button"
+        onClick={onRetry}
+        className="inline-flex items-center gap-1 rounded px-1.5 py-1 text-xs text-red-600 hover:bg-red-50"
+        title="Retry secure document access"
+      >
+        <AlertCircle className="w-3.5 h-3.5" /> Document unavailable. Retry
+      </button>
+    );
+  }
+
+  return (
+    <div className="flex items-center gap-0.5">
+      <button
+        type="button"
+        onClick={onOpen}
+        className="p-1 rounded hover:bg-slate-200 text-slate-500"
+        title="Open document"
+      >
+        <ExternalLink className="w-3.5 h-3.5" />
+      </button>
+      <button
+        type="button"
+        onClick={onDownload}
+        className="p-1 rounded hover:bg-slate-200 text-slate-500"
+        title="Download document"
+      >
+        <Download className="w-3.5 h-3.5" />
+      </button>
+    </div>
+  );
+}
+
+function ResidentDocumentActions({ residentDocument }) {
+  const [access, setAccess] = useState({ loading: false, error: '', lastAction: 'open' });
+
+  const runAction = async (action) => {
+    setAccess({ loading: true, error: '', lastAction: action });
+    try {
+      const url = await resolveResidentDocumentUrl(
+        appClient.integrations.Core.CreateSignedUrl,
+        residentDocument,
+      );
+      if (action === 'download') {
+        const fileName = residentDocument.file_name
+          || DOC_TYPE_LABELS[residentDocument.document_type]
+          || 'Document';
+        downloadResidentDocumentUrl(url, fileName);
+      } else {
+        openResidentDocumentUrl(url);
+      }
+      setAccess({ loading: false, error: '', lastAction: action });
+    } catch {
+      setAccess({
+        loading: false,
+        error: 'Unable to access this secure document.',
+        lastAction: action,
+      });
+    }
+  };
+
+  return (
+    <ResidentDocumentAccessControls
+      access={access}
+      onOpen={() => runAction('open')}
+      onDownload={() => runAction('download')}
+      onRetry={() => runAction(access.lastAction)}
+    />
+  );
+}
+
 export default function ResidentDocuments({ resident }) {
   const [documents, setDocuments] = useState([]);
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState(null);
   const fileRef = useRef();
   const [pendingUploadType, setPendingUploadType] = useState(null);
+  const [visibilityScope, setVisibilityScope] = useState(DEFAULT_RESIDENT_DOCUMENT_VISIBILITY);
   const [consentFormDocType, setConsentFormDocType] = useState(null);
 
   useEffect(() => {
@@ -71,7 +197,17 @@ export default function ResidentDocuments({ resident }) {
 
   const triggerUpload = (docType) => {
     setPendingUploadType(docType);
-    fileRef.current?.click();
+    const existing = documents.some(document => document.document_type === docType);
+    if (existing) {
+      fileRef.current?.click();
+    } else {
+      setVisibilityScope(DEFAULT_RESIDENT_DOCUMENT_VISIBILITY);
+    }
+  };
+
+  const cancelPendingUpload = () => {
+    setPendingUploadType(null);
+    setVisibilityScope(DEFAULT_RESIDENT_DOCUMENT_VISIBILITY);
   };
 
   const handleFileChange = async (e) => {
@@ -79,26 +215,35 @@ export default function ResidentDocuments({ resident }) {
     if (!file || !pendingUploadType) return;
     e.target.value = '';
     setUploading(pendingUploadType);
-    const { file_url } = await appClient.integrations.Core.UploadFile({ file });
-    const existing = documents.find(d => d.document_type === pendingUploadType);
-    const payload = {
-      resident_id: resident.id,
-      location_id: resident.location_id,
-      organization_id: resident.organization_id || 'default',
-      document_type: pendingUploadType,
-      file_url,
-      signed_date: new Date().toISOString().split('T')[0],
-      status: 'current',
-    };
-    if (existing) {
-      const updated = await appClient.entities.ResidentDocument.update(existing.id, payload);
-      setDocuments(prev => prev.map(d => d.id === existing.id ? updated : d));
-    } else {
-      const created = await appClient.entities.ResidentDocument.create(payload);
-      setDocuments(prev => [...prev, created]);
+    try {
+      const upload = await appClient.integrations.Core.UploadFile({ file });
+      const documentData = {
+        resident_id: resident.id,
+        location_id: resident.location_id,
+        organization_id: resident.organization_id || 'default',
+        document_type: pendingUploadType,
+        file_url: upload.file_url,
+        storage_bucket: upload.storage_bucket,
+        storage_path: upload.storage_path,
+        signed_date: new Date().toISOString().split('T')[0],
+        status: 'current',
+      };
+      const { document: savedDocument, replacedId } = await persistResidentDocumentUpload({
+        residentDocumentService: appClient.entities.ResidentDocument,
+        documents,
+        documentData,
+        visibilityScope,
+      });
+      if (replacedId) {
+        setDocuments(prev => prev.map(d => d.id === replacedId ? savedDocument : d));
+      } else {
+        setDocuments(prev => [...prev, savedDocument]);
+      }
+    } finally {
+      setUploading(null);
+      setPendingUploadType(null);
+      setVisibilityScope(DEFAULT_RESIDENT_DOCUMENT_VISIBILITY);
     }
-    setUploading(null);
-    setPendingUploadType(null);
   };
 
   const handleDelete = async (docId) => {
@@ -118,6 +263,45 @@ export default function ResidentDocuments({ resident }) {
     <div className="space-y-3">
       <input ref={fileRef} type="file" className="hidden" onChange={handleFileChange}
         accept=".pdf,.doc,.docx,.jpg,.jpeg,.png" />
+
+      {pendingUploadType && !documents.some(document => document.document_type === pendingUploadType) && (
+        <div className="border border-slate-200 bg-slate-50 px-3 py-3 rounded-lg space-y-3">
+          <div>
+            <p className="text-sm font-semibold text-slate-800">
+              Add {DOC_TYPE_LABELS[pendingUploadType]
+                || REQUIRED_DOCUMENTS.find(document => document.type === pendingUploadType)?.label
+                || 'document'}
+            </p>
+            <p className="text-xs text-slate-500">Choose visibility before selecting the file.</p>
+          </div>
+          <ResidentDocumentVisibilitySelector
+            id={`resident-document-visibility-${pendingUploadType}`}
+            value={visibilityScope}
+            onChange={setVisibilityScope}
+          />
+          <div className="flex justify-end gap-2">
+            <button
+              type="button"
+              onClick={cancelPendingUpload}
+              disabled={uploading === pendingUploadType}
+              className="px-3 py-1.5 text-xs font-medium text-slate-600 hover:text-slate-900 disabled:opacity-50"
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              onClick={() => fileRef.current?.click()}
+              disabled={uploading === pendingUploadType}
+              className="inline-flex items-center gap-1.5 rounded-md bg-teal-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-teal-700 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              {uploading === pendingUploadType
+                ? <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                : <Upload className="w-3.5 h-3.5" />}
+              {uploading === pendingUploadType ? 'Uploading...' : 'Choose file'}
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Alert summary banner */}
       {alertCount > 0 && (
@@ -179,10 +363,7 @@ export default function ResidentDocuments({ resident }) {
                     </button>
                   )}
                   {doc?.file_url && (
-                    <a href={doc.file_url} target="_blank" rel="noopener noreferrer"
-                      className="p-1 rounded hover:bg-slate-200 text-slate-400">
-                      <ExternalLink className="w-3.5 h-3.5" />
-                    </a>
+                    <ResidentDocumentActions residentDocument={doc} />
                   )}
                   <button
                     onClick={() => triggerUpload(req.type)}
@@ -225,10 +406,7 @@ export default function ResidentDocuments({ resident }) {
               </div>
               <div className="flex items-center gap-1.5">
                 {doc.file_url && (
-                  <a href={doc.file_url} target="_blank" rel="noopener noreferrer"
-                    className="p-1 rounded hover:bg-slate-200 text-slate-400">
-                    <ExternalLink className="w-3.5 h-3.5" />
-                  </a>
+                  <ResidentDocumentActions residentDocument={doc} />
                 )}
                 <button onClick={() => handleDelete(doc.id)}
                   className="p-1 rounded hover:bg-red-100 text-red-400 opacity-0 group-hover:opacity-100 transition-opacity">

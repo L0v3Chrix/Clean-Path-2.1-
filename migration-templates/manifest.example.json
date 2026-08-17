@@ -1,0 +1,52 @@
+{
+  "sourceSystem": "oathtrack",
+  "organizationId": "[FILL: CLEARPATH_ORGANIZATION_UUID]",
+  "cutoffAt": "[FILL: ISO_8601_CUTOFF_TIMESTAMP]",
+  "cutoffApprovedBy": "[FILL: SLADE_OR_APPROVED_DATA_OWNER]",
+  "cutoffApprovedAt": "[FILL: ISO_8601_APPROVAL_TIMESTAMP]",
+  "sourceCounts": "source-counts.csv",
+  "dataDictionary": "data-dictionary.csv",
+  "staffRoster": "staff-roster.csv",
+  "financialTotals": "financial-totals.csv",
+  "attachmentManifest": "attachments.csv",
+  "files": [
+    {
+      "entity": "locations",
+      "path": "locations.csv",
+      "columnMap": {
+        "Oath Track House ID": "source_id",
+        "House Name": "name",
+        "Address": "address",
+        "City": "city",
+        "State": "state",
+        "ZIP": "zip",
+        "Total Beds": "total_beds",
+        "Status": "status",
+        "Local Settings Notes": "notes"
+      }
+    },
+    {
+      "entity": "residents",
+      "path": "residents.csv",
+      "columnMap": {
+        "Oath Track Resident ID": "source_id",
+        "Oath Track House ID": "source_location_id",
+        "First Name": "first_name",
+        "Last Name": "last_name",
+        "Status": "status"
+      }
+    },
+    { "entity": "staff_profiles", "path": "staff_profiles.csv" },
+    { "entity": "resident_contacts", "path": "resident_contacts.csv" },
+    { "entity": "bed_assignments", "path": "bed_assignments.csv" },
+    { "entity": "resident_documents", "path": "resident_documents.csv" },
+    { "entity": "care_plan_goals", "path": "care_plan_goals.csv" },
+    { "entity": "care_plan_tasks", "path": "care_plan_tasks.csv" },
+    { "entity": "medications", "path": "medications.csv" },
+    { "entity": "medication_logs", "path": "medication_logs.csv" },
+    { "entity": "incident_reports", "path": "incident_reports.csv" },
+    { "entity": "shifts", "path": "shifts.csv" },
+    { "entity": "resident_fees", "path": "resident_fees.csv" },
+    { "entity": "resident_payments", "path": "resident_payments.csv" }
+  ]
+}

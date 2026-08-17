@@ -7,11 +7,15 @@ This project is a compliance-ready foundation, not a HIPAA-compliant finished sy
 ## Current Status
 
 - Frontend: React, Vite, React Router, React Query, Tailwind, Radix/shadcn-style components.
-- Backend: Supabase Postgres, Supabase Auth, Supabase Storage.
+- Backend: business-owned Vercel-managed Supabase Postgres, Auth, private Storage, and Edge Functions.
 - Data access: browser-safe Supabase client in `src/lib/supabaseClient.js`.
 - Domain services: `src/services/*`.
-- Database schema: `supabase/migrations/20260516015100_initial_clearpath_schema.sql`.
+- Database schema: 15 tracked migrations under `supabase/migrations/`, including account onboarding, peer-Admin assignment, and resident portal hardening through `20260817120000_resident_portal_access_hardening.sql`.
 - Removable MVP sample data: `scripts/sample-data/*` and `docs/sample-data.md`.
+- Controlled Oath Track migration tooling: `scripts/migration/*` and `docs/migration.md`.
+- Public intake: opaque token, Supabase Edge Function validation, and private attachment storage.
+- Authorization: route checks plus database-enforced house assignments for operational staff.
+- Operations: audited CSV exports, privacy-minimized error events, a database-backed health endpoint, protected critical-incident notification, and restore/readiness verification commands.
 - External integrations such as SMS, QuickBooks, email marketing, and Amazon ordering are placeholders only.
 
 ## Architecture
@@ -125,7 +129,23 @@ Open the printed Vite URL in a browser, usually:
 open http://localhost:5173
 ```
 
-Create the first user from the ClearPath login screen. The first authenticated user can claim the seeded demo organization as `owner` through the included `bootstrap_organization_owner` RPC. After the first owner exists, add later users through `organization_members` or a future invite/admin screen.
+Open self-registration is disabled. Provision a new organization's first account through a single-use, pre-authorized claim; the first account receives the `admin` role by default. The command is read-only unless `--send` is present, requires a server-side Supabase key at runtime, and never prints the invite email, raw claim token, or credential:
+
+```bash
+# Preflight only
+npm run account:invite-first-admin -- \
+  --organization-id '[FILL: organization UUID]' \
+  --email '[FILL: approved administrator email]'
+
+# External mutation: run only after the exact recipient and organization are approved
+npm run account:invite-first-admin -- \
+  --organization-id '[FILL: organization UUID]' \
+  --email '[FILL: approved administrator email]' \
+  --display-name '[FILL: administrator name]' \
+  --send
+```
+
+Set `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY` (or `SUPABASE_SECRET_KEY`), and an exact `FIRST_ADMIN_INVITE_REDIRECT_URL` ending in `/accept-invite` in the operator environment. An administrator can then use the Staff screen to invite the management team, assign peer administrators and operational roles, assign houses to location-scoped roles, or request password recovery. Only an Owner can create or manage another Owner.
 
 Check that Vite is responding:
 
@@ -142,11 +162,19 @@ npm test
 npm run lint
 npm run typecheck
 npm run build
+# Requires CLEARPATH_EVIDENCE_SIGNING_KEY:
+npm run release:evidence -- --preview --report .migration-output/preview-release.json
+npm run test:db
+npm run test:e2e
+npm run verify
+npm run migration:validate -- .migration-input/manifest.json
 # Requires .env.sample-data.local and a seeded sample batch:
 npm run sample:validate
 ```
 
 Run a final dependency scan for any legacy backend provider names before release. Expected result: no matches.
+
+`npm run verify` is also enforced on pull requests by `.github/workflows/verify.yml`. The database-and-browser job starts a clean Supabase stack, applies every migration, runs the role/house/core-workflow acceptance matrix, seeds deterministic sample users, and runs Playwright with demo and auth bypasses disabled. Browser acceptance covers invitation-only entry, resumable desktop/mobile walkthroughs, resident/contact creation, tenant-owned house creation and editing, shift creation and editing, care-plan goal/task creation and updates, bed assignment, medication logging, incident handling, private staff and resident document access, anonymous public-intake submission with a private attachment and signature, audited exports, emailed resident and management account acceptance, staff password recovery, resident route boundaries, and logout, and rejects console or page errors. A standalone local `npm run test:e2e` expects that same seeded Supabase stack and its Edge Functions to be running.
 
 ## Dependency Map
 
@@ -162,26 +190,29 @@ Run a final dependency scan for any legacy backend provider names before release
 
 Slade has the shell of a serious recovery-housing operations system. It already has screens and data areas for residents, staff, houses/locations, incidents, medications, documents, compliance, training, scheduling, inventory, and owner visibility.
 
-The old app platform layer has been replaced with Supabase, which means ClearPath can now have its own database, login system, secure file storage, and permission rules instead of depending on the previous generated backend.
+The old app platform layer has been replaced with the business-owned Supabase project, so ClearPath now has its own database, login system, secure file storage, and permission rules instead of depending on the previous generated backend.
 
 What is real now:
 
 - A working React web app structure.
-- A Supabase database plan with the main tables needed for sober-living operations.
-- Security rules turned on at the database level.
-- Private file buckets planned for sensitive documents and medication photos.
+- A live Supabase database with the main tables needed for sober-living operations.
+- Security rules enforced and tested at the database level.
+- Four deployed private file buckets for sensitive documents, intake attachments, and medication photos.
 - Service files in the app that talk to Supabase instead of the old generated backend.
+- Invitation-only account acceptance, a pre-authorized first-administrator claim, management and resident invitations, and role-specific resumable walkthroughs in the release candidate.
+- All 15 repository migrations and six Edge Functions are deployed to the business-owned Supabase project, including the hardened staff/resident invitation and audited document-access services.
 - Placeholder areas for future integrations without buying or wiring them too early.
 
-What Slade still needs before production:
+What Slade still needs before the six-house cutover:
 
-- A real Supabase project owned by the business.
-- Real user accounts and organization membership rows.
-- A policy decision for who can see, edit, export, and delete each kind of record.
+- Completion of the first approved administrator's guided setup and the management access review.
+- The approved staff user roster, roles, and house assignments.
+- The complete six-house roster, source exports, data dictionary, source counts, attachments, user roster, and cutoff decision described in `docs/migration.md`.
 - A privacy/security review before storing sensitive health or resident information.
-- Production hosting, usually Vercel or similar.
+- Promotion of the accepted Git-backed Vercel preview after every cutover gate passes.
 - A real domain name.
-- Backup/export procedures.
+- A completed backup/restore drill against the business-owned Supabase database.
+- Server-managed migration, operational-evidence, and cutover-approval signing keys stored outside Git.
 - Written operating policies for staff use.
 - Actual vendor decisions only after the core app is stable.
 
@@ -193,14 +224,6 @@ What Slade should not buy yet:
 - Amazon ordering automation before inventory approval workflows are working.
 - Extra AI tools before the data model and permissions are stable.
 
-## New Repo Workflow
+## Repository Workflow
 
-This clone can be modified locally without changing the original source repository. When ready, create a new GitHub repository and push this working copy there:
-
-```bash
-git remote -v
-git remote set-url origin https://github.com/[FILL: owner]/[FILL: new-repo].git
-git push -u origin main
-```
-
-Use a new repository URL for the final push so the original repo remains untouched.
+`L0v3Chrix/Clean-Path-2.1-` is the canonical repository. Use protected feature branches and pull requests; Vercel previews must build from the exact commit under review. Do not merge the preserved divergent upstream architecture into the beta baseline wholesale.

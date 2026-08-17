@@ -1,0 +1,3 @@
+entity,source_field,description,allowed_values_or_format
+locations,Oath Track House ID,[FILL: stable source identifier],[FILL]
+residents,Oath Track Resident ID,[FILL: stable source identifier],[FILL]

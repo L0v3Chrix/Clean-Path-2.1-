@@ -1,0 +1,9 @@
+{
+  "sourceSystem": "oathtrack",
+  "organizationId": "20000000-0000-4000-8000-000000000010",
+  "cutoffAt": "2026-08-14T12:00:00.000Z",
+  "files": [
+    { "entity": "locations", "path": "locations.csv" },
+    { "entity": "residents", "path": "residents.csv" }
+  ]
+}

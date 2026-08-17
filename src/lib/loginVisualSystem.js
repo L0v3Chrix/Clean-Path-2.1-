@@ -1,8 +1,8 @@
 export const CLEARPATH_LOGIN_COPY = {
   headline: 'Welcome back to ClearPath',
   supportingLine: 'Your operating picture starts here',
-  demoKicker: 'Demo environment',
-  demoNote: 'Use only approved resident information.',
+  demoKicker: 'Protected workspace',
+  demoNote: 'Use only authorized resident information.',
 };
 
 export const CLEARPATH_LOGIN_MODES = {

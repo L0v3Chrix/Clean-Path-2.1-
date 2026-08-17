@@ -1,39 +1,21 @@
 import { useState, useEffect } from 'react';
-import { Link, useLocation, Outlet, useNavigate } from 'react-router-dom';
+import { Link, Navigate, useLocation, useNavigate, Outlet } from 'react-router-dom';
 import { appClient } from '@/services/appClient';
 import { demoModeEnabled } from '@/lib/authBypass';
+import { canAccessRoute, defaultRouteForRole, navForRole } from '@/lib/routeAccess';
+import { deriveOnboardingFlow, normalizeOnboardingProgress } from '@/lib/onboardingFlows';
+import { fromOnboardingRow, toOnboardingSaveInput } from '@/lib/onboardingPersistence';
+import OnboardingGuide from '@/components/onboarding/OnboardingGuide';
 import {
   Home, Users, Building2, MessageSquare,
   Shield, BarChart3, Settings, Menu,
   LogOut, Bell, User, AlertTriangle, ClipboardList, Package, TrendingUp, CalendarDays,
-  DollarSign, BookOpen, Lock, Zap, PieChart, Award, Activity, ClipboardCheck, FolderLock, Play, BedDouble
+  DollarSign, BookOpen, Lock, Zap, PieChart, Award, Activity, ClipboardCheck, FolderLock, Play, BedDouble, CircleHelp
 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { clsx } from 'clsx';
 import { twMerge } from 'tailwind-merge';
 const cn = (...inputs) => twMerge(clsx(inputs));
-
-const FULL_NAV = ['dashboard', 'bed_capacity', 'masterlist', 'applications', 'residents', 'locations', 'staff', 'scheduling', 'chores', 'incidents', 'incident_safety', 'chat', 'compliance', 'inventory', 'analytics', 'grants', 'outcomes', 'finance', 'training', 'hipaa', 'integrations', 'reports', 'secure_docs', 'settings', 'presentation'];
-
-const roleNavMap = {
-  // Full platform access — ownership/leadership only
-  admin:                  FULL_NAV,
-  platform_admin:         FULL_NAV,
-  owner:                  FULL_NAV,
-  director:               ['dashboard', 'bed_capacity', 'applications', 'residents', 'locations', 'staff', 'scheduling', 'incidents', 'incident_safety', 'chat', 'compliance', 'inventory', 'analytics', 'grants', 'outcomes', 'finance', 'training', 'hipaa', 'reports', 'secure_docs'],
-
-  // Operational staff
-  house_manager:          ['dashboard', 'masterlist', 'applications', 'residents', 'scheduling', 'chores', 'incidents', 'incident_safety', 'chat', 'inventory', 'compliance', 'training', 'secure_docs'],
-  assistant_manager:      ['dashboard', 'masterlist', 'applications', 'residents', 'scheduling', 'chores', 'incidents', 'incident_safety', 'chat', 'inventory', 'training', 'secure_docs'],
-  house_manager_trainee:  ['dashboard', 'masterlist', 'residents', 'scheduling', 'chores', 'chat', 'inventory', 'training'],
-  case_manager:           ['dashboard', 'masterlist', 'applications', 'residents', 'incidents', 'incident_safety', 'chat', 'inventory', 'training', 'secure_docs'],
-  peer_support:           ['dashboard', 'residents', 'chat', 'training'],
-  staff:                  ['dashboard', 'residents', 'chat', 'training', 'secure_docs'],
-
-  // Residents — portal only, no staff/admin views
-  resident:               ['my_profile', 'chat', 'resources'],
-  user:                   ['my_profile', 'chat', 'resources'],
-};
 
 const allNavItems = [
   { id: 'dashboard', label: 'Dashboard', icon: Home, path: '/' },
@@ -69,29 +51,85 @@ export default function Layout() {
   const [user, setUser] = useState(null);
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [onboardingProgress, setOnboardingProgress] = useState(null);
+  const [onboardingOpen, setOnboardingOpen] = useState(false);
+  const [onboardingError, setOnboardingError] = useState('');
   const location = useLocation();
   const navigate = useNavigate();
 
   useEffect(() => {
     appClient.auth.me().then(me => {
       setUser(me);
-      // Redirect residents to their portal if they land on admin pages
-      const residentRoles = ['resident', 'user'];
-      const isResidentRole = residentRoles.includes(me?.role);
-      const adminPaths = ['/residents', '/locations', '/staff', '/incidents', '/compliance', '/inventory', '/incident-safety', '/scheduling', '/intake'];
-      if (isResidentRole && (location.pathname === '/' || adminPaths.includes(location.pathname))) {
-        navigate('/my-profile', { replace: true });
-      }
     }).catch(() => {});
   }, []);
 
-  const userRole = user?.role || 'staff';
-  const isResident = userRole === 'resident' || userRole === 'user';
+  useEffect(() => {
+    if (!user?.id || !user.organization_id) return undefined;
+    const flow = deriveOnboardingFlow(user.role);
+    if (!flow) return undefined;
+
+    let active = true;
+    const loadProgress = async () => {
+      try {
+        const row = await appClient.onboarding.get({
+          organizationId: user.organization_id,
+          userId: user.id,
+          flow: flow.id,
+          version: flow.version,
+        });
+        const nextProgress = normalizeOnboardingProgress(user.role, fromOnboardingRow(row));
+        if (!row) {
+          await appClient.onboarding.save(toOnboardingSaveInput({
+            organizationId: user.organization_id,
+            userId: user.id,
+            progress: nextProgress,
+          }));
+        }
+        if (!active) return;
+        setOnboardingProgress(nextProgress);
+        setOnboardingOpen(!row || nextProgress.status === 'active');
+      } catch {
+        if (!active) return;
+        setOnboardingProgress(normalizeOnboardingProgress(user.role, null));
+        setOnboardingError('Walkthrough progress is temporarily unavailable.');
+      }
+    };
+    loadProgress();
+    return () => { active = false; };
+  }, [user]);
+
+  if (!user) {
+    return <div className="fixed inset-0 flex items-center justify-center bg-slate-50 text-sm text-slate-600">Loading workspace...</div>;
+  }
+
+  const userRole = user.role;
   const effectiveRole = userRole;
-  const allowedNav = roleNavMap[effectiveRole] || roleNavMap['staff'];
+  const allowedNav = navForRole(effectiveRole);
   const navItems = allNavItems.filter(item => allowedNav.includes(item.id));
 
+  if (allowedNav.length === 0) {
+    return <div className="fixed inset-0 flex items-center justify-center bg-slate-50 text-sm text-slate-700">This account does not have an assigned ClearPath role.</div>;
+  }
+
+  if (!canAccessRoute(effectiveRole, location.pathname)) {
+    return <Navigate to={defaultRouteForRole(effectiveRole)} replace />;
+  }
+
   const handleLogout = () => appClient.auth.logout();
+
+  const handleOnboardingSave = async (nextProgress) => {
+    setOnboardingProgress(nextProgress);
+    setOnboardingError('');
+    try {
+      await appClient.onboarding.save(toOnboardingSaveInput({
+        organizationId: user.organization_id,
+        userId: user.id,
+        progress: nextProgress,
+      }));
+    } catch {
+      setOnboardingError('Walkthrough progress could not be saved. Try again before signing out.');
+    }
+  };
 
   return (
     <div className="flex h-screen overflow-hidden cp-page cp-texture-bg">
@@ -199,6 +237,17 @@ export default function Layout() {
             </span>
           </div>
           <div className="flex items-center gap-2">
+            {onboardingProgress && (
+              <button
+                type="button"
+                className="cp-focus-ring inline-flex h-9 w-9 items-center justify-center rounded-md text-[#A09080] transition-colors hover:bg-white/10 hover:text-white"
+                onClick={() => setOnboardingOpen(true)}
+                aria-label="Open guided walkthrough"
+                title="Guided walkthrough"
+              >
+                <CircleHelp className="h-4 w-4" />
+              </button>
+            )}
             <button className="p-2 relative" style={{ color: '#A09080' }}>
               <Bell className="w-4 h-4" />
             </button>
@@ -215,9 +264,22 @@ export default function Layout() {
               Demo mode: this workspace uses fake sample data only. Do not enter real resident information or PHI here.
             </div>
           )}
+          {onboardingError && (
+            <div className="border-b border-amber-200 bg-amber-50 px-4 py-2 text-sm text-amber-900" role="status">
+              {onboardingError}
+            </div>
+          )}
           <Outlet />
         </main>
       </div>
+      <OnboardingGuide
+        userRole={effectiveRole}
+        progress={onboardingProgress}
+        open={onboardingOpen}
+        onOpenChange={setOnboardingOpen}
+        onSave={handleOnboardingSave}
+        onNavigate={(path) => navigate(path)}
+      />
     </div>
   );
 }

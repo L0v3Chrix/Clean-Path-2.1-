@@ -27,14 +27,21 @@ export default function DoseLogModal({ medication, resident, prefill, onSave, on
     notes: '',
   });
   const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState('');
   const set = (k, v) => setForm(p => ({ ...p, [k]: v }));
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setSaving(true);
-    await appClient.entities.MedicationLog.create(form);
-    onSave();
-    setSaving(false);
+    setSaveError('');
+    try {
+      await appClient.entities.MedicationLog.create(form);
+      await onSave();
+    } catch (error) {
+      setSaveError(error.message || 'Unable to log this dose.');
+    } finally {
+      setSaving(false);
+    }
   };
 
   return (
@@ -97,6 +104,7 @@ export default function DoseLogModal({ medication, resident, prefill, onSave, on
             <Textarea placeholder="Any observations…" value={form.notes} onChange={e => set('notes', e.target.value)} rows={2} />
           </div>
 
+          {saveError && <p role="alert" className="text-sm text-red-700">{saveError}</p>}
           <div className="flex justify-end gap-2">
             <Button type="button" variant="outline" size="sm" onClick={onClose}>Cancel</Button>
             <Button type="submit" size="sm" disabled={saving} style={{ background: '#B45309', color: '#fff' }}>

@@ -1,13 +1,18 @@
 import { useState, useEffect } from 'react';
 import { appClient } from '@/services/appClient';
-import { Shield, Plus, Eye, FileText, Lock, AlertTriangle, CheckCircle2, Search } from 'lucide-react';
+import { Shield, Eye, FileText, Lock, AlertTriangle, CheckCircle2, Search } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Button } from '@/components/ui/button';
 import { format } from 'date-fns';
 
 const ACTION_LABELS = {
   viewed_record: 'Viewed Record',
+  viewed_document: 'Viewed Document',
+  document_access_authorized: 'Document Access Authorized',
+  insert: 'Created Record',
+  update: 'Updated Record',
+  delete: 'Deleted Record',
+  public_intake_submitted: 'Public Intake Submitted',
   edited_record: 'Edited Record',
   exported_record: 'Exported Record',
   shared_record: 'Shared Record',
@@ -31,10 +36,10 @@ const ACTION_COLORS = {
 };
 
 const SAFEGUARDS = [
-  { icon: Lock, title: 'Access Controls', status: 'active', desc: 'Role-based access restricts PHI to authorized personnel only.' },
-  { icon: Eye, title: 'Audit Logging', status: 'active', desc: 'All PHI access is logged with timestamp, user, and reason.' },
-  { icon: Shield, title: 'Data Encryption', status: 'active', desc: 'All data at rest and in transit is encrypted via TLS/AES-256.' },
-  { icon: FileText, title: 'Staff Training', status: 'active', desc: 'HIPAA training modules available in Training Center.' },
+  { icon: Lock, title: 'Access Controls', status: 'active', desc: 'Database and route policies restrict core resident records by role and assigned house.' },
+  { icon: Eye, title: 'Audit Logging', status: 'active', desc: 'Core record changes and protected document opens are logged automatically.' },
+  { icon: Shield, title: 'Hosting Controls', status: 'review', desc: 'Verify encryption, retention, and contractual controls in the business-owned Supabase project.' },
+  { icon: FileText, title: 'Staff Training', status: 'review', desc: 'Assign, complete, and document required privacy training before cutover.' },
   { icon: AlertTriangle, title: 'Breach Response Plan', status: 'review', desc: 'Document and practice your breach notification procedure.' },
   { icon: CheckCircle2, title: 'Business Associate Agreements', status: 'review', desc: 'Ensure BAAs are signed with all vendors who access PHI.' },
 ];
@@ -45,17 +50,12 @@ export default function HipaaCompliance() {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [filterAction, setFilterAction] = useState('all');
-  const [orgId, setOrgId] = useState(null);
-  const [showLogForm, setShowLogForm] = useState(false);
-  const [newLog, setNewLog] = useState({ action: 'viewed_record', resource_type: '', description: '', access_reason: '' });
 
   const load = async () => {
-    const [orgs, auditLogs, res] = await Promise.all([
-      appClient.entities.Organization.list(),
+    const [auditLogs, res] = await Promise.all([
       appClient.entities.HipaaAuditLog.list('-created_date', 200),
       appClient.entities.Resident.filter({ status: 'active' }),
     ]);
-    if (orgs[0]) setOrgId(orgs[0].id);
     setLogs(auditLogs);
     setResidents(res);
     setLoading(false);
@@ -69,19 +69,6 @@ export default function HipaaCompliance() {
     return matchSearch && matchAction;
   });
 
-  const handleLogAccess = async () => {
-    const me = await appClient.auth.me();
-    await appClient.entities.HipaaAuditLog.create({
-      ...newLog,
-      organization_id: orgId,
-      performed_by_name: me.full_name || me.email,
-      performed_by_id: me.id,
-    });
-    setShowLogForm(false);
-    setNewLog({ action: 'viewed_record', resource_type: '', description: '', access_reason: '' });
-    load();
-  };
-
   if (loading) return <div className="flex items-center justify-center min-h-64"><div className="w-8 h-8 border-4 border-amber-200 border-t-amber-600 rounded-full animate-spin" /></div>;
 
   return (
@@ -91,9 +78,7 @@ export default function HipaaCompliance() {
           <h1 className="text-2xl font-bold text-slate-900">HIPAA Compliance</h1>
           <p className="text-sm text-slate-500 mt-0.5">PHI access audit trail, safeguards status, and privacy accountability.</p>
         </div>
-        <Button className="bg-amber-600 hover:bg-amber-700 text-white" onClick={() => setShowLogForm(true)}>
-          <Plus className="w-4 h-4" /> Log Access
-        </Button>
+        <div className="text-xs text-slate-500">Automated events from protected workflows</div>
       </div>
 
       {/* Safeguards status */}
@@ -135,38 +120,6 @@ export default function HipaaCompliance() {
           </div>
         ))}
       </div>
-
-      {/* Log access form */}
-      {showLogForm && (
-        <div className="bg-white rounded-2xl border border-slate-200 p-5 space-y-3">
-          <h3 className="font-bold text-slate-800">Log PHI Access</h3>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <div>
-              <label className="text-xs font-medium text-slate-500">Action Type</label>
-              <Select value={newLog.action} onValueChange={v => setNewLog(f => ({ ...f, action: v }))}>
-                <SelectTrigger className="mt-1"><SelectValue /></SelectTrigger>
-                <SelectContent>{Object.entries(ACTION_LABELS).map(([k, v]) => <SelectItem key={k} value={k}>{v}</SelectItem>)}</SelectContent>
-              </Select>
-            </div>
-            <div>
-              <label className="text-xs font-medium text-slate-500">Resource Type</label>
-              <Input className="mt-1" value={newLog.resource_type} onChange={e => setNewLog(f => ({ ...f, resource_type: e.target.value }))} placeholder="e.g. Resident Record" />
-            </div>
-            <div>
-              <label className="text-xs font-medium text-slate-500">Description</label>
-              <Input className="mt-1" value={newLog.description} onChange={e => setNewLog(f => ({ ...f, description: e.target.value }))} placeholder="Brief description of access" />
-            </div>
-            <div>
-              <label className="text-xs font-medium text-slate-500">Access Reason</label>
-              <Input className="mt-1" value={newLog.access_reason} onChange={e => setNewLog(f => ({ ...f, access_reason: e.target.value }))} placeholder="Clinical or operational reason" />
-            </div>
-          </div>
-          <div className="flex gap-2 pt-1">
-            <Button variant="outline" className="flex-1" onClick={() => setShowLogForm(false)}>Cancel</Button>
-            <Button className="flex-1 bg-amber-600 hover:bg-amber-700 text-white" onClick={handleLogAccess} disabled={!newLog.resource_type}>Log Access</Button>
-          </div>
-        </div>
-      )}
 
       {/* Audit log */}
       <div className="rounded-2xl overflow-hidden" style={{ border: '1px solid #E0D5C5' }}>

@@ -20,7 +20,7 @@ export const entityConfigs = {
   MedicationLog: { table: 'medication_logs', bucket: null },
   MorningReflection: { table: 'morning_reflections', bucket: null },
   NarrCompliance: { table: 'compliance_items', bucket: null },
-  Organization: { table: 'organizations', bucket: null },
+  Organization: { table: 'organizations', bucket: null, tenantScoped: false },
   OrganizationMember: { table: 'organization_members', bucket: null },
   BedAssignment: { table: 'bed_assignments', bucket: null },
   ProcurementRequest: { table: 'procurement_requests', bucket: null },
@@ -50,6 +50,7 @@ export function getEntityConfig(entityName) {
   }
   return {
     ...config,
+    tenantScoped: config.tenantScoped !== false,
     schema: {
       name: entityName,
       table: config.table,

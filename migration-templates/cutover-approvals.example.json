@@ -1,0 +1,25 @@
+{
+  "schemaVersion": 1,
+  "artifactType": "clearpath-cutover-approvals",
+  "bindings": {
+    "canonicalCommit": "[FILL: exact accepted 40-character Git commit]",
+    "runId": "[FILL: completed migration run UUID]",
+    "packageSha256": "[FILL: final source package SHA-256]",
+    "productionDeploymentId": "[FILL: accepted production Vercel deployment ID]"
+  },
+  "completedAt": "[FILL: ISO-8601 after final production health and smoke checks]",
+  "slade": {
+    "name": "Slade",
+    "role": "Product and data owner",
+    "approved": false,
+    "approvedAt": null
+  },
+  "houseRepresentatives": [
+    { "sourceId": "[FILL: HOUSE_1_SOURCE_ID]", "house": "[FILL: HOUSE_1_NAME]", "name": "[FILL: representative]", "role": "[FILL]", "approved": false, "approvedAt": null },
+    { "sourceId": "[FILL: HOUSE_2_SOURCE_ID]", "house": "[FILL: HOUSE_2_NAME]", "name": "[FILL: representative]", "role": "[FILL]", "approved": false, "approvedAt": null },
+    { "sourceId": "[FILL: HOUSE_3_SOURCE_ID]", "house": "[FILL: HOUSE_3_NAME]", "name": "[FILL: representative]", "role": "[FILL]", "approved": false, "approvedAt": null },
+    { "sourceId": "[FILL: HOUSE_4_SOURCE_ID]", "house": "[FILL: HOUSE_4_NAME]", "name": "[FILL: representative]", "role": "[FILL]", "approved": false, "approvedAt": null },
+    { "sourceId": "[FILL: HOUSE_5_SOURCE_ID]", "house": "[FILL: HOUSE_5_NAME]", "name": "[FILL: representative]", "role": "[FILL]", "approved": false, "approvedAt": null },
+    { "sourceId": "[FILL: HOUSE_6_SOURCE_ID]", "house": "[FILL: HOUSE_6_NAME]", "name": "[FILL: representative]", "role": "[FILL]", "approved": false, "approvedAt": null }
+  ]
+}
