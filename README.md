@@ -200,11 +200,11 @@ What is real now:
 - Four deployed private file buckets for sensitive documents, intake attachments, and medication photos.
 - Service files in the app that talk to Supabase instead of the old generated backend.
 - Invitation-only account acceptance, a pre-authorized first-administrator claim, management and resident invitations, and role-specific resumable walkthroughs in the release candidate.
+- All 15 repository migrations and six Edge Functions are deployed to the business-owned Supabase project, including the hardened staff/resident invitation and audited document-access services.
 - Placeholder areas for future integrations without buying or wiring them too early.
 
 What Slade still needs before the six-house cutover:
 
-- Deployment and live verification of the release candidate's account-claim, onboarding, role, and resident-access migrations and Edge Functions.
 - Completion of the first approved administrator's guided setup and the management access review.
 - The approved staff user roster, roles, and house assignments.
 - The complete six-house roster, source exports, data dictionary, source counts, attachments, user roster, and cutoff decision described in `docs/migration.md`.

@@ -22,6 +22,12 @@
 ## Session: 2026-08-16
 
 ### Accomplished
+- Verified implementation commit `6bfa01dbbd46959d2231efb621168a83c0690b2a` with GitHub Actions run `31990268208`; application, clean-database/browser, and exact Git-backed Vercel preview checks all passed.
+- Verified Ready preview `clearpath-rcl-e5xvzncyu-enterweb-guru.vercel.app`, GitHub deployment `5938310508`, renders the protected ClearPath sign-in from the exact release-candidate commit.
+- Applied and ledgered migrations `20260817100000` through `20260817120000`, bringing `clearpath-production` to all 15 repository migrations with zero direct-write RLS policies on membership, house-assignment, or staff-profile tables.
+- Added production Edge Function secrets for the approved invite redirect and public Supabase URL, deployed `invite-resident` and `document-access`, and refreshed `invite-staff`; the live inventory now contains six functions.
+- Verified health and public-intake preflight return HTTP 200, while unauthenticated staff invitation, resident invitation, document access, and incident notification return HTTP 401.
+- Confirmed deployment did not send invitations or provision users: production remains at one organization, one Auth user, one active Owner, zero account claims, zero user invitations, and zero resident login bindings.
 - Verified GitHub Actions run `31977223444` on commit `12eac7ae384294c71735c4c4a909e30ba8fcc7fd`: application and database/browser jobs plus the exact Git-backed Vercel preview all passed.
 - Verified preview deployment `dpl_J2qAhyFjza8jzZcpjZzuRoH5r7g4` is Ready, Git-sourced from the exact commit, and publishes matching release metadata with both demo and auth bypass flags disabled against Supabase project `dcfldvtdrpukaojkpvzp`.
 - Applied and ledgered migrations `20260816130000` through `20260816160000` on `clearpath-production`, bringing the live database to all 12 repository migrations.
